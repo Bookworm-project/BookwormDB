@@ -1,0 +1,13 @@
+This is the code repository for BUILDING the databases we're working with on Bookworm. The Bookworm project is a separate github 
+directory at mcamac/Bookworm. That project is for the bookworm web site, which lives in a single directory on the web server; this 
+project gathers together the various snippets of code that we'll need to run on many different computers.
+
+Much of this code is going to rely on directory structures that may only exist on certain machines. In general, I think we will 
+assume access to the following directories, with filepaths relative to /Presidio:
+
+1) ../books. This is where the actual texts are going to live; subdirectories may carry different variations of them.
+
+2) ../metadata. (On Wumpus, currently at ../code) This is where we'll store information like filenames, wordid lookup tables, and 
+logs that we don't want pushed to git.
+
+3) A MySQL database. 
