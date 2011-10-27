@@ -1,0 +1,1 @@
+myisamchk: error: You don't have permission to use '/var/lib/mysql/presidio/master_bigrams.MYI'
