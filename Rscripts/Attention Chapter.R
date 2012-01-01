@@ -162,6 +162,7 @@ find_distinguishing_words <- function (
   )
   z = compare_groups(core_search)
 }
+
 words = find_distinguishing_words(
   word1 = list('focus'),
   word2 = list('attention'),

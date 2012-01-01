@@ -4,6 +4,8 @@ require(RMySQL)
 require(ggplot2)
 con = dbConnect(MySQL(),db="presidio")
 
+#install.packages("RMySQL")
+
 APIcall = function(constraints = 
      list(method = 'ratio_query',
       smoothingType="None",      
@@ -179,23 +181,24 @@ wordgrid <- function (
 
 
 flagBookids = function(bookids,flag=1,preclear=T) {
-  
  if (preclear) {
   dbGetQuery(con,"UPDATE catalog SET bflag=0")
  }
-
- dbGetQuery(con,paste("UPDATE catalog SET bflag = ",flag," WHERE ",
+ dbGetQuery(con,
+            paste("UPDATE catalog SET bflag = ",flag," WHERE ",
                       paste("bookid=",bookids,collapse = " OR ")))
 }
 
-flagWordids = function(words,field='casesens') {
- dbGetQuery(con,"UPDATE wordsheap SET wflag=0")
+flagWordids = function(words,field='casesens',n=1,preclear=T) {
+ if (preclear) {
+   dbGetQuery(con,"UPDATE wordsheap SET wflag=0")
+ }
  wordfield = paste(field,'=')
  if (length(grep("'",words)) > 0) {
    cat ("removing words because of quotations")
    words = words[grep("'",words,invert=T)]
  }
- dbGetQuery(con,paste("UPDATE wordsheap SET wflag = 1 WHERE ",
+ dbGetQuery(con,paste("UPDATE wordsheap SET wflag = ", n, " WHERE ",
                       paste(wordfield,"'",words,"'",sep="",collapse = " OR ")))
 }
 
