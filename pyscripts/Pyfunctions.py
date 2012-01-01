@@ -16,7 +16,7 @@ if True:
     texts_directory = "/group/culturomics/books"
     downloads_directory = "/home/bschmidt/IA"
     mysql_directory = "/var/lib/mysql/data/presidio"
-    cnx = MySQLdb.connect(host='melville.seas.harvard.edu',user='bschmidt',passwd='newton',db='presidio',unix_socket="/var/run/mysqld/mysqld.sock",use_unicode = 'True',charset='utf8')
+    cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = "presidio")
     cursor = cnx.cursor()
     cursor.execute("SET NAMES 'utf8'")
     #import nltk
@@ -308,11 +308,12 @@ def create_memory_tables():
         word VARCHAR(31), INDEX(word),
         stem VARCHAR(31), INDEX(stem),
         casesens VARBINARY(31), INDEX (casesens),
+        lowercase VARCHAR(31),INDEX(lowercase),
         ffix VARCHAR(31), INDEX (ffix),
         IDF FLOAT,
         wflag TINYINT,
         PRIMARY KEY (wordid)) ENGINE = MEMORY""")
-    cursor.execute("""INSERT INTO tmpheap (wordid,word,stem,casesens,ffix,IDF) SELECT wordid,word,stem,casesens,ffix,IDF FROM words where wordid <= 1000000;""")
+    cursor.execute("""INSERT INTO tmpheap (wordid,word,stem,casesens,lowercase,ffix,IDF) SELECT wordid,word,stem,casesens,lowercase,ffix,IDF FROM words where wordid <= 1000000;""")
     cursor.execute("drop table if exists wordsheap")
     cursor.execute("RENAME TABLE tmpheap to wordsheap")
     cursor.execute("""CREATE TABLE tmpheap (
