@@ -44,8 +44,7 @@ ageplot = function(
 
   model = loess(ratio ~ author_age+year,mylist,weights = nwords,span=loess.span)
   linear = lm(ratio ~ author_age+year,mylist,weights = nwords)
-  summary(linear)
-  summary(model)
+
   mylist = mylist[mylist$author_age %in% permitted_values[['author_age']],]
   mylist = mylist[mylist$year %in% permitted_values[['year']],]
   size = c(200,200)

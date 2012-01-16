@@ -181,5 +181,16 @@ p = median_ages(limits)
 z = median_ages(list("word"=list("smile")));z + geom_smooth(se=F,lwd=2,span=.3)
 
 plot(z[,1],z[,2]-p[,2],type='l')
+source('Word Spread.R')
+  genres =genreplot(list('Focus attention'),
+            grouping=list('lc1'),
+            groupings_to_use = 30,
+            counttype = 'Occurrences_per_Million_Words',
+            ordering=NULL,
+            years=c(1870,1922),
+            smoothing=6,
+            comparison_words = list(),
+            words_collation='All_Words_with_Same_Stem')
+  genres  
 
-
+ggplot(melt(volcano)) + geom_tile()
