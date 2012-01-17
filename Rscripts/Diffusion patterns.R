@@ -2,25 +2,64 @@ setwd('/presidio/Rscripts')
 rm(list=ls())
 source("Rbindings.R")
 source('Word Spread.R')
+
 #First I flag some interesting words from the other computer.
+
 words = dbGetQuery(con,"SELECT word,IDF FROM wordsheap WHERE wflag=1 and stem IS NOT NULL")
+morewords = dbGetQuery(con,"SELECT words.word,count,books FROM words JOIN wordsheap USING (wordid) WHERE wflag=1 and words.stem IS NOT NULL")
 words = words[grep("\\d",words$word,perl=T,invert=T),]
 words[rev(order(words$IDF)),]
 dim(words)
-agedata = function(word) {
+agedata = function(word,counttype = 'Percentage_of_Books') {
   f = genreplot(list(word),
             grouping='author_age',
             groupings_to_use = 63,
-            counttype = 'Occurrences_per_Million_Words',
+            counttype = counttype,
+            #counttype = 'Occurrences_per_Million_Words',
             ordering=NULL,
             years=c(1850,1922),
             smoothing=7,
             comparison_words = list(),
             words_collation='Case_Insensitive') + opts(title=word)
   f$data$birth = f$data$year-f$data$groupingVariable
+  #f$data$groupingVariable = as.numeric(f$data$groupingVariable)
   model = lm(ratio ~ year + birth,f$data,weights=nwords)
-  list(plot=f,scores=summary(model)$coefficients[2:3,3])
+  scorez=summary(model)$coefficients[2:3,3]
+  list(plot=f,scores=scorez)
 }
+word = "potassium";agedata(word)[[1]];agedata(word)[[2]]
+
+
+#There are very weird effects of using percentage of books as a measure: that's because length is a function of author age.
+word = sample(names(models),1)
+f = agedata(word,counttype='Occurrences_per_Million_Words')
+g = agedata(word,counttype='Percentage_of_Books')
+grid.arrange(f[[1]] + 
+  opts(title = paste(word,paste(round(f[[2]]),collapse=" "))),
+             g[[1]]+ 
+  opts(title = paste(word,paste(round(g[[2]]),collapse=" "))))
+a = dbGetQuery(con,"
+               SELECT author_age,year,sum(nwords)/count(*) as length FROM catalog WHERE aLanguage='eng' 
+               AND year > 1850 AND year < 1922 AND author_age > 25 
+               AND author_age < 85 GROUP BY author_age,year")
+b = dbGetQuery(con,"
+               SELECT author_age,year,nwords as length FROM catalog WHERE aLanguage='eng' 
+               AND year > 1850 AND year < 1922 AND author_age > 25 
+               AND author_age < 85")
+dim(b)
+ggplot(a,aes(x=year,y=author_age,fill=log10(length))) + 
+  geom_tile() + 
+  scale_fill_gradientn(colours=c('white','yellow','orange','red'),
+                       trans='') + 
+  opts(title="Books published, by year and author age, in Open Library dataset")
+
+ggplot(b,aes(x=year,y=author_age)) + 
+  geom_tile() + 
+  opts(title="Books published, by year and author age, in Open Library dataset")
+
+dbGetQuery(con,"
+           SELECT author,title,catalog.nwords FROM catalog JOIN open_editions USING (bookid)
+           WHERE catalog.author_age=88 AND catalog.year = 1914 ORDER BY RAND() LIMIT 1")
 mywords = words$word
 models = lapply(words$word,agedata)
 names(models) = mywords
@@ -36,8 +75,10 @@ ggplot(scores,aes(x=year,y=birth,label=word)) +
   #geom_hex() + 
   geom_segment(aes(x=0,y=0,xend=max(c(year,birth)),yend=max(c(year,birth))),lty=2) + ylab("Strength of birth effect (t-value)") + 
   xlab("Strength of publication year effect (t-value)") + 
-  opts(title=paste(sum(scores$year<scores$birth)/nrow(scores)*100,
-                   "% of words show greater effect\nfor author birth year than for publication year"))
+  opts(title=paste(
+    sum(scores$year<scores$birth)/nrow(scores)*100,
+    "% of words show greater effect\nfor author birth year than for publication year"))
+word = "potassium";agedata(word)[[1]];agedata(word)[[2]]
 
 scores$pos='unknown'
 scores$pos[grep('tions?$',scores$word,perl=T)] = 'noun'
@@ -59,7 +100,7 @@ scores$word[order(strReverse(scores$word))]
 strong = scores[scores$year > 10 | scores$birth > 10,]
 scores$IDFquantile = cut(scores$IDF,quantile(scores$IDF),include.lowest=T)
 scores$ncharquantile = cut(nchar(scores$word),quantile(nchar(scores$word)),include.lowest=T)
-
+scores$commonness = cut(morewords$count,quantile(morewords$count),include.lowest=T)
 summary(scores$IDFquantile)
 scores[is.na(scores$IDFquantile),]
 ?cut
@@ -67,6 +108,7 @@ scores[is.na(scores$IDFquantile),]
 ?split
 
 ggplot(scores) + geom_histogram(aes(x=IDF))
+
 plotta = scores
 ggplot(plotta,aes(x=year,y=birth,label=word)) + 
   #geom_point(alpha=.2) +
@@ -74,9 +116,11 @@ ggplot(plotta,aes(x=year,y=birth,label=word)) +
   #geom_text(size=3,alpha=.5) + 
   geom_segment(aes(x=0,y=0,xend=max(c(year,birth)),yend=max(c(year,birth))),lty=2) + ylab("Strength of birth effect (t-value)") + 
   xlab("Strength of publication year effect (t-value)") + 
-  facet_grid(IDFquantile~ncharquantile) + 
+  facet_grid(IDFquantile~commonness) + 
   opts(title=paste(sum(plotta$birth>plotta$year)/nrow(plotta), "% of words show greater effect\nfor author birth year than for publication year"))
+summary(scores)
 
+t
 models[['helpful']][[1]]
 
 names(v) = mywords

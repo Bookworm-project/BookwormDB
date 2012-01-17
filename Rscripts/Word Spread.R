@@ -180,7 +180,12 @@ genreplot = function(word = list('call attention')
   color_scale = scale_fill_gradient2(trans = 'log')
   
   if (length(comparison_words)==0) {
-    total$value = total$value *1000000
+    if (counttype == 'Occurrences_per_Million_Words') {
+      total$value = total$value *1000000
+    }
+    if (counttype == 'Percentage_of_Books') {
+      total$value = total$value *100
+    }
     color_scale = scale_fill_gradientn(
       colours = c('white',rev(heat.colors(5))),trans = NULL)
   }
