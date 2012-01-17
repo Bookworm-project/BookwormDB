@@ -3,11 +3,8 @@ rm(list=ls())
 source("Rbindings.R")
 source('Word Spread.R')
 #First I flag some interesting words from the other computer.
-words = 
-#words = dbGetQuery(con,"SELECT word,IDF FROM wordsheap WHERE wflag=1 and stem IS NOT NULL")
-words = words[grep("\\d",words$word,perl=T,invert=T),]
-words[rev(order(words$IDF)),]
-dim(words)
+#words has already been filled from 'Identify new words'
+
 agedata = function(word) {
   f = genreplot(list(word),
             grouping='author_age',
@@ -22,22 +19,26 @@ agedata = function(word) {
   model = lm(ratio ~ year + birth,f$data,weights=nwords)
   list(plot=f,scores=summary(model)$coefficients[2:3,3])
 }
-mywords = words$word
-models = lapply(words$word,agedata)
+mywords = words
+models = lapply(words,agedata)
 names(models) = mywords
 scores = as.data.frame(t(sapply(models,'[[',2)))
 plots = lapply(models,'[[',1)
 names(plots)
 scores$word = mywords
 scores
+scores$uppercase = grepl("[A-Z]",scores$word,perl=T)
+models[['Total number']][[1]]
+plobject = scores[!grepl("[A-Z]",scores$word,perl=T),]
+#plobject$special = grepl("[A-Z]",scores$word,perl=T)
 
-ggplot(scores,aes(x=year,y=birth,label=word)) + 
-  #geom_point(alpha=.2) +
-  geom_text(size=2,alpha=.5) + 
-  #geom_hex() + 
+ggplot(plobject,aes(x=year,y=birth,label=word)) + 
+  geom_point(alpha=.1,color=muted('red')) +
+  #geom_hex() +
+  #geom_text(size=3,alpha=.5) + 
   geom_segment(aes(x=0,y=0,xend=max(c(year,birth)),yend=max(c(year,birth))),lty=2) + ylab("Strength of birth effect (t-value)") + 
   xlab("Strength of publication year effect (t-value)") + 
-  opts(title=paste(sum(scores$year<scores$birth)/nrow(scores)*100,
+  opts(title=paste(sum(plobject$year<plobject$birth)/nrow(plobject)*100,
                    "% of words show greater effect\nfor author birth year than for publication year"))
 
 scores$pos='unknown'

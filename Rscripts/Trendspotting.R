@@ -27,7 +27,8 @@ return_matrix = function(
   if (grams == 1) {
     z = dbGetQuery(
       melville,
-      paste("SELECT word1,year,words from presidio.1grams JOIN presidio.wordsheap ON 1grams.word1 = wordsheap.casesens 
+      paste("
+      SELECT word1,year,words from presidio.1grams JOIN presidio.wordsheap ON 1grams.word1 = wordsheap.casesens 
       WHERE year >= 1780 AND year <= 2008 and (wordid -", offset,")/",
                sampling," = ROUND((wordid -", offset,")/",sampling,") and wordid < ",max,
                " AND wordid >= ",min,sep=""
@@ -35,11 +36,17 @@ return_matrix = function(
   }
   
   if (grams==2) {
-    dbGetQuery()
-    z = dbGetQuery(
-               melville,
-      paste("SELECT word1,word2,year,words from ngrams.2grams as 2g JOIN presidio.wordsheap as w1 ON 2g.word1 = w1.casesens JOIN presidio.wordsheap as w2 ON 2g.word2=w1.casesens WHERE w1.wflag=1 AND w2.wflag=1"
-      ))
+    #silent = dbGetQuery(melville,"UPDATE ngrams.2gramcommon SET wflag=0")
+    #silent = dbGetQuery(melville,"UPDATE presidio.wordsheap JOIN presidio.words USING(wordid) SET wflag=1 WHERE stopword=1;")
+    #silent = dbGetQuery(melville,"
+    #                    UPDATE ngrams.2gramcommon as g1 JOIN presidio.wordsheap as w1 ON w1.casesens = g1.word1 
+    #                    JOIN presidio.wordsheap AS w2 ON w2.casesens = g1.word2
+    #                    SET g1.wflag = 1 WHERE w1.wflag != 1 AND w2.wflag != 1")
+    #silent = dbGetQuery(melville,"UPDATE ngrams.2gramcommon SET wflag=0 WHERE wflag=1 AND words < 182516;")
+    z = dbGetQuery(melville,"
+                        SELECT n1.word1,n1.word2,year,n1.words FROM ngrams.2grams as n1 
+                        JOIN ngrams.2gramcommon as n2 ON n1.word1=n2.word1 AND n1.word2=n2.word2
+                        WHERE n2.wflag=1")
     z$word1 = paste(z$word1,z$word2)
   }       
             
