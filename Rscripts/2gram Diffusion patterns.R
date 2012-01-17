@@ -4,7 +4,6 @@ source("Rbindings.R")
 source('Word Spread.R')
 #First I flag some interesting words from the other computer.
 #words has already been filled from 'Identify new words'
-
 agedata = function(word) {
   f = genreplot(list(word),
             grouping='author_age',
@@ -19,6 +18,7 @@ agedata = function(word) {
   model = lm(ratio ~ year + birth,f$data,weights=nwords)
   list(plot=f,scores=summary(model)$coefficients[2:3,3])
 }
+            
 mywords = words
 models = lapply(words,agedata)
 names(models) = mywords
@@ -30,17 +30,41 @@ scores
 scores$uppercase = grepl("[A-Z]",scores$word,perl=T)
 models[['Total number']][[1]]
 plobject = scores[!grepl("[A-Z]",scores$word,perl=T),]
+  
 #plobject$special = grepl("[A-Z]",scores$word,perl=T)
+plobject = scores
+plobject$facet=factor(plobject$uppercase)
+plobject$length = cut(
+  nchar(plobject$word),
+  quantile(nchar(plobject$word), probs = seq(0, 1, 1/)),include.lowest=T)
+levels(plobject$facet) = c("No uppercase letters","Has an uppercase letter")
+levels(plobject$length) = paste("character length in",levels(plobject$length))
+ratio <- ddply(plobject, .(facet,length), 
+     function(x) c(score=
+       paste(
+         as.character(round(sum(x$year<x$birth)*100/sum(x$year > -100),1)),
+         "%\nn=",
+         sum(x$year > -100),sep=""
+         ) ))
+ratio$score
 
+  
 ggplot(plobject,aes(x=year,y=birth,label=word)) + 
-  geom_point(alpha=.1,color=muted('red')) +
-  #geom_hex() +
-  #geom_text(size=3,alpha=.5) + 
+  #geom_point(alpha=.1,color=muted('red')) +
+  geom_hex() +
+  geom_text(
+    size=10,alpha=.5,
+    aes(x=25,y=-5,label=score),
+    data=ratio) + 
   geom_segment(aes(x=0,y=0,xend=max(c(year,birth)),yend=max(c(year,birth))),lty=2) + ylab("Strength of birth effect (t-value)") + 
   xlab("Strength of publication year effect (t-value)") + 
-  opts(title=paste(sum(plobject$year<plobject$birth)/nrow(plobject)*100,
-                   "% of words show greater effect\nfor author birth year than for publication year"))
+  facet_grid(length~facet)+
+  opts(title=paste(
+    "Selection of the top 10,000 non stopword-including two-grams with\nR > .75 and increase > 2x 1850-1922:\n",
+    round(sum(plobject$year<plobject$birth)/nrow(plobject)*100,1),
+                   "% of grams show greater effect\nfor author birth year than for publication year"))
 
+  
 scores$pos='unknown'
 scores$pos[grep('tions?$',scores$word,perl=T)] = 'noun'
 scores$pos[grep('ment?$',scores$word,perl=T)] = 'noun'
