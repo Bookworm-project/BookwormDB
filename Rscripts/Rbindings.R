@@ -9,7 +9,7 @@ con = dbConnect(MySQL(),db="presidio")
 APIcall = function(constraints = 
      list(method = 'ratio_query',
       smoothingType="None",      
-      groupings='year,bookid',                           
+      groups = list("year"),                           
       search_limits = 
         list(
          list(
