@@ -1,10 +1,39 @@
-setwd('/presidio/Rscripts')
+setwd('/Presidio/Rscripts')
 rm(list=ls())
 source("Rbindings.R")
 source('Word Spread.R')
+source("Trendspotting.R")
+require(zoo)
+
+window = 53
+#Window must be odd
+window = (floor(window/2)*2 + 1)
+tabbed = return_matrix(sampling=1,offset=0,max=10000,min=1,grams=2)
+
+smoothed = apply(tabbed,2,rollmedian,k=window,na.pad=T)
+          rownames(smoothed) = as.numeric(rownames(tabbed)[1:nrow(smoothed)])
+rownames(smoothed) = as.numeric(rownames(tabbed)[1:nrow(smoothed)])
+
+yearlim = c(1850,1921)
+cors = apply(
+  smoothed[which(rownames(smoothed)==yearlim[1]):which(rownames(smoothed)==yearlim[2]),],2,
+  cor,method='pearson',y=yearlim[1]:yearlim[2])
+
+change  = changefrom(yearlim[1]-yearlim[2],smoothed)[rownames(tabbed) == yearlim[2],]
+increasing = cors> .75 & change > 2
+
+colSums(tabbed[,increasing])
+splitted = do.call(rbind,strsplit(names(change)," "))
+increasing = cors> .75 & change > 2 & !(duplicated(splitted[,1]) & duplicated(splitted[,2]))
+
+words = names(which(increasing))
+rm(smoothed)
+rm(tabbed)
+
 #First I flag some interesting words from the other computer.
 #words has already been filled from 'Identify new words'
 agedata = function(word) {
+  cat(word,"\n")
   f = genreplot(list(word),
             grouping='author_age',
             groupings_to_use = 63,
@@ -13,7 +42,7 @@ agedata = function(word) {
             years=c(1850,1922),
             smoothing=7,
             comparison_words = list(),
-            words_collation='Case_Insensitive') + opts(title=word)
+            words_collation='Case_Sensitive') + opts(title=word)
   f$data$birth = f$data$year-f$data$groupingVariable
   model = lm(ratio ~ year + birth,f$data,weights=nwords)
   list(plot=f,scores=summary(model)$coefficients[2:3,3])
@@ -29,17 +58,18 @@ scores$word = mywords
 scores
 scores$uppercase = grepl("[A-Z]",scores$word,perl=T)
 models[['Total number']][[1]]
-plobject = scores[!grepl("[A-Z]",scores$word,perl=T),]
   
-#plobject$special = grepl("[A-Z]",scores$word,perl=T)
+scores$uppercase = factor(grepl("[A-Z]",scores$word,perl=T))
+levels(scores$uppercase) = c("No uppercase letters","Has an uppercase letter")
+scores$word[order(scores$year-scores$birth)][1:10]
+models[['hand corner']]
 plobject = scores
-plobject$facet=factor(plobject$uppercase)
+
 plobject$length = cut(
   nchar(plobject$word),
-  quantile(nchar(plobject$word), probs = seq(0, 1, 1/)),include.lowest=T)
-levels(plobject$facet) = c("No uppercase letters","Has an uppercase letter")
+  quantile(nchar(plobject$word), probs = seq(0, 1, 1/4)),include.lowest=T)
 levels(plobject$length) = paste("character length in",levels(plobject$length))
-ratio <- ddply(plobject, .(facet,length), 
+ratio <- ddply(plobject, .(uppercase,length), 
      function(x) c(score=
        paste(
          as.character(round(sum(x$year<x$birth)*100/sum(x$year > -100),1)),
@@ -58,7 +88,7 @@ ggplot(plobject,aes(x=year,y=birth,label=word)) +
     data=ratio) + 
   geom_segment(aes(x=0,y=0,xend=max(c(year,birth)),yend=max(c(year,birth))),lty=2) + ylab("Strength of birth effect (t-value)") + 
   xlab("Strength of publication year effect (t-value)") + 
-  facet_grid(length~facet)+
+  facet_grid(length~uppercase)+
   opts(title=paste(
     "Selection of the top 10,000 non stopword-including two-grams with\nR > .75 and increase > 2x 1850-1922:\n",
     round(sum(plobject$year<plobject$birth)/nrow(plobject)*100,1),

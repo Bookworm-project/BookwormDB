@@ -42,8 +42,14 @@ genreplot = function(word = list('call attention')
             'country' = country
             )
     )
-  )  
-  mainquery =  dbGetQuery(con,APIcall(core_search))
+  )
+
+    mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  if(class(mainquery) == "try-error") {
+    source("Rbindings.R")
+    mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  } 
+
   #Get the totals by deleting the words terms from the search
   new = core_search
   new[['search_limits']][[1]][['word']] = comparison_words
