@@ -1,6 +1,6 @@
 #rm(list=ls())
-#setwd("/presidio/Rscripts")
-#source("Rbindings.R")
+setwd("/presidio/Rscripts")
+source("Rbindings.R")
   
 
 genreplot = function(word = list('call attention')

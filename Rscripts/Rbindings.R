@@ -9,7 +9,7 @@ con = dbConnect(MySQL(),db="presidio")
 APIcall = function(constraints = 
      list(method = 'ratio_query',
       smoothingType="None",      
-      groupings='year,bookid',                           
+      groups = list("year"),                           
       search_limits = 
         list(
          list(
@@ -18,7 +18,7 @@ APIcall = function(constraints =
           'state'=list('NY'))
      ))) {
   constraints = toJSON(constraints)
-  value = system(paste("python /usr/lib/cgi-bin/corebindings.py ","'",constraints,"'",sep=""),intern=T)
+  value = system(paste("python /usr/lib/cgi-bin/APIimplementation.py ","'",constraints,"'",sep=""),intern=T)
   #We leave the actual result in the last spot
   value = fromJSON(value[[length(value)]])
   value

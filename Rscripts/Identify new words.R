@@ -1,5 +1,5 @@
 rm(list=ls())
-setwd("/Presidio/Rscripts")
+setwd("/presidio/Rscripts")
 source("Rbindings.R")
 source("Trendspotting.R")
 require(zoo)

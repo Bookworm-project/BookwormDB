@@ -133,15 +133,20 @@ gsave(smoothed,paste(names(IrregOverReg[good]),"smoothed.png"))
 ?geom_abline
 source('Word Spread.R')
 
-  genres =genreplot(list('awesome'),
+  genres =genreplot(list('Christ'),
             grouping=list('author_age'),
             groupings_to_use = 63,
             counttype = 'Percentage_of_Books',
             ordering=NULL,
             years=c(1830,1922),
             smoothing=7,
-            words_collation='All_Words_with_Same_Stem')
-genres + geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'black',lty=3) + opts(sub)
+            words_collation='All_Words_with_Same_Stem',
+                    comparison_words = list("Jesus"))
+genres + geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'black',lty=3) + opts(sub) + geom_contour(aes(z=value))
+genres$data$birth = genres$data$year-genres$data$groupingVariable
+summary(lm(ratio ~ year + birth,genres$data,weights=nwords))
 
 require(gridExtra)
 grid.arrange(unsmoothed[[1]],smoothed[[1]])
+
+
