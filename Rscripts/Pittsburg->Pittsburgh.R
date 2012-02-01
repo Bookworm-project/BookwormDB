@@ -1,5 +1,6 @@
 #!/usr/bin/R
 rm(list=ls())
+setwd('/presidio/Rscripts')
 source("Rbindings.R")
 source('Word Spread.R')
 genres =genreplot(list("Pittsburgh"),
@@ -11,6 +12,8 @@ genres =genreplot(list("Pittsburgh"),
           smoothing=3,
           comparison_words = list("Pittsburg"),
           words_collation='Case_Sensitive')
+
+
 USA = genres$data[genres$data$groupingVariable=='USA',]
 events = data.frame(x = c(1891,1911),y=c(1/5,5),label=c("Government\nmandates\n'Pittsburg'","Government\nmandates\n'Pittsburgh'"))
 ggplot(USA,aes(x=year,y=ratio)) + 
@@ -34,15 +37,15 @@ genres =genreplot(list("Pittsburgh"),
           years=c(1822,1922),
           smoothing=5,
           comparison_words = list("Pittsburg"),
-          words_collation='Case_Sensitive')
+          words_collation='Case_Sensitive',country=list("USA"))
 genres +   annotate("text",x = c(1911),y=c(80),label=c("Government\nmandates\n'Pittsburgh'"),size=3,col=muted('red')) +
   annotate("text",x = c(1891),y=c(60),label=c("Government\nmandates\n'Pittsburg'"),size=3,col=muted('red')) + 
   geom_vline(aes(xintercept=c(1891,1911)),
              lty=2,colour=c(muted('red'))) 
 
 genres =genreplot(list("Pittsburgh"),
-          grouping='state',
-          groupings_to_use = 50,
+          grouping='country',
+          groupings_to_use = 3,
           counttype = 'Percentage_of_Books',
           ordering=NULL,
           years=c(1860,1922),
@@ -61,7 +64,7 @@ genres +   annotate("text",x = c(1911),y=3,label=c("Government\nmandates\n'Pitts
 
 genres =genreplot(list("Pittsburgh"),
           grouping='state',
-          groupings_to_use = 50,
+          groupings_to_use = 15,
           counttype = 'Percentage_of_Books',
           ordering=NULL,
           years=c(1860,1922),
@@ -69,7 +72,7 @@ genres =genreplot(list("Pittsburgh"),
           comparison_words = list("Pittsburg"),
           words_collation='Case_Sensitive')
 mydat=genres$data
-mydat = mydat[mydat$year > 1910 & !is.na(mydat$value),]
+mydat = mydat[mydat$year >= 1910 & !is.na(mydat$value),]
 statecounts = xtabs(nwords~groupingVariable,mydat)
 mydat = mydat[mydat$groupingVariable %in% names(statecounts)[statecounts>10],]
 mydat$state = factor(mydat$groupingVariable,
@@ -82,13 +85,16 @@ scores = sapply(
     year[year==Inf] = 1923
     year
     })
-statedata = data.frame(state = paste('US',toupper(names(scores)),sep='-'),TransitionYear = scores)
+statedata = data.frame(
+  state = paste('US',toupper(names(scores)),sep='-'),
+  TransitionYear = scores)
+require(googleVis)
 plot(gvisGeoChart(
   data = statedata,'state','TransitionYear',
   options=list(region="US", displayMode="regions", resolution="provinces",
   width=650, height=420,colorAxis = "{colors:['DE2D26','FEE0D2']}")))
 
-
+#That method doesn't work so well for the earlier years.
 maxyear = 1900
 genres =genreplot(list("Pittsburgh"),
           grouping='state',
@@ -190,17 +196,43 @@ locations = as.list(rep(NA,nrow(statedata)))
 
 lengths = lapply(locations,length)
 while (min(unlist(lengths)) == 1) {
-  lengths = sapply(locations,length)
+  try(function () {
+  lengths = lapply(locations,length)
   for (i in which(lengths==1)) {
     locations[[i]] = gGeoCode(toupper(rownames(statedata)[i]))
-  }
+  }})
 }
+
 locations = do.call(rbind,locations)
+PAloc = gGeoCode("Washington, DC")
 
-PAloc = gGeoCode("Wichita, KS")
-apply(locations,2,max)
+statedata$PittDist = apply(locations,1,function(row) {
+    sqrt((row[1] - PAloc[1])^2 + (row[2] - PAloc[2])^2)
+    })
+ggplot(statedata,aes(y=realscores,x=PittDist)) + 
+  geom_point() + 
+  ylab("Degree of Spelling Change") + 
+  xlab("Distance from Washington") + stat_smooth(method='lm')
 
-testsize = 20000
+
+summary(lm(realscores ~ PittDist,statedata))
+ggplot(statedata,aes(x=realscores,y=PittDist)) + 
+  geom_point(aes(size=(nwords))) + 
+  ylab("Distance from Washington") + 
+  xlab("Degree of Spelling Change") + scale_x_log10()
+
+
+
+summary(lm(realscores ~ PittDist,statedata))
+
+ggplot(statedata,aes(x=log(realscores),y=log(PittDist))) + 
+  geom_point(aes(size=nwords)) + 
+  ylab("Distance from Washington") + 
+  xlab("Degree of Spelling Change") + stat_smooth(method='lm')
+
+summary(lm(log(realscores) ~ log(PittDist),statedata,weight=nwords))
+
+testsize = 10000
 testlocs = cbind(sample(2600:4900,testsize,replace=T)/100,sample(-6600:-12800,testsize,replace=T)/100)
 scores = apply(testlocs,1,function(PAloc) {
   statedata$PittDist = apply(locations,1,function(row) {
@@ -209,6 +241,8 @@ scores = apply(testlocs,1,function(PAloc) {
   #summary(lm(log(realscores) ~ log(PittDist),statedata))
   summary(lm(log(realscores) ~ log(PittDist),statedata,weights = nwords))$coefficients[2,3]
 })
+
+
 hist(scores)
 myframe = data.frame(scores=scores,lat=testlocs[,1],long=testlocs[,2])
 library(maps)
@@ -220,10 +254,13 @@ f = merge(seq(26,49,by=size),seq(-66,-128,by=-size))
 names(f) = c("lat","long")
 f$scores = predict(model,newdata = f)
 
-ggplot(myframe) + geom_point(aes(x=long,y=lat,colour=scores),size=5) + 
+ggplot(myframe) + geom_point(aes(x=long,y=lat,colour=scores),size=4,pch=15) + 
   scale_color_gradient2()  +
-  geom_path(data=states,aes(x=x,y=y)) + coord_map(project="bonne", lat0 = 50) + opts (title = 'For each point, strength of model predicting change in Pittsburgh spelling,\n in non-Washington-DC states, 1890s to 1900s, from that point')
+  geom_path(data=states,aes(x=x,y=y)) + 
+  coord_map(project="bonne", lat0 = 50) + 
+  opts (title = 'Strength of model predicting change in Pittsburgh spelling,\n in non-Washington-DC states, 1890s to 1900s, from that point')
 
+??inside
 
 ggplot(statedata,aes(x=log(realscores),y=log(PittDist))) + geom_point() + opts(title = "Log of distance from ")
 

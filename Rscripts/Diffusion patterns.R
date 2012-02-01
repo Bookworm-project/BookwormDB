@@ -35,7 +35,7 @@ words = names(which(increasing))
 words = words[grep("[^\\d\\w]",words,perl=T,invert=T)]
 
 dim(words)
-agedata = function(word,counttype = 'Occurrences_per_Million_Words') {
+agedata = function(word,counttype = 'Occurrences_per_Million_Words',comparison_words=list()) {
   cat(word,"\n")
   f = genreplot(list(word),
             grouping='author_age',
@@ -45,7 +45,7 @@ agedata = function(word,counttype = 'Occurrences_per_Million_Words') {
             ordering=NULL,
             years=c(1850,1922),
             smoothing=7,
-            comparison_words = list(),
+            comparison_words = comparison_words,
             words_collation='Case_Sensitive') + opts(title=word)
   f$data$birth = f$data$year-f$data$groupingVariable
   #f$data$groupingVariable = as.numeric(f$data$groupingVariable)
@@ -92,7 +92,8 @@ scores = as.data.frame(t(sapply(models,'[[',2)))
 plots = lapply(models,'[[',1)
 names(plots)
 scores$word = words
-
+plots[sample(length(plots),1)]
+agedata('')
 #Add a variable to group by length
 scores$length = cut(
   nchar(scores$word),
@@ -158,25 +159,42 @@ ggplot(scores[scores$funnychars=="Has number",],aes(x=year,y=birth,label=word)) 
   opts(title=paste(
     sum(scores$year<scores$birth)/nrow(scores)*100,
     "% of words show greater effect\nfor author birth year than for publication year"))
-models[['223']][[1]]
+f = models[['49']]$plot
+yearSampling=7; shift = 3 #Shift is so I can check what it looks like for different windows
+f=agedata('Grover Cleveland')[[1]]
+#f$data = f$data[(f$data$year-shift) %/% yearSampling == (f$data$year-shift)/yearSampling & (f$data$groupingVariable-shift) %/% yearSampling == (f$data$groupingVariable-shift)/yearSampling,]
+f
 word = "potassium";agedata(word)[[1]];agedata(word)[[2]]
 
 
 #Can we get some part of speech help?
-  if (FALSE) {
-  findPOS <- function(word) {
+if (FALSE) {
+  #It turns out: no.
+  findPOS <- function(word,all=F) {
     #This checks the local wordNet installation to find out what parts of speech a word can be
     require(wordnet)
-    require(multicore)
     initDict()
     partsofSpeech = c("ADJECTIVE", "ADVERB", "NOUN", "VERB")
     exists = lapply(partsofSpeech, function(POS) {
       length(getIndexTerms(POS, 1, getTermFilter("ExactMatchFilter", word, TRUE)))
     })
-    partsofSpeech[as.logical(unlist(exists))]
+    value = partsofSpeech[as.logical(unlist(exists))]
   }
-  
+  getSynonyms(getIndexTerms("ADJECTIVE",7,getTermFilter("ExactMatchFilter","healthy",T)))
+  test = sample(parts,1)
+  if ("ADJECTIVE" %in% test) {
+    word = names(test)
+    adjective = test[1]
+    syns = getSynonyms(getIndexTerms(test[1],7,
+                                     getTermFilter("ExactMatchFilter",names(test),T))[[1]])
+   syns  
+  }
+  agedata("syns",comparison_words=list("locomotive"))->f
+  f[[1]] + geom_contour(z=value)
+  comparison_words=list()
+  ?getSynonyms
   scores$pos=NA
+  
   
   parts = lapply(scores$word[grep("\\d",scores$word,invert=T)],findPOS)
   names(parts) = scores$word[grep("\\d",scores$word,invert=T)]
