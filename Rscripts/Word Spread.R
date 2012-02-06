@@ -60,11 +60,22 @@ genreplot = function(word = list('call attention')
             'year' = as.list(years[1]:years[2]),
             'alanguage' = list('eng')
     )
+<<<<<<< HEAD
   )  
   for (element in names(list(...))) {
     core_search[['search_limits']][[element]] = list(...)[[element]]
   }
   mainquery =  dbGetQuery(con,APIcall(core_search))
+=======
+  )
+
+    mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  if(class(mainquery) == "try-error") {
+    source("Rbindings.R")
+    mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  } 
+
+>>>>>>> 62a978e2270b86cadedce0b71326893e6256edf6
   #Get the totals by deleting the words terms from the search
   new = core_search
   new[['search_limits']][['word']] = comparison_words

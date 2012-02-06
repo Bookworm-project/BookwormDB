@@ -1,6 +1,11 @@
 #!/usr/bin/R
 melville = dbConnect(MySQL())
 changefrom = function(n,basemat) {
+  comparison = lag(n,basemat)
+  basemat/comparison
+}
+
+lag = function(n,basemat) {
   compare_span = abs(n)
   comparison = matrix(NA,nrow = nrow(basemat),ncol = ncol(basemat),dimnames = dimnames(basemat))
   if (n<0) {
@@ -9,8 +14,8 @@ changefrom = function(n,basemat) {
   if (n>=0) {
     comparison[1:(nrow(basemat)-compare_span),] = basemat[-c(1:compare_span),]
   }
-  basemat/comparison
-}     
+  comparison
+}
 
 return_matrix = function(
   sampling=100
@@ -36,13 +41,14 @@ return_matrix = function(
   }
   
   if (grams==2) {
-    #silent = dbGetQuery(melville,"UPDATE ngrams.2gramcommon SET wflag=0")
-    #silent = dbGetQuery(melville,"UPDATE presidio.wordsheap JOIN presidio.words USING(wordid) SET wflag=1 WHERE stopword=1;")
-    #silent = dbGetQuery(melville,"
-    #                    UPDATE ngrams.2gramcommon as g1 JOIN presidio.wordsheap as w1 ON w1.casesens = g1.word1 
-    #                    JOIN presidio.wordsheap AS w2 ON w2.casesens = g1.word2
-    #                    SET g1.wflag = 1 WHERE w1.wflag != 1 AND w2.wflag != 1")
-    #silent = dbGetQuery(melville,"UPDATE ngrams.2gramcommon SET wflag=0 WHERE wflag=1 AND words < 182516;")
+    #Currently I've just coded one particular set of 2-grams in: should be generalized to allow better queries; but things like stopword exclusion is tricky.
+    silent = dbGetQuery(melville,"UPDATE ngrams.2gramcommon SET wflag=0")
+    silent = dbGetQuery(melville,"UPDATE presidio.wordsheap JOIN presidio.words USING(wordid) SET wflag=1 WHERE stopword=1;")
+    silent = dbGetQuery(melville,"
+                        UPDATE ngrams.2gramcommon as g1 JOIN presidio.wordsheap as w1 ON w1.casesens = g1.word1 
+                        JOIN presidio.wordsheap AS w2 ON w2.casesens = g1.word2
+                        SET g1.wflag = 1 WHERE w1.wflag != 1 AND w2.wflag != 1")
+    silent = dbGetQuery(melville,"UPDATE ngrams.2gramcommon SET wflag=0 WHERE wflag=1 AND words < 182516;")
     z = dbGetQuery(melville,"
                         SELECT n1.word1,n1.word2,year,n1.words FROM ngrams.2grams as n1 
                         JOIN ngrams.2gramcommon as n2 ON n1.word1=n2.word1 AND n1.word2=n2.word2

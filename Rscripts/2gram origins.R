@@ -5,16 +5,74 @@ source('Word Spread.R')
 source("Trendspotting.R")
 require(zoo)
 
-window = 53
 #Window must be odd
-window = (floor(window/2)*2 + 1)
+
 tabbed = return_matrix(sampling=1,offset=0,max=10000,min=1,grams=2)
+window = 15
+window = (floor(window/2)*2 + 1)
+yearlim = c(1825,2005)
+smoothed = tabbed[rownames(tabbed) %in% yearlim[1]:yearlim[2],]
+dim(smoothed)
+smoothed = apply(smoothed,2,rollmedian,k=window,na.pad=T)
+rownames(smoothed) = as.character(yearlim[1]:yearlim[2])
+good = smoothed[rownames(smoothed)=='1922',]/
+  smoothed[rownames(smoothed)=='1835',] > 10
 
-smoothed = apply(tabbed,2,rollmedian,k=window,na.pad=T)
-          rownames(smoothed) = as.numeric(rownames(tabbed)[1:nrow(smoothed)])
-rownames(smoothed) = as.numeric(rownames(tabbed)[1:nrow(smoothed)])
+#Here we set some criteria for 'entering the language,' 
+good = 
+  changefrom(10,smoothed) < .9 &
+  changefrom(3,smoothed) < .9 &
+  smoothed > .5 &
+  lag(-10,smoothed) < .1
 
-yearlim = c(1850,1921)
+bigchanges = which(good,arr.ind=T)[,2]
+
+newwords = data.frame(year = names(bigchanges),word = colnames(change)[bigchanges])
+newwords = newwords[!duplicated(newwords$word),]
+entrance = newwords[order(newwords$year),]
+entrance$year = as.numeric(as.character(entrance$year))
+entrance = entrance[entrance$year <= 1922,]
+dim(entrance)
+findorigin = function(row= entrance[sample(nrow(entrance),1),]) {
+  row 
+  f = genreplot(list(as.character(row$word)),grouping="lc0",groupings_to_use=15,smoothing=10,
+                years = c(row$year -10 ,row$year +10 ))
+  loc = f$data[f$data$year==row$year,]
+  solution = loc[which(loc$value == max(loc$value)),]$groupingVariable
+  solution
+}
+  
+row= entrance[sample(nrow(entrance),1),]
+row
+findorigin(row)->z
+
+
+z
+  qplot(
+  as.numeric(rownames(change)),
+  rowSums(change>13 & smoothed > 1),geom='line')+
+    scale_x_continuous(breaks=seq(1800,2000,by=10))+
+    geom_smooth(span=.1)
+
+good = good & grepl("^[a-z ]+$",colnames(smoothed),perl=T)
+good[is.na(good)] = FALSE
+plotword = function(good) {
+word = names(sample(good[good],1))
+f = data.frame(year=as.numeric(rownames(smoothed)),
+               permillion = smoothed[,colnames(smoothed)==word])
+#f$permillion[f$permillion==0] = min(f$permillion[f$permillion>0])/5
+
+ggplot(f,aes(x=year,y=permillion)) + geom_line() + 
+  scale_y_continuous(trans='log10') +
+  opts(title=word,legend=FALSE) +scale_x_continuous(breaks=seq(1800,2000,by=10))
+}
+plotword(good)
+  
+  sum(good)
+
+genreplot(list(word),smoothing=5),grouping="country",groupings_to_use=15,counttype='Percentage_of_Books')
+
+
 cors = apply(
   smoothed[which(rownames(smoothed)==yearlim[1]):which(rownames(smoothed)==yearlim[2]),],2,
   cor,method='pearson',y=yearlim[1]:yearlim[2])
