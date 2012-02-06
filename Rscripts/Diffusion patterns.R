@@ -7,7 +7,6 @@ require(zoo)
 
 #First I get some words from elsewhere
 
-
 melville = dbConnect(MySQL())
 dbGetQuery(melville,"USE ngrams")
 date()
@@ -53,6 +52,9 @@ agedata = function(word,counttype = 'Occurrences_per_Million_Words',comparison_w
   scorez=summary(model)$coefficients[2:3,3]
   list(plot=f,scores=scorez)
 }
+
+
+agedata('hello')
 genreplot(list('hi'))
 if (FALSE) {
   #There are very weird effects of using percentage of books as a measure: that's because length is a function of author age.
@@ -161,8 +163,8 @@ ggplot(scores[scores$funnychars=="Has number",],aes(x=year,y=birth,label=word)) 
     "% of words show greater effect\nfor author birth year than for publication year"))
 f = models[['49']]$plot
 yearSampling=7; shift = 3 #Shift is so I can check what it looks like for different windows
-f=agedata('Grover Cleveland')[[1]]
-#f$data = f$data[(f$data$year-shift) %/% yearSampling == (f$data$year-shift)/yearSampling & (f$data$groupingVariable-shift) %/% yearSampling == (f$data$groupingVariable-shift)/yearSampling,]
+f=agedata('Abraham Lincoln')[[1]]
+f$data = f$data[(f$data$year-shift) %/% yearSampling == (f$data$year-shift)/yearSampling & (f$data$groupingVariable-shift) %/% yearSampling == (f$data$groupingVariable-shift)/yearSampling,]
 f
 word = "potassium";agedata(word)[[1]];agedata(word)[[2]]
 

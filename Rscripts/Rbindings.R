@@ -16,9 +16,14 @@ APIcall = function(constraints =
           'word'=list('polka','dot'),
           'lc1'=list("BF"),
           'state'=list('NY'))
-     ))) {
+     )),internal=T) {
   constraints = toJSON(constraints)
-  value = system(paste("python /usr/lib/cgi-bin/APIimplementation.py ","'",constraints,"'",sep=""),intern=T)
+  value = system(paste(
+    "python /usr/lib/cgi-bin/APIimplementation.py ","'",
+    constraints,
+    "'",
+    sep=""),
+    intern=T)
   #We leave the actual result in the last spot
   value = fromJSON(value[[length(value)]])
   value
@@ -339,5 +344,50 @@ median_ages <- function (limits) {
              "'\ncompared to all authors in that year",sep=""))
   }
 }
+  whereterm = function(terms=list(year = c(1876,1896),word1 = c("home","away"))) {
+    paste(
+      "(",
+      lapply(
+        names(terms),
+        function(term) {
+          seper = ""
+          if (is.character(terms[[term]][1])) {seper="'"}
+          paste(
+            term,
+            "=",seper,
+            terms[[term]],
+            seper,
+            collapse = " OR ",
+            sep="")
+          }
+        ),
+      collapse = " AND ",")",
+      sep="")
+  }
 
 
+compareplot = function(word1,word2,country="USA") {
+  genres =genreplot(as.list(word1),
+          grouping='country',
+          groupings_to_use = 2,
+          counttype = 'Percentage_of_Books',
+          ordering=NULL,
+          years=c(1822,1922),
+          smoothing=1,
+          comparison_words = as.list(word2),
+          words_collation='Case_Sensitive')
+  USA = genres$data[genres$data$groupingVariable=='USA',]
+  USA$ratio[USA$ratio==0] = min(USA$ratio[USA$ratio!=0])
+  ggplot(USA,aes(x=year,y=ratio)) + 
+    opts(
+      title=paste(
+        "Ratio of books using ",
+        paste(word1,collapse="/"),
+        " to those using ",
+        paste(word2,collapse="/"),
+        sep="",collapse="")) + 
+    geom_point(aes(fill=ratio),shape=21,color='grey') + 
+    geom_smooth(se=F,span=.2,lty=2,size=2) + 
+    scale_y_log10() + 
+    scale_fill_gradient2(low=muted("blue"),high=muted("red"),trans='log') 
+}

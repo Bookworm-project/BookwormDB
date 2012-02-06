@@ -22,11 +22,32 @@ genreplot = function(word = list('call attention')
                      words_collation = "Case_Sensitive"
                      ,
                      country = list()
+                     ,
+                     chunkSmoothing=1
+                     ,
+                     x.value = 'year'
+                     ,
+                     ...
+                     #ChunkOffset can be false, in which the smoothed data is presented as is;
+                     #or it can be numeric, in which case if span is 15, for example, only years with 
+                     #15 %/% chunkOffset==15/chunkOffset will be included
                      ) {  
   #If smoothing is less than 1, it's a loess span; if greater, it's a moving average;
   #If exactly 1, no smoothing
   #Moving average not currently implemented for double-numeric plots
-  groupeds = list(paste(grouping,'as groupingVariable'),'year') #,'catalog.bookid as id')
+  
+  catalog = dbGetQuery(con,"EXPLAIN catalog")
+  
+  #Find out if the grouping is numeric; this affects smoothing and some other things.
+  numeric.y = as.logical(!length(grep('char',catalog$Type[catalog$Field==grouping])))
+  
+  groupeds = list(paste(grouping,'as groupingVariable'),
+                  paste('ROUND(',x.value,'/',chunkSmoothing,')*',chunkSmoothing,' as timeVariable',sep=""))
+  
+  if(numeric.y) {
+    groupeds[[1]] = paste('ROUND(',grouping,'/',chunkSmoothing,')*',chunkSmoothing,' as groupingVariable',sep="")
+
+  }
   
   core_search = list(
       method = 'counts_query',
@@ -35,53 +56,51 @@ genreplot = function(word = list('call attention')
       groups=groupeds,      
       search_limits = 
         list(
-          list(
             'word' = word,
             'year' = as.list(years[1]:years[2]),
-            'alanguage' = list('eng'),
-            'country' = country
-            )
+            'alanguage' = list('eng')
     )
   )  
+  for (element in names(list(...))) {
+    core_search[['search_limits']][[element]] = list(...)[[element]]
+  }
   mainquery =  dbGetQuery(con,APIcall(core_search))
   #Get the totals by deleting the words terms from the search
   new = core_search
-  new[['search_limits']][[1]][['word']] = comparison_words
+  new[['search_limits']][['word']] = comparison_words
   allwords = dbGetQuery(con,APIcall(new))
   names(allwords)[ncol(allwords)] = 'nwords'
   #merge them together
   mylist = merge(mainquery,allwords,by=gsub(".* as ","",groupeds),all=T)
 
-  catalog = dbGetQuery(con,"EXPLAIN catalog")
-  
-  #Find out if the grouping is numeric; this affects smoothing and some other things.
-  numeric.y = as.logical(!length(grep('char',catalog$Type[catalog$Field==grouping])))
+
   
   mylist$count[is.na(mylist$count)]=0
   mylist$ratio = mylist$count/mylist$nwords
-  
-  #Limit the number of columns by frequency (could also be by something else, or passed in to start with)
+
+  #Limit the number of columns by frequency (could also be by something else, or passed in to start with,
+  #but nothing else is implemented here.)
   totalcounts = xtabs(mylist$nwords ~ mylist$groupingVariable)
-  if (!numeric.y) {
+  
+  if (!numeric.y | chunkSmoothing != 1) {
     mylist = mylist[mylist$groupingVariable %in% names(totalcounts)[order(totalcounts,decreasing=T)][1:groupings_to_use],]
   }
-  if (numeric.y) {
-    numbers_to_use = sort(as.numeric(names(totalcounts)[order(totalcounts,decreasing=T)][1:groupings_to_use]))
-    
+  if (numeric.y & chunkSmoothing==1) {
+    numbers_to_use = sort(as.numeric(names(totalcounts)[order(totalcounts,decreasing=T)][1:groupings_to_use]))  
     numbers_to_use = 
       (numbers_to_use[floor(length(numbers_to_use)/2)]-floor(length(numbers_to_use)/2)):
       (numbers_to_use[floor(length(numbers_to_use)/2)]+floor(length(numbers_to_use)/2))
     mylist = mylist[mylist$groupingVariable %in% numbers_to_use,] 
   }
-  genretabs = xtabs(count~year+groupingVariable,mylist)/xtabs(nwords~year+groupingVariable,mylist)
+  genretabs = xtabs(count~timeVariable+groupingVariable,mylist)/xtabs(nwords~timeVariable+groupingVariable,mylist)
   genretabs[genretabs==Inf] = max(genretabs)
   if (smoothing > 1) {
-    totalwords = xtabs(nwords~year+groupingVariable,mylist) + xtabs(count~year+groupingVariable,mylist)
+    totalwords = xtabs(nwords~timeVariable+groupingVariable,mylist) + xtabs(count~timeVariable+groupingVariable,mylist)
     smoothname = paste("\nMoving average with span",smoothing)
     if (!numeric.y) {
       smoothed = sapply(
         1:nrow(genretabs),function(row) {
-          rows = (row-round(smoothing/2)):(row+round(smoothing/2))
+          rows = (row-floor(smoothing/2)):(row+floor(smoothing/2))
           rows = rows[rows>0]
           rows = rows[rows<=nrow(genretabs)]
           sapply(1:ncol(genretabs),function(col) {
@@ -97,15 +116,14 @@ genreplot = function(word = list('call attention')
       smoothed = t(smoothed)
       rownames(smoothed)=rownames(genretabs)
       colnames(smoothed) = colnames(genretabs)
-      total = melt(as.matrix(smoothed))
     }
     if (numeric.y) {
       smoothed = sapply(1:nrow(genretabs),function(row) {
-          rows = (row-round(smoothing/2)):(row+round(smoothing/2))
+          rows = (row-floor(smoothing/2)):(row+floor(smoothing/2))
           rows = rows[rows>0]
           rows = rows[rows<=nrow(genretabs)]
         sapply(1:ncol(genretabs),function(col) {
-          columns = (col-round(smoothing/2)):(col+round(smoothing/2))
+          columns = (col-floor(smoothing/2)):(col+floor(smoothing/2))
           columns = columns[columns>0]
           columns = columns[columns<=ncol(genretabs)]
             weighted.mean(x=genretabs[rows,columns],
@@ -116,8 +134,18 @@ genreplot = function(word = list('call attention')
       smoothed = t(smoothed)
       rownames(smoothed)=rownames(genretabs)
       colnames(smoothed) = colnames(genretabs)
-      total = melt(as.matrix(smoothed))
     }
+    if (FALSE) { #chunkOffset=="This isn't needed no more") {
+        range = floor(smoothing/2)*2 + 1
+        effectiveYear = as.numeric(rownames(smoothed)) + chunkOffset
+        smoothed = smoothed[effectiveYear %/% range  == effectiveYear / range,]
+        if (numeric.y) {
+          effectiveY = as.numeric(colnames(smoothed)) + chunkOffset
+          smoothed = smoothed[,effectiveY %/% range  == effectiveY / range]
+        }
+    }
+    total = melt(as.matrix(smoothed))
+
   }
   if(smoothing < 1) {
     smoothname = paste("\nLoess smoothing with span=",smoothing)
@@ -130,11 +158,11 @@ genreplot = function(word = list('call attention')
       total = melt(as.matrix(smoothed))
     }
     if (numeric.y) {
-      model = loess(ratio ~ year+groupingVariable,mylist,weights = nwords,span=smoothing)
+      model = loess(ratio ~ timeVariable+groupingVariable,mylist,weights = nwords,span=smoothing)
       groupingVariable = seq(from=min(mylist$groupingVariable),to = max(mylist$groupingVariable),length.out=length(unique(mylist$groupingVariable)))
       year = seq(from=years[1],to=years[2],length.out=length(years[1]:years[2]))
       predictions = merge(year,groupingVariable,all=T)
-      names(predictions) = c("year","groupingVariable")      
+      names(predictions) = c("timeVariable","groupingVariable")      
       predictions$ratio = predict(model,newdata = predictions)
       predictions$ratio[predictions$ratio<0] = 0
       total=predictions
@@ -159,8 +187,9 @@ genreplot = function(word = list('call attention')
     "Frequency of '",
     paste(word,collapse="' or '"),
     "' \n ",comparegroup,smoothname,sep="")
-  colnames(total) = c("year","groupingVariable","value")
-  total = total[total$year >= years[1],]
+  colnames(total) = c("timeVariable","groupingVariable","value")
+  #XXXNot sure whether I still need this line.
+  total = total[total$timeVariable >= years[1],]
   
   #Some weird behavior to get the levels to display nicely.
   total$groupingVariable = factor(total$groupingVariable)
@@ -171,8 +200,8 @@ genreplot = function(word = list('call attention')
     }
   }
   total =   total[!is.na(total$groupingVariable),]
-  total$year = as.numeric(total$year)
-  total = merge(total,mylist,by=c('groupingVariable','year'))
+  total$timeVariable = as.numeric(total$timeVariable)
+  total = merge(total,mylist,by=c('groupingVariable','timeVariable'))
   if (numeric.y) {
     total$groupingVariable=as.numeric(as.character(total$groupingVariable))
   }
@@ -195,7 +224,7 @@ genreplot = function(word = list('call attention')
       #geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'grey',lty=3)
   }
   #total$value[total$value>max(total$value)/5] = max(total$value)/5
-  ggplot(total, aes(y=groupingVariable,x=year,fill=value)) + 
+  genres <- ggplot(total, aes(y=groupingVariable,x=timeVariable,fill=value)) + 
   scale_x_continuous(expand=c(0,0)) +
   yscale  +    
     geom_tile() + 
@@ -206,4 +235,6 @@ genreplot = function(word = list('call attention')
            labs(fill="score",x="",y="") + color_scale + xlab(paste("Count type:",gsub("_"," ",counttype)))
             #,
              #trans='sqrt',limits = c(0,max(total$value*1000000)))
-}
+  genres$data$year = genres$data$timeVariable
+  genres
+  }
