@@ -21,7 +21,7 @@ genreplot = function(word = list('call attention')
                      ,
                      words_collation = "Case_Sensitive"
                      ,
-                     country = list()
+                     ...
                      ) {  
   #If smoothing is less than 1, it's a loess span; if greater, it's a moving average;
   #If exactly 1, no smoothing
@@ -34,16 +34,16 @@ genreplot = function(word = list('call attention')
       words_collation=words_collation,
       groups=groupeds,      
       search_limits = 
-        list(
           list(
             'word' = word,
             'year' = as.list(years[1]:years[2]),
             'alanguage' = list('eng'),
-            'country' = country
             )
-    )
-  )
-
+      )
+  #all other arguments are passed to search_limits    
+  for (element in names(list(...))) {
+    core_search[['search_limits']][[element]] = list(...)[[element]]
+  }
     mainquery =    try(dbGetQuery(con,APIcall(core_search)))
   if(class(mainquery) == "try-error") {
     source("Rbindings.R")
@@ -52,7 +52,7 @@ genreplot = function(word = list('call attention')
 
   #Get the totals by deleting the words terms from the search
   new = core_search
-  new[['search_limits']][[1]][['word']] = comparison_words
+  new[['search_limits']][['word']] = comparison_words
   allwords = dbGetQuery(con,APIcall(new))
   names(allwords)[ncol(allwords)] = 'nwords'
   #merge them together
