@@ -5,13 +5,28 @@ from subprocess import call as sh
 import os
 """
 We start with files at, relative to the main presidio directory:
-../texts/textfiles (Any number of text files that each consist of a numeric and a stringidentifier (the numeric identifier is just an incrementing integer guaranteed to be unique across the full dataset.
-../texts/raw (The files themselves will be named 'stringidentifier.txt')
-The easiest form of parallelization at the moment is just to shift around the number of files in each location at /texts/textfiles, and possibly to create several different locations.
+
+../texts/raw      The raw text files.  The files themselves should be named
+                  'stringidentifier.txt' and the ids 'stringidentifier' should be
+                  listed in a textids/ file.
+
+../texts/textids  Any number of text files that each consist of a numeric and a 
+                  stringidentifier (the numeric identifier is just an incrementing
+                  integer guaranteed to be unique across the full dataset).  This
+                  should be tab-delimited and should exclude the ".txt" extension.
+
+Example creation of one such text file, run from ../texts/raw:
+
+ls *.txt | awk -F '.txt' '{count++; print count "\t" $1;}' > ../textids/cat0001.txt
+
+The easiest form of parallelization at the moment is just to shift around the 
+number of files in each location at /texts/textfiles, and possibly to create 
+several different locations.
+
 """
 
 #There are a whole bunch of directories that it wants to be there:
-for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unigrams','logs/unigrams','logs/bigrams','texts/bigrams','texts/encoded','texts/encoded/unigrams','texts/encoded/bigrams','logs/encode2','logs/encode1']:
+for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unigrams','logs/unigrams','logs/bigrams','texts/bigrams','texts/encoded','texts/encoded/unigrams','texts/encoded/bigrams','logs/encode2','logs/encode1', 'texts/wordlist']:
     if not os.path.exists("../" + directory):
         sh(['mkdir', '../' + directory])
 
