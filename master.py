@@ -12,11 +12,19 @@ from subprocess import Popen
 from subprocess import PIPE
 from subprocess import call
 start = time.time()
+'''
+Our work on the big server involves applying lots of work to a large number of 
+texts. These processes are heavily parallelizable; this is a wrapper that does most 
+of the work of splitting up the textlists into multiple chunks, and then applying a 
+function across all of them. The code itself is usually trivial, but the different 
+steps are good to keep around at different points. (We want the same files to create
+3-grams and 2-grams from, say, or it's good to have English frequency counts as 
+well as encoded ones in case the encoding changes.
 
-#Our work on the big server involves applying lots of work to a large number of texts. These processes are heavily parallelizable; this is a wrapper that does most of the work of splitting up the textlists into multiple chunks, and then applying a function across all of them. The code itself is usually trivial, but the different steps are good to keep around at different points. (We want the same files to create 3-grams and 2-grams from, say, or it's good to have English frequency counts as well as encoded ones in case the encoding changes.
-
-# The basic parallelization is built around splitting up the list of input files into chunks of 100,000 texts each. (Maybe not the most elegant solution, but it works fine for now).
-
+The basic parallelization is built around splitting up the list of input files into 
+chunks of 100,000 texts each. (Maybe not the most elegant solution, but it works 
+fine for now.)
+'''
 #PASS THE MODE THROUGH THE COMMAND LINE
 try:
     mode = sys.argv[1]
@@ -27,7 +35,7 @@ except:
 class bookids_file:
     def __init__(self,targetfile,mode,auxdata = ""):
         #auxdata is a weird structure so I can pass bookid files or whatever else is needed to the instances.
-        print "Starting new bookids_file"
+        print "Processing texts in "+targetfile+"\n"
         self.targetfile = targetfile
         self.mode = mode
         self.reset_writefiles()
@@ -36,7 +44,7 @@ class bookids_file:
         self.textsfile = open("../texts/textids/" + self.targetfile,'r')
         self.LOGFILE = open("../logs/" + self.mode + "/" + self.targetfile + ".log",'w')
     def execute(self):
-        print "Executing bookids_file"
+        print "Performing "+mode+"\n"
         i = 0
         for line in self.textsfile:
             splitted = line.split("\t")
@@ -126,10 +134,13 @@ class book:
         self.execute = self.shell_execute
     def shell_execute(self):
         if os.path.exists(self.destination):
+            self.LOGFILE.write("No cleaning. "+self.destination+" already exists.\n")
             return
         if not os.path.exists(self.start):
+            self.LOGFILE.write("No cleaning. "+self.start+" does not exist.\n")
             return
         if os.path.getsize(self.start) < 10:
+            self.LOGFILE.write("No cleaning. "+self.start+" is too small.\n")
             return
         self.LOGFILE.write("working on " + self.bookid)
         shell_operators = [self.start_operator,self.start,"|",self.function,">",self.destination]
