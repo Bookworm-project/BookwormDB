@@ -38,12 +38,13 @@ agedata = function(word,counttype = 'Occurrences_per_Million_Words',comparison_w
   cat(word,"\n")
   f = genreplot(list(word),
             grouping='author_age',
-            groupings_to_use = 63,
+            groupings_to_use = 7,
             counttype = counttype,
             #counttype = 'Occurrences_per_Million_Words',
             ordering=NULL,
             years=c(1850,1922),
-            smoothing=7,
+            smoothing=1,
+            chunkSmoothing=7,
             comparison_words = comparison_words,
             words_collation='Case_Sensitive') + opts(title=word)
   f$data$birth = f$data$year-f$data$groupingVariable
@@ -53,8 +54,8 @@ agedata = function(word,counttype = 'Occurrences_per_Million_Words',comparison_w
   list(plot=f,scores=scorez)
 }
 
-
-agedata('hello')
+source("Word Spread.R")
+agedata('')[[2]]
 genreplot(list('hi'))
 if (FALSE) {
   #There are very weird effects of using percentage of books as a measure: that's because length is a function of author age.
