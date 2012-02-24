@@ -45,7 +45,6 @@ verblist = apply(verbs,1,function(row) {
             'country' = list('USA','UK')
             )
   )  
-
   verbz = as.list(as.vector(unlist(verblist)))
   groups = split(verbz,nchar(verbz))
   tmp = lapply(groups, function(group) {
@@ -82,10 +81,6 @@ names(changers) = verbs$Verb[good]
 changers[['Pittsburgh']] = list(list("Pittsburgh"),list("Pittsburg"))
 source("Word Spread.R")
 
-chunk(changers[[6]])
-
-
-
 modelStrength = function(genres) {
   test = genres$data
   test$birth = test$timeVariable-test$groupingVariable
@@ -96,7 +91,7 @@ modelStrength = function(genres) {
   #what's the square difference 
   strength = mean((ratio[-1,]-ratio[-(nrow(ratio)),])^2)/
     mean((ratio[-(nrow(ratio)),-(ncol(ratio))]-ratio[-1,-1])^2)  
-  model = lm(log(ratio) ~ timeVariable + birth,test,weights=nwords)
+  model = lm(log(ratio) ~ timeVariable + birth,test)
   scorez=summary(model)$coefficients[2:3,3]
   returnt = c(scorez,strength)
   names(returnt)[3] = "relativeBirth"
@@ -123,33 +118,36 @@ chunk = function(wordz) {
     genres =genreplot(
     word = wordz[[2]],
     grouping=list('author_age'),
-    groupings_to_use = 7,
+    groupings_to_use = 21,
     counttype = 'Percentage_of_Books',
     ordering=NULL,
-    years=c(1830,1922),
+    years=c(1800,1922),
     smoothing=1,
     comparison_words = wordz[[1]],
     words_collation='Case_Insensitive',
-    chunkSmoothing=10,
-    country=list('USA'),
-    lc0=list("D","E","F")
-    )
+    chunkSmoothing=3,
+    country=list('USA'))
     genres  + geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'black',lty=3) + opts(sub)
 }
-chunked = lapply(changers,chunk)
 
-compareplot("burned","burnt")+scale_y_log10()
+chunked = lapply(changers,chunk)
+compareplot("vexed","vext")+scale_y_log10()
+require(gridExtra)
+do.call(grid.arrange,chunked)
 names(chunked)
+chunked[[3]]
 scores = t(sapply(chunked[sapply(chunked,length) > 1],modelStrength))
 strengthScores = as.data.frame(scores)
 strengthScores$word = rownames(strengthScores)
 strengthScores$relative = abs(strengthScores$birth) - abs(strengthScores$timeVariable)
 smoothed[['Pittsburgh']]
-ggplot(strengthScores,aes(x=abs(timeVariable),y=abs(birth),label=word)) + 
-  geom_text() + geom_abline() + ylim(0,10) + xlim(0,10)
-chunked[['Burn']]
-
+source("Word Spread.R")
+ggplot(strengthScores,
+       aes(x=abs(timeVariable),y=abs(birth),label=word)) + geom_text() +
+         geom_abline() + ylim(0,6) + xlim(0,6)
+chunked[['Learn']]
 chunked[['Spell']]
+
 smoothed = lapply(1:length(changers),function(n) {
   word = changers[[n]]
   genres =genreplot(word[[2]],
@@ -211,7 +209,7 @@ source('Word Spread.R')
             counttype = 'Percentage_of_Books',
             ordering=NULL,
             years=c(1830,1922),
-            smoothing=7,
+            smoothing=1,
             words_collation='All_Words_with_Same_Stem',
                     comparison_words = list("Jesus"))
 genres + geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'black',lty=3) + opts(sub) + geom_contour(aes(z=value))
@@ -221,4 +219,42 @@ summary(lm(ratio ~ year + birth,genres$data,weights=nwords))
 require(gridExtra)
 grid.arrange(unsmoothed[[1]],smoothed[[1]])
 
+relative = function(chunkeroo) {
+  loc = chunkeroo$data
+  loc$birth = loc$timeVariable-loc$groupingVariable
+  plob = data.frame(birth=loc$birth,year=loc$year,value=loc$value)
+  plob$value[is.na(plob$value)] = 1000000000
+  birthcor = ddply(plob,.(year),function(frame) {
+    cord = cor(frame$value,frame$birth,method='spearman')
+    if (is.na(cord)) {cord=0}
+    data.frame(value = cord,length = nrow(frame),max = max(frame$birth))
+  })
+  yearcor = ddply(plob,.(birth),function(frame) {
+    cord = cor(frame$value,frame$year,method='spearman')
+    if (is.na(cord)) {cord=0}
+    data.frame(value = cord,length = nrow(frame),max = max(frame$year))
+  })
+  if (FALSE) {
+  ggplot(plob,aes(y=birth,x=year,fill=rank(value))) + geom_tile() + 
+    scale_fill_gradient(low='white') + 
+    geom_text(data=yearcor,aes(x=max,label=round(value,2)),hjust=0,vjust=.5,size=2.5) +
+    geom_text(data=birthcor,aes(y=max,label=round(value,2)),hjust=0,vjust=0.5,angle=90,size=2.5)
+  }
+  
+  data.frame(yearcor = mean(yearcor$value[yearcor$length>4]),
+             birthcor=mean(birthcor$value[birthcor$length>4]),
+             freq = sum(loc$nwords) + sum(loc$count))
+}
+
+relative(chunk(list('1850')))
+
+names(chunked)
+rm(results)
+results = ldply(chunked,relative)
+ggplot(results,aes(x=abs(yearcor),y=abs(birthcor),label=.id,size=sqrt(freq))) + geom_text() + ylim(0,.6)+xlim(0,.6)
+
+chunkeroo = chunked[['Learn']]
+
+  val = abs(val[2:3][!is.na(val[2:3])])
+})
 

@@ -43,10 +43,13 @@ mylist = wordgrid(list("capitalism","Capitalism"),
     field='word2',n=50,
     yearlim=c(1900,2000)
   )
+dbGetQuery(con,"Use ngrams")
 mylist = wordgrid(list("democratic"),
     returnData=F,
     wordfield='lowercase',
     field='word1',n=48,
                   excludeList = c("party","Party"),
-    yearlim=c(1815,2000),freqClasses=3,trendClasses=4
+    yearlim=c(1815,2000),freqClasses=4,trendClasses=3
   )
+dbGetQuery(con,"Use presidio")
+genreplot(list("democratic principles"),grouping="lc0",groupings_to_use = 15,chunkSmoothing=5)

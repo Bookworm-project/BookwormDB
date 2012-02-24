@@ -4,8 +4,6 @@ setwd("/presidio/Rscripts")
 source("Rbindings.R")
 
 wordlist = list('attention')
-comparelist = list('carriage','language','advantage','passage')
-
 
   pairs = list(
     c("called","call"),
@@ -19,31 +17,18 @@ comparelist = list('carriage','language','advantage','passage')
     c("amusement","amuse"),
     c("compelled","compel"),
     c("confined","confine"))
-  lapply(pairs,function(pair) {
-    dbGetQuery(con,
-               paste(
-                 "UPDATE wordsheap SET stem='",
-                 pair[2],
-                 "' WHERE stem='",
-                 pair[1],
-                 "'",
-                 sep=""))
+silent =   lapply(pairs,function(pair) {
+    dbGetQuery(con,paste("UPDATE wordsheap SET stem='",pair[2], "' WHERE stem='",pair[1],"'",sep=""))
   })
 
 source("Rbindings.R")
-words = wordgrid(wordlist=list("attention")
-         ,
-         collation='Case_Insensitive'
-         ,
-         flagfield='word'
-         ,
-         n=80,
-         yearlim=c(1850,1922)
-         ,
-         freqClasses = 4
-         ,
-         trendClasses=3
-         )
+source("ngrams wordgrid.R")
+words = wordgrid(list("attention"),freqClasses=4,
+    returnData=F,
+    wordfield='casesens',
+    field='word1',n=45, 
+    yearlim=c(1800,2000)
+  )
 
 adunwords = c("absorbed", "amused", "aroused", "arrest", "arrests", "attract", 
 "attracted", "attracting", "attracts", "attracts", "awaken","awake","awakened","call", "called", 
@@ -80,18 +65,16 @@ adjectives = c("active", "anxious", "assiduous", "breathless", "careful",
 adjectives = wordgrid(
   wordlist=list("attention")
          ,
-         comparelist = list('Freiheit','Wahrheit','Einheit'),
-         WordsOverride = adjectives
+         WordsOverride = adunwords
          ,
          collation='Case_Insensitive'
          ,
-         flagfield='casesens'
-         ,
          n=80
          ,
+         wordfield='stem',
          language = list('eng')
          ,
-         yearlim=c(1823,1922)
+         yearlim=c(1823,2005)
          ,
          freqClasses = 4
          ,

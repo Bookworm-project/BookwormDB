@@ -21,8 +21,6 @@ genreplot = function(word = list('call attention')
                      ,
                      words_collation = "Case_Sensitive"
                      ,
-                     country = list()
-                     ,
                      chunkSmoothing=1
                      ,
                      x.value = 'year'
@@ -60,22 +58,20 @@ genreplot = function(word = list('call attention')
             'year' = as.list(years[1]:years[2]),
             'alanguage' = list('eng')
     )
-<<<<<<< HEAD
   )  
+  
   for (element in names(list(...))) {
+    cat(element,"\n")
     core_search[['search_limits']][[element]] = list(...)[[element]]
   }
-  mainquery =  dbGetQuery(con,APIcall(core_search))
-=======
-  )
-
-    mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  
+  mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  
   if(class(mainquery) == "try-error") {
     source("Rbindings.R")
     mainquery =    try(dbGetQuery(con,APIcall(core_search)))
   } 
 
->>>>>>> 62a978e2270b86cadedce0b71326893e6256edf6
   #Get the totals by deleting the words terms from the search
   new = core_search
   new[['search_limits']][['word']] = comparison_words
@@ -83,8 +79,6 @@ genreplot = function(word = list('call attention')
   names(allwords)[ncol(allwords)] = 'nwords'
   #merge them together
   mylist = merge(mainquery,allwords,by=gsub(".* as ","",groupeds),all=T)
-
-
   
   mylist$count[is.na(mylist$count)]=0
   mylist$ratio = mylist$count/mylist$nwords
@@ -103,6 +97,8 @@ genreplot = function(word = list('call attention')
       (numbers_to_use[floor(length(numbers_to_use)/2)]+floor(length(numbers_to_use)/2))
     mylist = mylist[mylist$groupingVariable %in% numbers_to_use,] 
   }
+  mylist$count[is.na(mylist$count)] = 0
+  mylist$nwords[is.na(mylist$nwords)] = 0
   genretabs = xtabs(count~timeVariable+groupingVariable,mylist)/xtabs(nwords~timeVariable+groupingVariable,mylist)
   genretabs[genretabs==Inf] = max(genretabs)
   if (smoothing > 1) {
@@ -236,16 +232,14 @@ genreplot = function(word = list('call attention')
   }
   #total$value[total$value>max(total$value)/5] = max(total$value)/5
   genres <- ggplot(total, aes(y=groupingVariable,x=timeVariable,fill=value)) + 
-  scale_x_continuous(expand=c(0,0)) +
-  yscale  +    
+    scale_x_continuous(expand=c(0,0)) +
+    yscale  +    
     geom_tile() + 
-  opts(title = title,
-       panel.background = theme_rect(fill="grey"),
-       panel.grid.major = theme_blank(),
-       panel.grid.major = theme_blank()) + 
-           labs(fill="score",x="",y="") + color_scale + xlab(paste("Count type:",gsub("_"," ",counttype)))
-            #,
-             #trans='sqrt',limits = c(0,max(total$value*1000000)))
+    opts(title = title,
+         panel.background = theme_rect(fill="grey"),
+         panel.grid.major = theme_blank(),
+         panel.grid.major = theme_blank()) + 
+    labs(fill="score",x="",y="") + color_scale + xlab(paste("Count type:",gsub("_"," ",counttype)))
   genres$data$year = genres$data$timeVariable
   genres
   }
