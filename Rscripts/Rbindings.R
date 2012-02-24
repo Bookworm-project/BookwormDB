@@ -345,7 +345,8 @@ median_ages <- function (limits) {
              "'\ncompared to all authors in that year",sep=""))
   }
 }
-  whereterm = function(terms=list(year = c(1876,1896),word1 = c("home","away"))) {
+
+whereterm = function(terms=list(year = c(1876,1896),word1 = c("home","away"))) {
     paste(
       "(",
       lapply(

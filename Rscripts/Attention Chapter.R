@@ -184,6 +184,20 @@ genres =genreplot(list("waked"),
           smoothing=8,
           comparison_words = list("woke"),
           words_collation='Case_Sensitive',country=list("USA"))
-genres 
 
-ggplot(melt(volcano)) + geom_tile()
+core_query = 
+  list(method = 'counts_query',
+      smoothingType="None",      
+      groups = list(
+        "words1.word as w1","words1.stem as stem1",
+        "year","lc1","lc0","state","country","aLanguage","nwords"),                           
+      search_limits = 
+         list(
+          'word2'=list('attention')
+     ))
+
+vals = dbGetQuery(con,APIcall(core_query))
+normstemscore = ddply(vals,.(stem1),function(frame) {
+  data.frame(average = mean(xtabs(frame$count~frame$year)/xtabs(frame$nwords~frame$year)))
+})
+
