@@ -155,7 +155,6 @@ words = find_distinguishing_words(
   
 words[[1]][1:25]
 
-find_distinguishing_words()
 
 #What are the age patterns for 'pay attention' more frequently used 
 
@@ -165,15 +164,26 @@ z = median_ages(list("word"=list("smile")));z + geom_smooth(se=F,lwd=2,span=.3)
 
 plot(z[,1],z[,2]-p[,2],type='l')
 source('Word Spread.R')
-  genres =genreplot(list('Focus attention'),
-            grouping=list('lc1'),
-            groupings_to_use = 30,
-            counttype = 'Occurrences_per_Million_Words',
-            ordering=NULL,
-            years=c(1870,1922),
-            smoothing=6,
-            comparison_words = list(),
-            words_collation='All_Words_with_Same_Stem')
+genreplot(
+    word = list('focus attention'),
+    years = c(1830,1922),
+    grouping = 'lc1',
+    counttype = 'Occurrences_per_Million_Words',
+    groupings_to_use=25,ordering=NULL,smoothing=7,
+    comparison_words=list(),
+    words_collation = "Case_Sensitive",
+   country = list()) 
   genres  
+
+genres =genreplot(list("waked"),
+          grouping='author_age',
+          groupings_to_use = 63,
+          counttype = 'Percentage_of_Books',
+          ordering=NULL,
+          years=c(1822,1922),
+          smoothing=8,
+          comparison_words = list("woke"),
+          words_collation='Case_Sensitive',country=list("USA"))
+genres 
 
 ggplot(melt(volcano)) + geom_tile()

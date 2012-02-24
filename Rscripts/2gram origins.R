@@ -7,48 +7,105 @@ require(zoo)
 
 #Window must be odd
 
-tabbed = return_matrix(sampling=1,offset=0,max=10000,min=1,grams=2)
+tabbed = return_matrix(sampling=2,offset=0,max=200000,min=1,grams=1)
 window = 15
 window = (floor(window/2)*2 + 1)
-yearlim = c(1825,2005)
+yearlim = c(1780,2005)
 smoothed = tabbed[rownames(tabbed) %in% yearlim[1]:yearlim[2],]
 dim(smoothed)
 smoothed = apply(smoothed,2,rollmedian,k=window,na.pad=T)
 rownames(smoothed) = as.character(yearlim[1]:yearlim[2])
-good = smoothed[rownames(smoothed)=='1922',]/
-  smoothed[rownames(smoothed)=='1835',] > 10
+#smoothed = oldsmoothed
+#Require words with 'fs' or esses to behave well.
+words = colnames(smoothed)
 
-#Here we set some criteria for 'entering the language,' 
+
+
+goodword =
+    #If it has an 'F', it can't be 4x as common in 1805 as 1835; vice versa if it has an 's'
+  (!grepl('f',words) |
+   smoothed[rownames(smoothed)=='1805',]/smoothed[rownames(smoothed)=='1835',] < 4  ) & 
+  ((!grepl('s',words)) ||
+   (smoothed[rownames(smoothed)=='1805',]/smoothed[rownames(smoothed)=='1835',] > .25)) &
+  #And it can't be very frequent before we start
+  smoothed[rownames(smoothed)=='1820',] > .1
+summary(goodword)
+#Here we set some criteria for 'entering the language,'
+oldsmoothed=smoothed
+smoothed=smoothed[rownames(smoothed) %in% as.character(1822:1922),goodword]
+dim(smoothed)
 good = 
-  changefrom(10,smoothed) < .9 &
-  changefrom(3,smoothed) < .9 &
-  smoothed > .5 &
-  lag(-10,smoothed) < .1
+  changefrom(10,smoothed) < 1 &
+  changefrom(-1,smoothed) > 1 &
+  lag(-1,smoothed) ==0
+
+
 
 bigchanges = which(good,arr.ind=T)[,2]
 
-newwords = data.frame(year = names(bigchanges),word = colnames(change)[bigchanges])
+newwords = data.frame(
+  year = as.numeric(names(bigchanges)),
+  word = colnames(smoothed)[bigchanges])
 newwords = newwords[!duplicated(newwords$word),]
 entrance = newwords[order(newwords$year),]
 entrance$year = as.numeric(as.character(entrance$year))
-entrance = entrance[entrance$year <= 1922,]
+
 dim(entrance)
-findorigin = function(row= entrance[sample(nrow(entrance),1),]) {
-  row 
+entrance[sample(nrow(entrance),15),]
+
+
+smoothed[,colnames(smoothed)=="profefs"]
+findorigin = function(year=row[,1],word=row[,2]) {
+  row = data.frame(year=year,word=word)
   f = genreplot(list(as.character(row$word)),grouping="lc0",groupings_to_use=15,smoothing=10,
                 years = c(row$year -10 ,row$year +10 ))
   loc = f$data[f$data$year==row$year,]
   solution = loc[which(loc$value == max(loc$value)),]$groupingVariable
-  solution
+  as.character(solution)
 }
   
 row= entrance[sample(nrow(entrance),1),]
 row
-findorigin(row)->z
+findorigin()->z
+entrance$genre = apply(entrance,1,function(row){
+  cat(row,"\n")
+  try(findorigin(as.numeric(row[1]),row[2]))})
+entrance[1:25,]  
+entrance$genre[sapply(entrance$genre,length)>1] = NA
+entrance$field = factor(unlist(entrance$genre))
 
+entrance$domain = NA
+entrance$domain[entrance$field %in% c("Q","R","S","T")] = "Science and Technology"
+entrance$domain[entrance$field %in% c("J","K")] = "Law and Politics"
+entrance$domain[entrance$field %in% c("B")] = "Philosophy, Psychology and Religion"
+entrance$domain[entrance$field %in% c("H")] = "Philosophy and Religion"
+entrance$domain[entrance$field %in% c("C","D")] = "World History"
+entrance$domain[entrance$field %in% c("E","F")] = "American History"
+entrance$domain[entrance$field %in% c("P")] = "Literature"
+entrance$domain[entrance$field %in% c("L")] = "Education"
 
-z
-  qplot(
+  plotting = entrance
+plotting = entrance[!is.na(entrance$field) & entrance$year > 1842 & !(entrance$field %in% c('N',"Error in fix.by(by.x, x) : 'by' must specify valid column(s)\n")),]
+#plotting = plotting[sample(nrow(plotting),100),]
+  plotting[plotting$word=="Sherlock Holmes",]
+  ggplot(plotting,
+       aes(y=year,x=0)) +
+         scale_x_continuous(breaks = NA) +
+         geom_point(
+           color="white",
+           position=position_jitter(height = 0.5,width=16)) +
+         scale_y_continuous(trans='reverse',breaks = seq(1840,1920,by=5)) +
+         facet_grid(.~domain) + 
+         geom_text(
+           aes(label=word),
+           size=2.5,
+           position=position_jitter(height = 0.5,width=7)
+           ) +
+          xlab("") +
+         theme_bw()
+
+  
+qplot(
   as.numeric(rownames(change)),
   rowSums(change>13 & smoothed > 1),geom='line')+
     scale_x_continuous(breaks=seq(1800,2000,by=10))+
