@@ -1,17 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#UNIVERSAL SETTINGS
+# Be sure that txtdir, catfile, and metafile are set correctly
 
 import MySQLdb
-#import re
-#import subprocess
-#from subprocess import call
-#import os
-#from datetime import datetime
-#import json
 
-txtdir = "/data/arxiv/pilot/texts/"
+txtdir = "/scratch/global/neva/texts/"
+catfile = "catalog.txt"
+metafile = "metadata.txt"
 
 cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = "arxiv")
 cursor = cnx.cursor()
@@ -42,41 +38,64 @@ def create_unigram_book_counts():
         count MEDIUMINT UNSIGNED NOT NULL);""")
     cursor.execute("ALTER TABLE master_bookcounts DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
-    for line in open(txtdir+"textids/totalcat"):
+    for line in open(txtdir+catfile):
         fields = line.split()
-        cursor.execute("LOAD DATA LOCAL INFILE '" +txtdir+"encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]);  
+        try:
+            cursor.execute("LOAD DATA LOCAL INFILE '" +txtdir+"encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]);
+        except:
+            pass
     cursor.execute("ALTER TABLE master_bookcounts ENABLE KEYS")
 
 def create_bigram_book_counts():
     print "Making a SQL table to hold the data"
     cursor.execute("""CREATE TABLE IF NOT EXISTS master_bigrams (
-        bookid MEDIUMINT NOT NULL, INDEX(bookid,word1,word2,count),
+        bookid MEDIUMINT NOT NULL, 
         word1 MEDIUMINT NOT NULL, INDEX (word1,word2,bookid,count),    
-        word2 MEDIUMINT NOT NULL, INDEX(word2, word1, bookid, count),    
+        word2 MEDIUMINT NOT NULL,     
         count MEDIUMINT UNSIGNED NOT NULL);""")
     cursor.execute("ALTER TABLE master_bigrams DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
-    for line in open(txtdir+"textids/totalcat"):
+    for line in open(txtdir+catfile):
         fields = line.split()
-        cursor.execute("LOAD DATA LOCAL INFILE '" +txtdir+"encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]);  
+        try:
+            cursor.execute("LOAD DATA LOCAL INFILE '" +txtdir+"encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]);
+        except:
+            pass
     cursor.execute("ALTER TABLE master_bigrams ENABLE KEYS")
 
 def load_book_list():
     print "Making a SQL table to hold the data"
     cursor.execute("""CREATE TABLE IF NOT EXISTS catalog (
-        bookid MEDIUMINT, INDEX(bookid),
+        bookid MEDIUMINT, PRIMARY KEY(bookid),
+        arxivid VARCHAR(255),
         date DATETIME,
-        category VARCHAR(255)
+        title VARCHAR(255),
+        author VARCHAR(255)
         );""")
     cursor.execute("ALTER TABLE catalog DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
     cursor.execute("""LOAD DATA LOCAL INFILE '"""
-                   +txtdir+"""metadata.txt' 
+                   +txtdir+metafile+"""' 
                    INTO TABLE catalog
-                   (bookid,date,category) """)
+                   (bookid,arxivid,date,title,author) """)
     cursor.execute("ALTER TABLE catalog ENABLE KEYS")
+
+def load_genre_list():
+    print "Making a SQL table to hold the data"
+    cursor.execute("""CREATE TABLE IF NOT EXISTS genre (
+        bookid MEDIUMINT, 
+        genre VARCHAR(255)
+        );""")
+    cursor.execute("ALTER TABLE genre DISABLE KEYS")
+    print "loading data using LOAD DATA LOCAL INFILE"
+    cursor.execute("""LOAD DATA LOCAL INFILE '"""
+                   +txtdir+metafile """' 
+                   INTO TABLE genre
+                   (bookid,@dummy,@dummy,@dummy,@dummy,genre) """)
+    cursor.execute("ALTER TABLE genre ENABLE KEYS")
 
 #load_word_list()
 #create_unigram_book_counts()
 #create_bigram_book_counts()
-load_book_list()
+#load_book_list()
+load_genre_list()
