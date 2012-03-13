@@ -5,9 +5,10 @@
 
 import MySQLdb
 
-txtdir = "/scratch/global/neva/texts/"
+#txtdir = "/scratch/global/neva/texts/"
+txtdir = "/media/troilus/arxiv/"
 catfile = "catalog.txt"
-metafile = "metadata.txt"
+metafile = "new_metadata.txt"
 
 cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = "arxiv")
 cursor = cnx.cursor()
@@ -68,34 +69,99 @@ def load_book_list():
     cursor.execute("""CREATE TABLE IF NOT EXISTS catalog (
         bookid MEDIUMINT, PRIMARY KEY(bookid),
         arxivid VARCHAR(255),
+        email VARCHAR(255),
         date DATETIME,
         title VARCHAR(255),
-        author VARCHAR(255)
+        author VARCHAR(255),
+        genre VARCHAR(255)
         );""")
     cursor.execute("ALTER TABLE catalog DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
     cursor.execute("""LOAD DATA LOCAL INFILE '"""
                    +txtdir+metafile+"""' 
                    INTO TABLE catalog
-                   (bookid,arxivid,date,title,author) """)
+                   (bookid,arxivid,email,date,title,author,genre) """)
     cursor.execute("ALTER TABLE catalog ENABLE KEYS")
 
 def load_genre_list():
     print "Making a SQL table to hold the data"
     cursor.execute("""CREATE TABLE IF NOT EXISTS genre (
         bookid MEDIUMINT, 
-        genre VARCHAR(255)
+        genre VARCHAR(255),
+        subgenre VARCHAR(255)
         );""")
     cursor.execute("ALTER TABLE genre DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
     cursor.execute("""LOAD DATA LOCAL INFILE '"""
-                   +txtdir+metafile """' 
+                   +txtdir+metafile+ """' 
                    INTO TABLE genre
-                   (bookid,@dummy,@dummy,@dummy,@dummy,genre) """)
+                   (bookid,genre,subgenre) """)
+#                   (bookid,@dummy,@dummy,@dummy,@dummy,genre) """)
     cursor.execute("ALTER TABLE genre ENABLE KEYS")
+
+### THIS STUFF ONLY GETS ADDED ONCE!!!!!!!!!!!!!!!!!!!!! 
+### There's another section below that gets redone every time we startup 
+### the server. 
+def set_nwords_domains():
+    cursor.execute("ALTER TABLE catalog ADD nwords INT;");
+    cursor.execute("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;");
+   #mld is for medium level domain; we need SECOND AND third level domains to get it to work properly with japanese and british institutions.
+    cursor.execute("ALTER TABLE catalog ADD (day MEDIUMINT, week MEDIUMINT,month MEDIUMINT, tld VARCHAR(6), sld VARCHAR(25), ld3 VARCHAR(31), mld VARCHAR(31);");
+    cursor.execute("UPDATE catalog SET day=TO_DAYS(date), week = ROUND(TO_DAYS(date)/7)*7, month = TO_DAYS(STR_TO_DATE(DATE_FORMAT(date, '01 %M %Y'),'%d %M %Y'));");
+
+#SQL, it turns out, was an insane way to try to set e-mail domains without using regular expressions. But it works.
+    cursor.execute("""UPDATE catalog SET
+     tld=    REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',1)),
+     sld = SUBSTR(REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',2)),LOCATE('@',REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',2)))+1,LENGTH(REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',2)))),
+ld3 = SUBSTR(REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',3)), LOCATE('@',REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',3)))+1,
+LENGTH(REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',3))));""");
+
+    cursor.execute("UPDATE catalog SET mld=sld;");
+    cursor.execute("UPDATE catalog SET mld=ld3 WHERE  sld REGEXP '^(ac|edu)';");
+
+###This is the part that has to run on every startup.
+def create_memory_tables():
+    cursor.execute("DROP TABLE IF EXISTS tmp;");
+    cursor.execute("""CREATE TABLE tmp
+     (bookid MEDIUMINT, INDEX (bookid),
+      nwords MEDIUMINT,
+      day MEDIUMINT,
+      week MEDIUMINT,
+      month MEDIUMINT,
+      tld CHAR(3),
+      mld VARCHAR(15))
+    ENGINE=MEMORY;""");
+    cursor.execute("INSERT INTO tmp SELECT bookid,nwords,day,week,month,tld,mld FROM catalog;");
+    cursor.execute("DROP TABLE IF EXISTS fastcat;");
+    cursor.execute("RENAME TABLE tmp TO fastcat;");
+
+    cursor.execute("CREATE TABLE tmp (wordid MEDIUMINT, INDEX(wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),INDEX(casesens)) ENGINE=MEMORY;
+INSERT INTO tmp SELECT wordid,word,casesens FROM words WHERE CHAR_LENGTH(word) <= 30 LIMIT 1500000;");
+    cursor.execute("DROP TABLE IF EXISTS wordsheap;");
+    cursor.execute("RENAME TABLE tmp TO wordsheap;");
+    
+    cursor.execute("CREATE TABLE tmp (bookid MEDIUMINT, subclass VARCHAR(18)) ENGINE=MEMORY ;");
+    cursor.execute("INSERT into tmp SELECT bookid,subgenre FROM genre GROUP BY bookid,subgenre;");
+    cursor.execute("ALTER TABLE tmp ADD INDEX (bookid);");
+    cursor.execute("DROP TABLE IF EXISTS subclass;");
+    cursor.execute("RENAME TABLE tmp TO subclass;");
+    
+    cursor.execute("CREATE TABLE tmp (bookid MEDIUMINT, INDEX (bookid), archive VARCHAR(13)) ENGINE=MEMORY ;");
+    cursor.execute("INSERT into tmp SELECT bookid, genre FROM genre GROUP BY bookid,genre;");
+    cursor.execute("DROP TABLE IF EXISTS archive;");
+    cursor.execute("RENAME TABLE tmp TO archive;");
+
+    cursor.execute("DROP TABLE if exists column_options;");
+    cursor.execute("""CREATE TABLE column_options ENGINE=MEMORY 
+    SELECT TABLE_NAME,
+                 COLUMN_NAME,
+                 DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS   
+        WHERE TABLE_SCHEMA='arxiv';""");
 
 #load_word_list()
 #create_unigram_book_counts()
 #create_bigram_book_counts()
-#load_book_list()
-load_genre_list()
+load_book_list()
+#load_genre_list()
+#set_nwords_domains()
+#create_memory_tables()
