@@ -36,6 +36,7 @@ class jstorID:
         for item in metadata_fields:
             try:
                 self.metadata[item] = self.dom.getElementsByTagName(item)[0].childNodes[0].nodeValue
+                self.metadata[item] = self.metadata[item].encode('utf-8')
             except:
                 self.metadata[item] = ''
     def writeText(self):
@@ -45,11 +46,12 @@ class jstorID:
     def writeMetadata(self):
         self.get_metadata()
         metadata = open ('../../metadata/main.txt','a')
-        metadata.write('self.id')
+        metadata.write(self.id)
         for field in metadata_fields:
             try:
-                metadata.write(self.metadata['field']) + "\t"
+                metadata.write(self.metadata[field] + "\t")
             except KeyError:
                 metadata.write("\t")
+        metadata.write("\n")
 
 Export().exportall()
