@@ -18,7 +18,7 @@ class Export:
     def exportall(self):
         for p in self.filenames:
             working = jstorID(p)
-            working.writeText()
+            #working.writeText()
             working.writeMetadata()
             
 class jstorID:
@@ -45,6 +45,11 @@ class jstorID:
     def writeMetadata(self):
         self.get_metadata()
         metadata = open ('../../metadata/main.txt','a')
-        metadata.write(self.id + '\t' + self.metadata['year'])     
+        metadata.write('self.id')
+        for field in metadata_fields:
+            try:
+                metadata.write(self.metadata['field']) + "\t"
+            except KeyError:
+                metadata.write("\t")
 
 Export().exportall()
