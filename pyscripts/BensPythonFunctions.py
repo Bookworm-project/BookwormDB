@@ -341,6 +341,12 @@ def create_memory_tables():
     cursor.execute("""update tmpheap set subset='beta'""")
     cursor.execute("""DROP TABLE IF EXISTS catalog""")
     cursor.execute("RENAME TABLE tmpheap TO catalog")
+    #Drop some duplicate journals, which usually have a period at the end of the name.
+    cursor.execute("""UPDATE catalog set bflag=0;""")
+    cursor.execute("""UPDATE catalog JOIN (SELECT * FROM open_editions as o2 JOIN (SELECT title,year,count(*) as count FROM open_editions WHERE nwords > 0 AND title LIKE "%." AND title NOT LIKE "%ouvre%" and title NOT LIKE "%works%" AND title NOT like "Trait%" GROUP BY title,year HAVING count > 8) as journal USING (title,year)) as tmp ON (tmp.bookid=catalog.bookid) SET bflag=1;""")
+    cursor.execute("""DELETE FROM catalog WHERE bflag=1;""")
+
+
 ##### FUNCTIONS DEALING WITH WORDCOUNT TABLES
 
 def fix_place_metadata():
@@ -573,6 +579,7 @@ def delete_matching_database_tables(string): #Dangerous!
 	for table in tablelist:
 		cursor.execute("drop table " + table)
             
+
 #### NOTEPAD
 def update_word_counts():
     cursor.execute("""update open_editions set nwords = (select sum(count) as count from sprint_bookcounts where open_editions.bookid = sprint_bookcounts.bookid) WHERE subset='sprint';""")
