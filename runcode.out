@@ -1,0 +1,506 @@
+Exception in thread Thread-3:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-6:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-11:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-9:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-2:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-4:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-7:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-10:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Processing texts in xah
+
+Processing texts in xaj
+
+Processing texts in xai
+
+Performing clean
+
+Processing texts in xad
+
+Performing clean
+
+Processing texts in xaa
+
+Performing clean
+
+Performing clean
+
+Processing texts in xae
+
+Processing texts in xag
+
+Performing clean
+
+Processing texts in xab
+
+Processing texts in xaf
+
+Performing clean
+
+Processing texts in xak
+
+Processing texts in xac
+
+Performing clean
+
+Performing clean
+
+Performing clean
+
+Performing clean
+
+Performing clean
+
+Error on hep-ph_9612_9612270 
+Error on gr-qc_0110_0110083 
+Error on arxiv_1108_1108.2415 
+Error on arxiv_0908_0908.1644 
+Error on astro-ph_0311_0311424 
+Error on math_0401_0401140 
+Error on arxiv_1009_1009.0089 
+Error on cond-mat_0212_0212048 
+Error on physics_0606_0606102 
+Exception in thread Thread-7:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-10:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-9:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-6:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-4:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-11:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-2:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-5:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Processing texts in xah
+
+Processing texts in xaj
+
+Processing texts in xai
+
+Processing texts in xad
+
+Processing texts in xaa
+
+Processing texts in xae
+
+Processing texts in xag
+
+Processing texts in xab
+
+Processing texts in xaf
+
+Processing texts in xak
+
+Processing texts in xac
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Performing unigrams
+
+Error on cond-mat_0210_0210138 
+Error on physics_0510_0510088 
+Error on astro-ph_0311_0311122 
+Error on arxiv_1108_1108.2251 
+Error on arxiv_1008_1008.5009 
+Error on gr-qc_0109_0109066 
+Error on arxiv_0908_0908.1536 
+Error on math_0401_0401089 
+Error on adap-org_9804_9804002 
+Exception in thread Thread-11:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-3:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-9:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-8:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-7:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-6:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
+Exception in thread Thread-10:
+Traceback (most recent call last):
+  File "/usr/lib64/python2.4/threading.py", line 442, in __bootstrap
+    self.run()
+  File "master.py", line 157, in run
+    bookids_group.execute()
+  File "master.py", line 61, in execute
+    mybook.execute()
+  File "master.py", line 147, in shell_execute
+    results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
+  File "/usr/lib64/python2.4/subprocess.py", line 412, in call
+    return Popen(*args, **kwargs).wait()
+  File "/usr/lib64/python2.4/subprocess.py", line 1007, in wait
+    pid, sts = os.waitpid(self.pid, 0)
+OSError: [Errno 10] No child processes
+
