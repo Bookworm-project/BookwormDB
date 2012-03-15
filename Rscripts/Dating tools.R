@@ -28,13 +28,13 @@ subtitlrScore = function(episode,...) {
 
 
 tokenize = function(script,grams=2) {
-  script = gsub("\n",' ',script)
-  script = gsub("([.,!?\\[])"," \\1",script)
+  script = gsub("\n"," ",script)
+  script = gsub("([\\.,!\\?\\[\\]])"," \\1",script)
   splitted = strsplit(script," ")
   splitted = unlist(splitted)
-  splitted = splitted[grep("^$",splitted,perl=T,invert=T)]
+  splitted = splitted[grep("^$",splitted,invert=T)]
   words = cbind(splitted[-length(splitted)],splitted[-1])
-  words = words[grepl("^\\w+$",words[,1],perl=T) & grepl("^\\w+$",words[,2],perl=T),]
+  words = words[grepl("^[A-Za-z]+$",words[,1]) & grepl("^[A-Za-z]+$",words[,2]),]
   words
 }
 
@@ -43,7 +43,7 @@ MakeNgramCounts = function(dcounts) {
   counts = table(paste(dcounts[,1],dcounts[,2]))
   words = as.data.frame(do.call(rbind,strsplit(names(counts)," ")))
   words$count = counts
-  words = words[!grepl("[B-HJ-Z]",apply(words,1,paste,collapse=" "),perl=T),]
+  words = words[!grepl("[B-HJ-Z]",apply(words,1,paste,collapse=" ")),]
 }
 
 modernityCheck = function(row,
@@ -97,6 +97,7 @@ fullGrid = function(cnts,yearlim=c(1789,2008),sampling = nrow(cnts),comps=c(1921
   factor = totals$ratio               
   k = smoothing%/%2*2+1
   cat("\nSmoothing matrix\n")
+  require(zoo)
   smoothed = apply(tmp,2,function(col) {
       if (weighted) {
         col = rollapply(col,width=k,FUN=weighted.mean,w = sqrt(c(1:(k%/%2),k%/%2+1,(k%/%2):1)),fill=NA)
@@ -139,6 +140,40 @@ fullGrid = function(cnts,yearlim=c(1789,2008),sampling = nrow(cnts),comps=c(1921
         scale_x_continuous("Overall Frequency",trans='log10'))
 }
 
+smoothedCounts = 
+  function(cnts,smoothing = 9,weighted=F,compareword = 'the',sampling=nrow(cnts),yearlim = c(1900,2010)
+           ) {
+  tmp = return_matrix(grams=2,wordInput=cnts[sample(1:nrow(cnts),sampling),],yearlim=yearlim)
+  tmp = tmp/1000000
+  the = dbGetQuery(con,"SELECT words,year FROM presidio.1grams WHERE word1='the'")
+  you = dbGetQuery(con,paste("SELECT words,year FROM presidio.1grams WHERE word1='",compareword,"'",sep=""))
+  totals = merge(the,you,by='year')
+  attach(totals)
+  totals$ratio = (words.x/(words.y))
+  totals$ratio = totals$ratio/median(totals$ratio)
+  detach(totals)
+  #Using "you" as a proxy for the total words of dialogue--slightly tricky, but workable?
+  tmp = tmp*totals$ratio[match(rownames(tmp),totals$year)]
+
+  factor = totals$ratio               
+  k = smoothing%/%2*2+1
+  cat("\nSmoothing matrix\n")
+  require(zoo)
+  
+  tmp = tmp[rownames(tmp) %in% (yearlim[1]-k):(yearlim[2]+k),]
+  smoothed = apply(tmp,2,function(col) {
+      if (weighted) {
+        col = rollapply(col,width=k,FUN=weighted.mean,w = sqrt(c(1:(k%/%2),k%/%2+1,(k%/%2):1)),fill=NA)
+      } else {
+         col = rollapply(col,k,mean,fill=NA)       
+      }
+      col
+  })
+  dimnames(smoothed) = dimnames(tmp)
+  smoothed = smoothed[rownames(smoothed) %in% yearlim[1]:yearlim[2],]
+  dataf = melt(smoothed)
+  dataf
+}
 
 example = function(downtons,word,k=3) {
   readable = unlist(lapply(downtons,strsplit,"\n"))
