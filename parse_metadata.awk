@@ -1,7 +1,7 @@
 ##  Script for parsing arxiv metadata.  Call with a catalog file
 ##  that lists the bookids and file location (with _ for /) of the
 ##  abstracts:
-##          awk -f parse_metadata.awk texts/catalog.txt
+##          awk -f parse_metadata.awk ../texts/catalog.txt
 ##
 ##  The code in the BEGIN statement sets up hashes for convenience.  "a"
 ##  is used to make the date into proper datetime SQL format.  "b" is to
@@ -196,7 +196,7 @@ BEGIN{
   # fn is the filename
   fn = $2;
   gsub(/_/,"/", fn);
-  fn = "abs/"fn".abs"
+  fn = "../abs/"fn".abs"
 
   # where is used to deal with multiline author and title fields
   # t is title, au is author, c is the categories, fields is the line
