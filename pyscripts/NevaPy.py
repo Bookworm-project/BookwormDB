@@ -6,7 +6,7 @@
 import MySQLdb
 
 #txtdir = "/scratch/global/neva/texts/"
-txtdir = "/media/troilus/arxiv/"
+txtdir = "../../"
 catfile = "catalog.txt"
 metafile = "metadata.txt"
 genrefile = "genre.txt"
@@ -21,7 +21,9 @@ def load_word_list():
     cursor.execute("""CREATE TABLE IF NOT EXISTS words (
         wordid MEDIUMINT, 
         word VARCHAR(255), INDEX (word),
-        count BIGINT UNSIGNED
+        count BIGINT UNSIGNED,
+        casesens VARBINARY(255),
+        stem VARCHAR(255)
         );""")
     cursor.execute("ALTER TABLE words DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
@@ -31,6 +33,7 @@ def load_word_list():
                    CHARACTER SET binary
                    (wordid,word,count) """)
     cursor.execute("ALTER TABLE words ENABLE KEYS")
+    cursor.execute("UPDATE words SET casesens=word")
 
 def create_unigram_book_counts():
     print "Making a SQL table to hold the data"
@@ -125,6 +128,8 @@ def load_genre_list():
 #    cursor.execute("UPDATE catalog SET mld=sld;");
 #    cursor.execute("UPDATE catalog SET mld=ld3 WHERE  sld REGEXP '^(ac|edu)';");
 
+
+
 ###This is the part that has to run on every startup.
 def create_memory_tables():
     cursor.execute("DROP TABLE IF EXISTS tmp;");
@@ -141,7 +146,8 @@ def create_memory_tables():
     cursor.execute("DROP TABLE IF EXISTS fastcat;");
     cursor.execute("RENAME TABLE tmp TO fastcat;");
 
-    cursor.execute("CREATE TABLE tmp (wordid MEDIUMINT, INDEX(wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),INDEX(casesens)) ENGINE=MEMORY; INSERT INTO tmp SELECT wordid,word,casesens FROM words WHERE CHAR_LENGTH(word) <= 30 LIMIT 1500000;");
+    cursor.execute("CREATE TABLE tmp (wordid MEDIUMINT, INDEX(wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),INDEX(casesens)) ENGINE=MEMORY;")
+    cursor.execute("INSERT INTO tmp SELECT wordid,word,casesens FROM words WHERE CHAR_LENGTH(word) <= 30 LIMIT 1500000;");
     cursor.execute("DROP TABLE IF EXISTS wordsheap;");
     cursor.execute("RENAME TABLE tmp TO wordsheap;");
     
@@ -156,12 +162,14 @@ def create_memory_tables():
     cursor.execute("DROP TABLE IF EXISTS archive;");
     cursor.execute("RENAME TABLE tmp TO archive;");
 
-    cursor.execute("DROP TABLE if exists column_options;");
-    cursor.execute("""CREATE TABLE column_options ENGINE=MEMORY 
-    SELECT TABLE_NAME,
-                 COLUMN_NAME,
-                 DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS   
-        WHERE TABLE_SCHEMA='arxiv';""");
+#We'll need something like this eventually.
+
+#    cursor.execute("DROP TABLE if exists column_options;");
+#    cursor.execute("""CREATE TABLE column_options ENGINE=MEMORY 
+#    SELECT TABLE_NAME,
+#                 COLUMN_NAME,
+#                 DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS   
+#        WHERE TABLE_SCHEMA='arxiv';""");
 
 #load_word_list()
 #create_unigram_book_counts()
