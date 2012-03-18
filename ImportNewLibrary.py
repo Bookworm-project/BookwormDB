@@ -3,6 +3,7 @@
 import subprocess
 from subprocess import call as sh
 import os
+
 """
 We start with files at, relative to the main presidio directory:
 
@@ -21,7 +22,9 @@ ls *.txt | awk -F '.txt' '{count++; print count "\t" $1;}' > ../textids/cat0001.
 
 The easiest form of parallelization at the moment is just to shift around the 
 number of files in each location at /texts/textfiles. This allows the use of multiple processors.
-Adding more locations with knowledge onlyof a few files would allow easy multi-machine parallelization as well.
+Adding more locations each with separate bookid files would allow easy multi-machine parallelization as well.
+
+Currently this whole series takes a couple days on a large (8-core) machine.
 
 """
 
