@@ -195,7 +195,7 @@ def update_catalog (latestOLcatalog = "2011-09-30"):
     cursor.execute("""INSERT IGNORE INTO master_catalog SELECT * from tmp;""")
     cursor.execute("""drop table tmp;""")
     cursor.execute("""DROP TABLE open_editions""")
-    cursor.execute("""RENAME TABLE master_catalog TO open_editions""")
+    cursor.execute("""RENAME TABLE master_cataloXSg TO open_editions""")
     cursor.execute("""
       ALTER TABLE open_editions add searchstring VARCHAR(5000)""")
     cursor.execute("""
