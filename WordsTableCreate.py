@@ -3,7 +3,7 @@
 import os
 import sys
 import re
-maxDictionaryLength=3000000
+maxDictionaryLength=2000000
 
 wordcounts = dict()
 
@@ -11,16 +11,19 @@ for file in os.listdir('../texts/textids'):
     for line in open('../texts/textids/' + file,'r'):
         filename = line.split('\t')[1]
         filename = re.sub('\n','',filename)
-        reading = open('../texts/unigrams/'+filename+'.txt')
-        for wordEntry in reading:
-            wordEntry = wordEntry.split(' ')
-            wordEntry[1] = int(re.sub('\n','',wordEntry[1]))
-            try:
-                wordcounts[wordEntry[0]]+=wordEntry[1]
-            except KeyError:
-                wordcounts[wordEntry[0]] = wordEntry[1]
+        try:
+            reading = open('../texts/unigrams/'+filename+'.txt')
+            for wordEntry in reading:
+                wordEntry = wordEntry.split(' ')
+                wordEntry[1] = int(re.sub('\n','',wordEntry[1]))
+                try:
+                    wordcounts[wordEntry[0]]+=wordEntry[1]
+                except KeyError:
+                    wordcounts[wordEntry[0]] = wordEntry[1]
 #Now we need to delete the words that appear below a cutoff that we find dynamically:
-countcounts = dict()
+                countcounts = dict()
+        except:
+            print "Error on WordsTableCreate: could not find file " + filename + "\n"
 for key in wordcounts:
     try:
         countcounts[wordcounts[key]] += 1
