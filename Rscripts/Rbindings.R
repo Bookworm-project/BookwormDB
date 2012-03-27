@@ -4,7 +4,7 @@ require(RMySQL)
 require(ggplot2)
 con = dbConnect(MySQL(),db="presidio")
 
-
+dbDisconnect(con)
 #install.packages("RMySQL")
 
 APIcall = function(constraints = 
@@ -187,12 +187,15 @@ wordgrid <- function (
 
 
 flagBookids = function(bookids,flag=1,preclear=T) {
+ con <- dbConnect(MySQL())
+
  if (preclear) {
   dbGetQuery(con,"UPDATE catalog SET bflag=0")
  }
  dbGetQuery(con,
             paste("UPDATE catalog SET bflag = ",flag," WHERE ",
                       paste("bookid=",bookids,collapse = " OR ")))
+ dbDisconnect(con)
 }
 
 flagWordids = function(words,field='casesens',n=1,preclear=T) {

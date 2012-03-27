@@ -83,7 +83,9 @@ def load_book_list():
         mld VARCHAR(31),
         day MEDIUMINT,
         week MEDIUMINT,
-        month MEDIUMINT
+        month MEDIUMINT,
+        searchstring VARCHAR(1000),
+        nwords INT
         );""")
     cursor.execute("ALTER TABLE catalog DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
@@ -97,7 +99,7 @@ def load_book_list():
     cursor.execute("UPDATE catalog SET mld=sld;")
     cursor.execute("UPDATE catalog SET mld=ld3 WHERE sld REGEXP '^(ac|edu)';")
     cursor.execute("UPDATE catalog SET day=TO_DAYS(date), week = ROUND(TO_DAYS(date)/7)*7, month = TO_DAYS(STR_TO_DATE(DATE_FORMAT(date, '01 %M %Y'),'%d %M %Y'));");
-    cursor.execute("ALTER TABLE catalog ADD nwords INT;");
+    cursor.execute("""UPDATE catalog SET searchstring= CONCAT("<span class=book-title>",IFNULL(title,"(title unknown)"),"</span><span class=bookauthor> by ",IFNULL(author,"unknown"),"</span>"," <a class=booklink href=http://arxiv.org/abs/",arxivid,">read</a>")""")
     cursor.execute("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;");
 
 def load_genre_list():
