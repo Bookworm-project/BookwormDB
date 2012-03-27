@@ -102,7 +102,6 @@ def load_book_list():
 
 def load_genre_list():
     print "Making a SQL table to hold the data"
-    cursor.execute("""DROP TABLE IF EXISTS genre""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS genre (
         bookid MEDIUMINT, 
         genre VARCHAR(15),
@@ -175,7 +174,6 @@ def create_memory_tables():
 #load_word_list()
 #create_unigram_book_counts()
 #create_bigram_book_counts()
-#load_book_list()
-#load_genre_list()
-#set_nwords_domains()
+load_book_list()
+load_genre_list()
 create_memory_tables()
