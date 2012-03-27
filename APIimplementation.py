@@ -95,7 +95,7 @@ class userquery():
         self.create_catalog_table()
         self.make_catwhere()
         self.make_wordwheres()
-    
+
     def create_catalog_table(self):
         self.catalog = 'catalog' #Can be replaced with a more complicated query.
         if 'LCSH' in self.limits.keys():
@@ -277,13 +277,25 @@ class userquery():
         GROUP BY %(groupings)s;""" % self.__dict__
         return query        
 
+    def return_slug_data(self,force=False):
+	temp_words = self.return_n_words(force = True)
+	temp_counts = self.return_n_books(force = True)
+        return [temp_counts,temp_words]    
+
     def return_n_books(self,force=False):
         if (not hasattr(self,'nbooks')) or force:
             query = "SELECT count(*) from " + self.catalog + " WHERE " + self.catwhere
             silent = self.cursor.execute(query)
             self.counts = int(self.cursor.fetchall()[0][0])
         return self.counts
-    
+
+    def return_n_words(self,force=False):
+        if (not hasattr(self,'nwords')) or force:
+            query = "SELECT sum(nwords) from " + self.catalog + " WHERE " + self.catwhere
+            silent = self.cursor.execute(query)
+            self.nwords = int(self.cursor.fetchall()[0][0])
+        return self.nwords   
+
     def ranked_query(self,percentile_to_return = 99,addwhere = ""):
         ##This returns a list of bookids in order by how well they match the sort terms.
         ## Using an IDF term will give better search results for case-sensitive searches, but is currently disabled
@@ -304,7 +316,7 @@ class userquery():
     
     def bibliography_query(self,limit = "100"):
         self.limit = limit
-        self.idfterm = "*words.IDF"
+        self.idfterm = ""
         bibQuery = """
         SELECT author,title,editionid,ocaid
         FROM open_editions RIGHT JOIN (
@@ -316,7 +328,23 @@ class userquery():
         WHERE %(wordwhere)s AND %(catwhere)s
         GROUP BY bookid ORDER BY sum(count*1000/nwords%(idfterm)s) DESC LIMIT %(limit)s
         ) as tmp USING(bookid)
-        """ % self.__dict__
+        """ #% self.__dict__
+        prep = self.counts_query()
+        bibQuery = """SELECT author,title,editionid,ocaid                                                            
+        FROM open_editions RIGHT JOIN (                                                                              
+        SELECT                                                                                                       
+        catalog.bookid                                                                                               
+            FROM                                                                                                     
+                %(catalog)s                                                                                          
+                %(main)s                                                                                             
+                %(wordstables)s                                                                                      
+            WHERE                                                                                                    
+                 %(catwhere)s                                                                                        
+        GROUP BY bookid ORDER BY sum(count*1000/nwords%(idfterm)s) DESC LIMIT %(limit)s                              
+        ) as tmp USING(bookid)""" % self.__dict__
+        return bibQuery
+
+
         return bibQuery
 
     def return_books(self):
@@ -412,7 +440,7 @@ def smooth_function(zinput,smooth_method = 'lowess',span = .05):
                 except:
                     surrounding[i] = 0
                     weights[i] = 0
-            returnval[key] = round(average(surrounding,weights=weights),2)
+            returnval[key] = round(average(surrounding,weights=weights),3)
         return returnval
     
 def headers(method):

@@ -30,7 +30,8 @@ return_matrix = function(
   ,
   grams=1
   ,
-  wordInput=NULL
+  wordInput=NULL,
+  yearlim = c(1789,2008)
   ) {
   cat("Getting Counts from Database\n")
   if (grams == 1) {
@@ -45,6 +46,10 @@ return_matrix = function(
   }
   
   if (grams==2 & is.null(wordInput)) {
+        dbGetQuery(melville,"
+               CREATE TABLE ngrams.tmplookup (word1  VARCHAR(33),word2 VARCHAR(33), 
+               INDEX(word2,word1)) ENGINE=MEMORY")
+        
       #Currently I've just coded one particular set of 2-grams in: should be generalized to allow better queries; but things like stopword exclusion is tricky.
     silent = dbGetQuery(melville,"UPDATE ngrams.2gramcounts SET wflag=0 WHERE wflag !=0")
     silent = dbGetQuery(melville,"UPDATE presidio.wordsheap JOIN presidio.words USING(wordid) SET wflag=1 WHERE stopword=1;")
@@ -56,31 +61,45 @@ return_matrix = function(
   }
   
   if (grams==2 & !is.null(wordInput)) {
-    silent = dbGetQuery(melville,"UPDATE ngrams.2gramcounts SET wflag=0 WHERE wflag !=0")
-    phrases = paste("(",apply(wordInput,1,function(row) {whereterm(list(word1=row[1],word2=row[2]))}),")",collapse=" OR ")
-    silent = dbGetQuery(melville, paste("UPDATE ngrams.2gramcounts SET wflag=1 WHERE ",phrases))
+    #silent = dbGetQuery(melville,"UPDATE ngrams.2gramcounts SET wflag=0 WHERE wflag !=0")
+    #The new strategy is to create a temporary table that can be joined in lieu of a real search.
+    dbGetQuery(melville,"DROP TABLE IF EXISTS ngrams.tmplookup")
+    dbGetQuery(melville,"
+               CREATE TABLE ngrams.tmplookup (word1  VARCHAR(33),word2 VARCHAR(33), 
+               INDEX(word2,word1)) ENGINE=MEMORY")
+    dbGetQuery(melville,paste("INSERT INTO ngrams.tmplookup (word1,word2) VALUES ",
+                              paste("(",apply(wordInput,1,function(row) {paste('"',row[1],'","',row[2],'"',sep="")})
+                                    ,")",collapse=","),
+                              ""))
+    #phrases = paste("(",apply(wordInput,1,function(row) {whereterm(list(word1=row[1],word2=row[2]))}),")",collapse=" OR ")
+    #silent = dbGetQuery(melville, paste("UPDATE ngrams.2gramcounts SET wflag=1 WHERE ",phrases))
   }
   
   if (grams==2) {
     z = dbGetQuery(melville,"
-                        SELECT n1.word1,n1.word2,year,n1.words FROM ngrams.2grams as n1 
-                        JOIN ngrams.2gramcounts as n2 ON n1.word1=n2.word1 AND n1.word2=n2.word2
-                        WHERE n2.wflag=1")
-    z$word1 = paste(z$word1,z$word2)
-  }       
-            
+                        SELECT CONCAT(n1.word1,' ',n1.word2) as word1,year,n1.words FROM ngrams.2grams as n1 
+                        JOIN ngrams.tmplookup as n2 ON n1.word1=n2.word1 AND n1.word2=n2.word2")
+    z$word1 = factor(z$word1)
+    z$words = as.numeric(z$words)          
+    dbGetQuery(melville,"DROP TABLE ngrams.tmplookup")
+  }                   
   totals = dbGetQuery(
     melville,
     "SELECT year,words from presidio.1grams WHERE word1='the'"
     )  
   
-            
-  z$word1 = factor(z$word1)
-  counts = table(z$word1)           
-  z = z[z$word1 %in% names(counts)[counts>50],]
-  z$word1 = factor(z$word1)
-  z$words = as.numeric(z$words)
+  #z$word1 = factor(z$word1)
+  yearAppearances = table(z$word1)
+  #Set some floors; it has to appear in 10 distinct years
+  z = z[z$word1 %in% names(yearAppearances)[yearAppearances>10],]
+  totcounts = xtabs(as.numeric(words) ~ word1,z)
+  #And at least 500 times overall.
+  z = z[z$word1 %in% names(totcounts)[totcounts>500],] 
+  #xtabs takes up a _lot_ of memory, so I set a floor here: should probably become a variable somewhere. The rule is:
+  #if a word doesn't appear in 50 years, it's probably not common enough that we're interested in it
   cat("Tabulating results")
+  z = z[z$year >= yearlim[1],]
+  z = z[z$year <= yearlim[2],]
   tabbed = xtabs(words~year+word1,z)
   
   tabbed = tabbed/totals$words[match(rownames(tabbed),totals$year)]*12*1000000

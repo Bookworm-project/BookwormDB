@@ -11,14 +11,32 @@ require("twitteR")
 require("sna")
 require("ROAuth")
 
+#Set up authorization:
+tw<-OAuthFactory$new(consumerKey="OJQLVhd2nYEWKXT1u2hqQ",
+        consumerSecret="JHQLIAFDhRrFrZLxzIINQZUo2PhomHOd2l2sd52XU",  
+requestURL="http://api.twitter.com/oauth/request_token",
+accessURL="http://api.twitter.com/oauth/access_token",
+authURL="http://api.twitter.com/oauth/authorize")
+
+tw$handshake()
+I used http instead of https because the latter gave me an error of SSL certification fail. Then, I enter a PIN code obtained from a given URL and registered with Twitter:
+
+registerTwitterOAuth(tw)
+
+
 dhnow = getUser("benmschmidt")
-
 #"dhnow" is now an R object that contains all sorts of information about taht twitter user.
-
 dhnow$location
 dhnow$screenName
 # Get Friends and Follower names with first fetching IDs (getFollowerIDs(),getFriendIDs()) and then looking up the names (lookupUsers()) 
-someIDs = dhnow$getFriendIDs()
+lookupUsers(dhnow$getFriendIDs(5))
+
+follow = dhnow$getFollowers()
+df <- do.call(“rbind”, lapply(follow, as.data.frame))
+str(df)
+head(df, 3)
+
+df <- do.call(“rbind”, lapply(follow, as.data.frame))
 f = dhnow$getFriends(2)
 lookupUsers(someIDs[[1]])
 users = lapply(someIDs[1],getUser)

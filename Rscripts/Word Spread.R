@@ -21,8 +21,6 @@ genreplot = function(word = list('call attention')
                      ,
                      words_collation = "Case_Sensitive"
                      ,
-                     country = list()
-                     ,
                      chunkSmoothing=1
                      ,
                      x.value = 'year'
@@ -61,9 +59,15 @@ genreplot = function(word = list('call attention')
             'alanguage' = list('eng')
     )
   )  
+  
   for (element in names(list(...))) {
+    cat(element,"\n")
     core_search[['search_limits']][[element]] = list(...)[[element]]
   }
+<<<<<<< HEAD
+  
+=======
+>>>>>>> acf8814630e85b20011991f31a4fe9e90f574bdc
   mainquery =    try(dbGetQuery(con,APIcall(core_search)))
   
   if(class(mainquery) == "try-error") {
@@ -96,6 +100,8 @@ genreplot = function(word = list('call attention')
       (numbers_to_use[floor(length(numbers_to_use)/2)]+floor(length(numbers_to_use)/2))
     mylist = mylist[mylist$groupingVariable %in% numbers_to_use,] 
   }
+  mylist$count[is.na(mylist$count)] = 0
+  mylist$nwords[is.na(mylist$nwords)] = 0
   genretabs = xtabs(count~timeVariable+groupingVariable,mylist)/xtabs(nwords~timeVariable+groupingVariable,mylist)
   genretabs[genretabs==Inf] = max(genretabs)
   if (smoothing > 1) {
