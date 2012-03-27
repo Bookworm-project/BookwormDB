@@ -1,5 +1,4 @@
 #Dating tools
-
 parseScriptline = function(html) {
   script = html[grep('entry-content',html)]
   script = gsub("<[^>]+>","\n",script,perl=T)

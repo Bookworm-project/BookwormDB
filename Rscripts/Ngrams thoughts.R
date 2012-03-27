@@ -37,12 +37,14 @@ ggplot(
 
 source("ngrams wordgrid.R")
 
-mylist = wordgrid(list("capitalism","Capitalism"),
+mylist = wordgrid(list("attention"),
     returnData=F,
-    wordfield='lowercase',
-    field='word2',n=50,
-    yearlim=c(1900,2000)
+    wordfield='stem',
+    field='word1',freqClasses=2,n=35,
+    yearlim=c(1820,2005)
   )
+mylist
+
 dbGetQuery(con,"Use ngrams")
 mylist = wordgrid(list("democratic"),
     returnData=F,

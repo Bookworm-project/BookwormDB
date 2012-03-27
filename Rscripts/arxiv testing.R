@@ -9,21 +9,21 @@ head(times)
 times$yearcut = factor(times$year>2000)
 
 ggplot(times) + geom_histogram(aes(x=as.numeric(hour),fill=day),binwidth=1,position='dodge') + facet_grid(yearcut~day)
+source("Trendspotting.R")
 
 a= APIcall(
   list("method"="ratio_query",
        "groups"=list("month"),
-        "counttype"="Occurrences_per_Million_Words",
+        "counttype"="Number_of_Books",
            "words_collation"="Case_Sensitive",
            "smoothingSpan"="0",
        "database"="arxiv",
       "search_limits"=list(
-             "word"=list("addition"),
+             "word"=list("$grep"=list("1780")),
 
-             "archive"=list("Physics"),
-             "month" = list("$grep"=list(1780))
-))
-  )
+             "archive"=list("Physics")
+)
+  ))
 dbGetQuery(v,a)
 authors = dbGetQuery(v,"SELECT author FROM catalog")[,1]
 head(authors)

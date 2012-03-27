@@ -4,6 +4,7 @@ source("Dating tools.R")
 source("Trendspotting.R")
 getwd()
 example('sink ships')
+
 scriptize = function(show) {
   #Go through the folder hierarchy and read in the srt files for each show.
   setwd(paste("~/tv/",show,sep=""))
@@ -77,7 +78,7 @@ totalframe = ldply(shows,function(show) {
   showframe$show = show
   showframe
 })
-
+totalframe=totalframe[totalframe$season==5 & totalframe$show=="Mad Men",]
 names(totalframe)[1:2] = c("w1","w2")
 totalframe$word1 = paste(totalframe$w1,totalframe$w2)
 
@@ -90,15 +91,14 @@ fullcounts = function(allbigrams,...) {
   #This returns a data.frame with year,word,count information for every bigram in a list of bigrams,
   #so we don't have to keep pulling the same words from the database.
   allbigrams = allbigrams[!duplicated(paste(allbigrams[,1],allbigrams[,2])),]
-  source("Dating tools.R")
   #additional arguments are passed to smoothedCounts
   smoothed = smoothedCounts(allbigrams[,1:2],...)
   smoothed[!is.na(smoothed$word1) & !is.na(smoothed$value),]
 }
 words = fullcounts(totalframe,yearlim=c(1935,2008))
+melville=con
 
-
-totalframe$y1 = words$value[words$year==1963][match(totalframe$word1,words$word1[words$year==1963])]
+totalframe$y1 = words$value[words$year==1966][match(totalframe$word1,words$word1[words$year==1966])]
 totalframe$y2 = words$value[words$year==1995][match(totalframe$word1,words$word1[words$year==1995])]
 locframe = totalframe[!is.na(totalframe$y1*totalframe$y2),]
 locframe = locframe[,3:ncol(locframe)]
@@ -143,16 +143,20 @@ textcloud = function(plottable) {
     "Ratio of modern use to period use",
     labels=labelz,
     breaks = sapply(labelz,numberplot),
-    trans='log10') + 
+    trans='log10',lim=c(1/3,35)) + 
   scale_x_continuous("Overall Frequency",labels = c("1 in 10M","1 in 1K","1 in 100K","1 in 1B"),
                      breaks = c(1/100000,1/10,1/1000,1/10000000),
                      trans='log10')+
         geom_text(data=subset(plottable[plottable$y1*plottable$y2!=0,]), 
-                  size=2.5) + 
+                  size=2.5,alpha=.15) + 
         geom_text(data=subset(plottable[plottable$y1==0 & plottable$y2 != 0,]),
                   size=2.5,color='red',aes(y=500),position=position_jitter(width=0)) + 
         geom_hline(yint=1,color='black',alpha=.7,lwd=3,lty=2)
 }
+textcloud(locframe[!(grepl('just',locframe$word1) | grepl('need',locframe$word1)),]) + 
+  opts(title="Mad Men Season 5 premiere, two word phrases") + 
+  geom_text(data=locframe[grepl('just',locframe$word1) | grepl('need',locframe$word1),],
+            size=4,color=muted('red'))
 
 textcloud(locframe[locframe$y2/locframe$y1>20 & locframe$y1!=0 & locframe$season==1,]) + aes(color=show)
 example("romantic dinner")
