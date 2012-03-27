@@ -196,7 +196,13 @@ def update_catalog (latestOLcatalog = "2011-09-30"):
     cursor.execute("""drop table tmp;""")
     cursor.execute("""DROP TABLE open_editions""")
     cursor.execute("""RENAME TABLE master_catalog TO open_editions""")
+    cursor.execute("""
+      ALTER TABLE open_editions add searchstring VARCHAR(5000)"""
+    cursor.execute("""
 
+UPDATE open_editions SET searchstring= CONCAT("<img src=\"http://covers.openlibrary.org/b/olid/",editionid,"-S.jpg\" />","<span class=book-title>",IFNULL(title,"(title unknown)"),"</span><span class=bookauthor> by ",IFNULL(author,"unknown"),"</span>"," <a class=booklink href=http://openlibrary.org/books/",editionid,"> more info </a> [D","<a class=booklink href=http://archive.org/stream/",ocaid,">read</a>");
+
+    """
     add_author_dates(latestOLcatalog=latestOLcatalog,downloads_directory = downloads_directory+"/Catinfo")
     add_work_dates(latestOLcatalog=latestOLcatalog,downloads_directory = downloads_directory+"/Catinfo")
     add_split_lc_fields()
@@ -332,12 +338,17 @@ def create_memory_tables():
         state CHAR(2),
         author_age SMALLINT,
         lc0 CHAR(1),
+        month MEDIUMINT,
         bflag TINYINT,
         PRIMARY KEY (bookid)) ENGINE = MEMORY""")
-    cursor.execute("""INSERT INTO tmpheap (bookid,year,lc1,lc2,nwords,publish_country,authorbirth,workyear,language,aLanguage,subset,country,state,author_age,lc0) SELECT bookid,year,lc1,lc2,nwords,publish_country,authorbirth,workyear,language,aLanguage,subset,country,state,author_age,lc0 
+    cursor.execute("""INSERT INTO tmpheap (bookid,year,lc1,lc2,nwords,publish_country,authorbirth,workyear,language,aLanguage,subset,country,state,author_age,lc0,month) SELECT bookid,year,lc1,lc2,nwords,publish_country,authorbirth,workyear,language,aLanguage,subset,country,state,author_age,lc0,TO_DAYS(MAKEDATE(year,1)) 
 FROM open_editions WHERE nwords > 0 AND duplicate != 1; """)
-    cursor.execute("""DROP TABLE IF EXISTS catalog""")
-    cursor.execute("RENAME TABLE tmpheap TO catalog")
+    cursor.execute("""DROP TABLE IF EXISTS fastcat""")
+    cursor.execute("RENAME TABLE tmpheap TO fastcat")
+    cursor.execute("""UPDATE fastcat set bflag=0;""")
+    cursor.execute("""UPDATE fastcat JOIN (SELECT * FROM open_editions as o2 JOIN (SELECT title,year,count(*) as count FROM open_editions WHERE nwords > 0 AND title LIKE "%." AND title NOT LIKE "%ouvre%" and title NOT LIKE "%works%" AND title NOT like "Trait%" GROUP BY title,year HAVING count > 8) as journal USING (title,year)) as tmp ON (tmp.bookid=fastcat.bookid) SET bflag=1;""")
+    cursor.execute("""DELETE FROM fastcat WHERE bflag=1;""")
+
     queryString = """
      CREATE TABLE tmpheap (
      bookid MEDIUMINT UNSIGNED, INDEX (bookid),
@@ -345,14 +356,14 @@ FROM open_editions WHERE nwords > 0 AND duplicate != 1; """)
     ) CHARACTER SET 'utf8' ENGINE = MEMORY;    """
     cursor.execute(queryString)
     cursor.execute("""INSERT INTO tmpheap 
-    SELECT bookid,h1 as h FROM subject_headings JOIN catalog USING (bookid) WHERE h1 IS NOT NULL AND h1 != "" UNION
-    SELECT bookid,h2 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h2 IS NOT NULL AND h2 != "" UNION
-    SELECT bookid,h3 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h3 IS NOT NULL AND h3 != "" UNION
-    SELECT bookid,h4 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h4 IS NOT NULL AND h4 != "" UNION
-    SELECT bookid,h5 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h5 IS NOT NULL AND h5 != "" UNION
-    SELECT bookid,h6 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h6 IS NOT NULL AND h6 != "" UNION
-    SELECT bookid,h7 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h7 IS NOT NULL AND h7 != ""  UNION
-    SELECT bookid,h8 as h  FROM subject_headings JOIN catalog USING (bookid) WHERE h8 IS NOT NULL AND h8 != "" ;""")
+    SELECT bookid,h1 as h FROM subject_headings JOIN fastcat USING (bookid) WHERE h1 IS NOT NULL AND h1 != "" UNION
+    SELECT bookid,h2 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h2 IS NOT NULL AND h2 != "" UNION
+    SELECT bookid,h3 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h3 IS NOT NULL AND h3 != "" UNION
+    SELECT bookid,h4 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h4 IS NOT NULL AND h4 != "" UNION
+    SELECT bookid,h5 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h5 IS NOT NULL AND h5 != "" UNION
+    SELECT bookid,h6 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h6 IS NOT NULL AND h6 != "" UNION
+    SELECT bookid,h7 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h7 IS NOT NULL AND h7 != ""  UNION
+    SELECT bookid,h8 as h  FROM subject_headings JOIN fastcat USING (bookid) WHERE h8 IS NOT NULL AND h8 != "" ;""")
     cursor.execute("""DROP TABLE IF EXISTS LCSH""")
     cursor.execute("""RENAME TABLE tmpheap TO LCSH""")
 
