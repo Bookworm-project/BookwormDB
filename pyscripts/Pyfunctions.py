@@ -197,12 +197,10 @@ def update_catalog (latestOLcatalog = "2011-09-30"):
     cursor.execute("""DROP TABLE open_editions""")
     cursor.execute("""RENAME TABLE master_catalog TO open_editions""")
     cursor.execute("""
-      ALTER TABLE open_editions add searchstring VARCHAR(5000)"""
+      ALTER TABLE open_editions add searchstring VARCHAR(5000)""")
     cursor.execute("""
-
 UPDATE open_editions SET searchstring= CONCAT("<img src=\"http://covers.openlibrary.org/b/olid/",editionid,"-S.jpg\" />","<span class=book-title>",IFNULL(title,"(title unknown)"),"</span><span class=bookauthor> by ",IFNULL(author,"unknown"),"</span>"," <a class=booklink href=http://openlibrary.org/books/",editionid,"> more info </a> [D","<a class=booklink href=http://archive.org/stream/",ocaid,">read</a>");
-
-    """
+    """)
     add_author_dates(latestOLcatalog=latestOLcatalog,downloads_directory = downloads_directory+"/Catinfo")
     add_work_dates(latestOLcatalog=latestOLcatalog,downloads_directory = downloads_directory+"/Catinfo")
     add_split_lc_fields()
