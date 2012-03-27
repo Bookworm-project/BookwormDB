@@ -13,7 +13,7 @@ my $linenumber = 0;
 
 
 #Google books need the first page stripped because they have that first page included This will not work on things that contain the word "Google" legimately; them's the breaks, for now.
-my $checkrange = 0;
+my $checkrange = 50;
 if ($#z < $checkrange) {$checkrange = $#z} 
 
 foreach my $i (0..$checkrange) {
@@ -30,6 +30,7 @@ if ($z[0] =~ m/html/) {
 
 print " ";
 
+
 foreach my $line (@z) {
     $linenumber++;
     if ($googswitch == 1 || $needs_goog_switch == 0) {
@@ -38,38 +39,40 @@ foreach my $line (@z) {
 	if ($upper_case_letters/length($line) >= 0.5) {
 	    $line = "";
 	}
-        #DROPPING OUT CAPITALIZED LINES ELIMINATES A _LOT_ OF JUNK HEADERS. This is arguably a judgment call, but does a heck of a lot of good.
+#DROPPING OUT CAPITALIZED LINES ELIMINATES A _LOT_ OF JUNK HEADERS
 	$line =~ s/-\s*[\n\r]//g; #hyphenated words at lineend shouldn't even have spaces
 	$line =~ s/[\n\r]/ /g; #remove newlines, replaces with spaces.
 	$line =~ s/\t\f/ /g; #replace tabs and formfeeds with spaces--the awk counts on the text having NO TABS AT ALL.
-	#And I'm reserving \f to myself to mark sentence breaks. Neither of these should have any meaning in scanned texts.
+	#And I'm reserving \f to myself to mark sentence breaks.
+	#$line =~ tr/[A-Z]/[a-z]/; #Set to lowercase--I'M GOING TO SWITCH THIS TO THE LATER SCRIPT
 	$line =~ s/([\.\?!])(["'\)])/$2$1/g;
-        #Move period to end of sentence
+#Move period to end of sentence
 	$line =~ s/([\.\?!])(["'\)])/$2$1/g; #Move period to end of sentence again, in case there's double quotes or a period and parenthesis or something";
         $line =~ s/([\.!\?]) +/$1\f/g; #replace sentence punctuation with formfeed--this is still bad with abbreviations, maybe I need a longer list of exceptions?
 	$line =~ s/([\.!\?])$/$1\f/g; #Punctuation can come at the end of the line, too; but not in between characters.
-	##COMMON ABBREVIATIONS NOT TO END SENTENCES ON
-	#needs to deal smarter with multiple consecutive things like this, but the /gi option is not working as it is supposed to.:
+     ##COMMON ABBREVIATIONS NOT TO END SENTENCES ON
+     #needs to deal smarter with multiple consecutive things like this, but the /gi option is not working as it is supposed to.:
         $line =~ s/(\W)([A-Z]\.)\f/$1$2 /gi;
         $line =~ s/(\W)([A-Z]\.)\f/$1$2 /gi;
         $line =~ s/(\W)([A-Z]\.)\f/$1$2 /gi;
        	$line =~ s/\b(mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\.\f/ $1\. /gi; #Abbreviations can start with a newline as well as a space.                        	
-	#Here are some lines to remove the words "Digitized by Google" even when it scans poorly.
-#  	$line =~ s/^.*digitize?d?.? by.*$//gi;                       
-#	$line =~ s/^.*([vli]j|[gq])oo[gqs] ?[il1][ce].*$//gi; #kill any lines that have Google-matching keywords in them.
-#	$line =~ s/^.*googl.*$//gi; #kill any lines that have Google-matching keywords in them.
-	$line =~ s/([ \f!\?@%^*\(\)\[\]\-=\{\}\|\\:;<>,\/~`"#\+])/ $1 /g; #Surround punctuators with spaces`
-	$line =~ s/'([^s])/ ' $1/gi; #single quotes aren't separators when part of possessive
-	$line =~ s/\$([^\d])/ \$ $1/gi; #dollar signs aren't separators when preceding numerals.
-	$line =~ s/([^\d])\.([^\d])/$1 \. $2/gi; #Periods aren't separators when part of decimal numbers.
-	$line =~ s/\.$/ \./gi;# (Make sure to space out periods at end of line
-	#Hashes aren't separators when following a-g,j or x
-	$line =~ s/(\W[^a-gjx])#/$1 #/gi;
-
-	$line =~ s/  +/ /g; #Replace multiple spaces with a single space
-	$line =~ s/ ?\f ?/\n/g; #put newlines at the end of sentences, and strip surrounding spaces
-	print "$line";
-	
-    }
-    if ($line =~ m/[gq]oo[gq][li1]e\W*com/gi) {$googswitch = 1;}# $switchedat = $linenumber; print "Switching:\t"}
+        $line =~ s/\b(mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\.\f/ $1\. /gi; #Abbreviations can start with a newline as well as a space.                        
+        $line =~ s/\b(mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\.\f/ $1\. /gi; #Abbreviations can start with a newline as well as a space.                        
+  	$line =~ s/^.*digitize?d?.? by.*$//gi;                       
+			      $line =~ s/^.*([vli]j|[gq])oo[gqs] ?[il1][ce].*$//gi; #kill any lines that have Google-matching keywords in them.
+			      $line =~ s/^.*googl.*$//gi; #kill any lines that have Google-matching keywords in them.
+		$line =~ s/([ \f!\?@%^*\(\)\[\]\-=\{\}\|\\:;<>,\/~`"#\+])/ $1 /g; #Surround punctuators with spaces`
+		$line =~ s/'([^s])/ ' $1/gi; #single quotes aren't separators when part of possessive
+		$line =~ s/\$([^\d])/ \$ $1/gi; #dollar signs aren't separators when preceding numerals.
+			      $line =~ s/([^\d])\.([^\d])/$1 \. $2/gi; #Periods aren't separators when part of decimal numbers.
+			      $line =~ s/\.$/ \./gi;# (Make sure to space out periods at end of line
+                #UNIMPLEMENTED RULES
+                #Hashes aren't separators when following a-g,j or x
+		#
+		$line =~ s/  +/ /g; #Replace multiple spaces with a single space
+		$line =~ s/ ?\f ?/\n/g; #put newlines at the end of sentences, and strip surrounding spaces
+		print "$line";
+		       
+	}
+	if ($line =~ m/[gq]oo[gq][li1]e\W*com/gi) {$googswitch = 1;}# $switchedat = $linenumber; print "Switching:\t"}
 }

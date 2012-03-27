@@ -2,6 +2,8 @@
 
 #First run this query on words: SELECT SUM(words),year FROM (SELECT * from 1grams where word="the" or word = 'that' or word = 'which' or word = 'of' or word = 'to')as mytab WHERE BINARY(word) = "the" OR BINARY(word) = "that" OR BINARY(word)= 'which' OR BINARY(word) = "of" OR BINARY(word) = "to" GROUP BY year INTO OUTFILE '/tmp/totcounts.txt'. I should actually have had this in there twice: 
 
+#This is a program to process the Google Ngrams word list, which we don't necessarily need to do here.
+
 my $ngramsdir = shift or die $!; #This takes a directory name as input
 opendir (DIR,$ngramsdir) or die "Not a valid directory";
 @FILES  = readdir(DIR);

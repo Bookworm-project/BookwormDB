@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+#Currently only doing the last few stages!
 import subprocess
 from subprocess import call as sh
 import os
@@ -20,8 +20,8 @@ Example creation of one such text file, run from ../texts/raw:
 ls *.txt | awk -F '.txt' '{count++; print count "\t" $1;}' > ../textids/cat0001.txt
 
 The easiest form of parallelization at the moment is just to shift around the 
-number of files in each location at /texts/textfiles, and possibly to create 
-several different locations.
+number of files in each location at /texts/textfiles. This allows the use of multiple processors.
+Adding more locations with knowledge onlyof a few files would allow easy multi-machine parallelization as well.
 
 """
 
@@ -32,17 +32,20 @@ for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unig
 
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
 print "Cleaning the texts"
-sh(['python','master.py','clean'])
+#sh(['python','master.py','clean'])
 print "Creating 1 gram counts"
-sh(['python','master.py','unigrams'])
+#sh(['python','master.py','unigrams'])
 print "Creating 2gram counts"
-sh(['python','master.py','bigrams'])
+#sh(['python','master.py','bigrams'])
 #We could add 3grams, and so forth, here.
 
 print "Creating a master wordlist"
 sh(['python','WordsTableCreate.py'])
-#We could add an option to this to specify the size of the dictionary used. Currently hardcoded at 3,000,000 words. On very large dictionaries, this may crash for lack of memory; the script is an obvious candidate for map-reduce.
+#We could add an option to this to specify the size of the dictionary used. Currently hardcoded at 3,000,000 words. 
+#On very large dictionaries, this may crash for lack of memory; the script is an obvious candidate for map-reduce.
 
+
+#These tend to be the most time-intensive scripts.
 print "Creating 1grams encodings"
 sh(['python','master.py','encode1'])
 

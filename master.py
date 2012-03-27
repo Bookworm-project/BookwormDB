@@ -11,6 +11,7 @@ import subprocess
 from subprocess import Popen
 from subprocess import PIPE
 from subprocess import call
+import urllib
 start = time.time()
 '''
 Our work on the big server involves applying lots of work to a large number of 
@@ -66,7 +67,10 @@ class bookids_file:
 
 
 class book:
-    #This class takes a bookid. The first call is the method to prep (encode2,onegrams, etc); it creates an attribute self.execute() which can then be called to write the next file in the chain. Ideally these could be linked together more flexibly than they are here to do multiple operations on a book at once in memory. (The different operations are cast in terms of pipes, because the basic stemming and tokenizing scripts are written mostly in perl and awk, not python, and are easy enough to call from the command line.
+    #This class takes a bookid. The first call is the method to prep (encode2,onegrams, etc); it creates an attribute self.execute() which can then be called to write the next file in the chain.
+    #Ideally these could be linked together more flexibly than they are here to do multiple operations on a book at once in memory.
+    #The different operations are cast in terms of pipes, because the basic stemming and tokenizing scripts are written mostly in perl and awk, not python
+    #They are easy enough to call from the command line.
     def __init__(self,bookid,LOGFILE,auxdata=""):
         self.bookid = bookid
         self.coreloc = bookid + ".txt"
@@ -104,7 +108,12 @@ class book:
             lines.append("\t".join(line))
             #This little 'append' here and then 'write' later loop seems like it's probably the fastest way to do this in Python; at least, it isn't slow.
         writefile.write("".join(lines))
-        
+    def IAdownload(self):
+        #This downloads an internet Archive identifier,currently. Might be worth generalizing, though hard to pass the parameters
+        self.start_operator = 'curl'
+        self.start = "http://www.archive.org/download/"+self.bookid+"_djvu.txt")
+        self.destination = "../texts/raw/"+self.coreloc
+        self.execute = self.shell_execute
     def unigrams(self):
         self.start_operator = "cat"
         self.start = "../texts/cleaned/" + self.coreloc
@@ -126,6 +135,18 @@ class book:
                                   for(i in count){print i, count[i]}}'"""
         self.destination = "../texts/bigrams/" + self.coreloc
         self.execute     = self.shell_execute
+    def ngrams(self,n):
+        #This generalizes writing an awk script to pull out gram counts
+        #The join loop here prints a string like '$(i+0) " " $(i+1) " " $(i+2)' that gets the words in position i to i+2 plus two as a group for the thing to use.
+        self.start_operator = "cat"
+        self.start = "../texts/cleaned/" + self.coreloc
+        self.function = """awk '{ for(i=1; i<NF-""" +str(n-1)+ """; i++)
+                                  {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,n)]) + """]++}
+                                  }
+                                 END{
+                                  for(i in count){print i, count[i]}}'"""
+        self.destination = "../texts/bigrams/" + self.coreloc
+        self.execute     = self.shell_execute
     def clean(self):
         self.start_operator = "cat"
         self.start = "../texts/raw/" + self.coreloc
@@ -136,7 +157,7 @@ class book:
         if os.path.exists(self.destination):
             self.LOGFILE.write("No cleaning. "+self.destination+" already exists.\n")
             return
-        if not os.path.exists(self.start):
+        if not os.path.exists(self.start) & self.start_operator != 'curl':
             self.LOGFILE.write("No cleaning. "+self.start+" does not exist.\n")
             return
         if os.path.getsize(self.start) < 10:
@@ -183,7 +204,7 @@ for filelist in filelists:
         instance = bookids_Instance(filelist,mode)
     instance.start()
 
-
+#This bit here keeps the program from shutting down until all the threads are done.
 while threading.activeCount()>1:
     time.sleep(2)
         
