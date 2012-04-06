@@ -2,6 +2,7 @@ rm(list=ls())
 require(RCurl)
 setwd("/presidio/Rscripts")
 source("Rbindings.R")
+con=dbConnect(MySQL())
 myCsv <- getURL("https://docs.google.com/spreadsheet/pub?hl=en_US&hl=en_US&key=0AjMccO2n_mi6dDlPVm16U2tBM2kydFlQQ2JyemkwOVE&single=true&gid=0&output=csv")
 verbs = read.csv(textConnection(myCsv))
 verbs = verbs
@@ -32,25 +33,25 @@ verblist = apply(verbs,1,function(row) {
 })
   
 #Build up a search to use with the Bookworm API:
-  core_search = list(
-      method = 'ratio_query',
-      counttype = "Occurrences_per_Million_Words",
-      words_collation="Case_Sensitive",
-      groups=list('year','words1.lowercase as verb','country'),      
-      search_limits = 
-          list(
-            'word' = list('placeholder'),
-            'year' = as.list(1830:1922),
-            'alanguage' = list('eng'),
-            'country' = list('USA','UK')
-            )
-  )  
-  verbz = as.list(as.vector(unlist(verblist)))
-  groups = split(verbz,nchar(verbz))
-  tmp = lapply(groups, function(group) {
-    core_search[['search_limits']][['word']] = as.list(unlist(group))
-      verbs = dbGetQuery(con,APIcall(core_search))
-  })
+core_search = list(
+    method = 'ratio_query',
+    counttype = "Occurrences_per_Million_Words",
+    words_collation="Case_Sensitive",
+    groups=list('year','words1.lowercase as verb','country'),      
+    search_limits = 
+        list(
+          'word' = list('placeholder'),
+          'year' = as.list(1830:1922),
+          'alanguage' = list('eng'),
+          'country' = list('USA','UK')
+          )
+)  
+verbz = as.list(as.vector(unlist(verblist)))
+groups = split(verbz,nchar(verbz))
+tmp = lapply(groups, function(group) {
+  core_search[['search_limits']][['word']] = as.list(unlist(group))
+    verbs = dbGetQuery(con,APIcall(core_search))
+)}
 
 verbarray = do.call(rbind,tmp)
 
@@ -63,6 +64,7 @@ countVerbs = function(verblist) {
     })
   })
 }
+
 IrregOverReg = countVerbs(verblist)
 names(IrregOverReg) = verbs$Verb
 
@@ -71,8 +73,7 @@ vectored = as.data.frame(vectored)
 smallest_proportion = apply(vectored,1,function(pair) {
   min(abs(log10(pair)))
 })
-sort(smallest_proportion)
-qplot(smallest_proportion)
+#sort(smallest_proportion);qplot(smallest_proportion)
 good = smallest_proportion < 1.5
 
 changers = verblist[good]
@@ -113,25 +114,54 @@ smoothed = lapply(changers,function(wordz) {
     country=list('USA')))
     try(genres  + geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'black',lty=3) + opts(sub))
 })
+relative = function(chunkeroo) {
+  loc = chunkeroo$data
+  loc$birth = loc$timeVariable-loc$groupingVariable
+  plob = data.frame(birth=loc$birth,year=loc$year,value=loc$value)
+  plob$value[is.na(plob$value)] = 1000000000
+  birthcor = ddply(plob,.(year),function(frame) {
+    cord = cor(frame$value,frame$birth,method='spearman')
+    if (is.na(cord)) {cord=0}
+    data.frame(value = cord,length = nrow(frame),max = max(frame$birth))
+  })
+  yearcor = ddply(plob,.(birth),function(frame) {
+    cord = cor(frame$value,frame$year,method='spearman')
+    if (is.na(cord)) {cord=0}
+    data.frame(value = cord,length = nrow(frame),max = max(frame$year))
+  })
+  if (FALSE) {
+  ggplot(plob,aes(y=birth,x=year,fill=rank(value))) + geom_tile() + 
+    scale_fill_gradient(low='white') + 
+    geom_text(data=yearcor,aes(x=max,label=round(value,2)),hjust=0,vjust=.5,size=2.5) +
+    geom_text(data=birthcor,aes(y=max,label=round(value,2)),hjust=0,vjust=0.5,angle=90,size=2.5)
+  }
+  
+  data.frame(yearcor = mean(yearcor$value[yearcor$length>4]),
+             birthcor=mean(birthcor$value[birthcor$length>4]),
+             freq = sum(loc$nwords) + sum(loc$count))
+}
 
+source("Word Spread.R")
 chunk = function(wordz) {
     genres =genreplot(
-    word = wordz[[2]],
-    grouping=list('author_age'),
-    groupings_to_use = 21,
-    counttype = 'Percentage_of_Books',
-    ordering=NULL,
-    years=c(1800,1922),
-    smoothing=1,
-    comparison_words = wordz[[1]],
-    words_collation='Case_Insensitive',
-    chunkSmoothing=3,
-    country=list('USA'))
+      word = wordz[[2]],
+      grouping='author_age',
+      groupings_to_use = 21,
+      counttype = 'Percentage_of_Books',
+      ordering=NULL,
+      years=c(1800:1922),
+      smoothing=1,
+      comparison_words = wordz[[1]],
+      words_collation='Case_Insensitive',
+      chunkSmoothing=3,
+      country=list('USA'))
     genres  + geom_abline(data = data.frame(ints = seq(-1700,-2000,by=-10),slp=rep(1,31)),aes(intercept=ints,slope=slp),color = 'black',lty=3) + opts(sub)
 }
 
-chunked = lapply(changers,chunk)
-compareplot("vexed","vext")+scale_y_log10()
+chunked = lapply(changers[1:3],chunk)
+#compareplot("vexed","vext")+scale_y_log10()
+comparison_words=changers[[1]][[1]]
+
 require(gridExtra)
 do.call(grid.arrange,chunked)
 names(chunked)
@@ -219,34 +249,8 @@ summary(lm(ratio ~ year + birth,genres$data,weights=nwords))
 require(gridExtra)
 grid.arrange(unsmoothed[[1]],smoothed[[1]])
 
-relative = function(chunkeroo) {
-  loc = chunkeroo$data
-  loc$birth = loc$timeVariable-loc$groupingVariable
-  plob = data.frame(birth=loc$birth,year=loc$year,value=loc$value)
-  plob$value[is.na(plob$value)] = 1000000000
-  birthcor = ddply(plob,.(year),function(frame) {
-    cord = cor(frame$value,frame$birth,method='spearman')
-    if (is.na(cord)) {cord=0}
-    data.frame(value = cord,length = nrow(frame),max = max(frame$birth))
-  })
-  yearcor = ddply(plob,.(birth),function(frame) {
-    cord = cor(frame$value,frame$year,method='spearman')
-    if (is.na(cord)) {cord=0}
-    data.frame(value = cord,length = nrow(frame),max = max(frame$year))
-  })
-  if (FALSE) {
-  ggplot(plob,aes(y=birth,x=year,fill=rank(value))) + geom_tile() + 
-    scale_fill_gradient(low='white') + 
-    geom_text(data=yearcor,aes(x=max,label=round(value,2)),hjust=0,vjust=.5,size=2.5) +
-    geom_text(data=birthcor,aes(y=max,label=round(value,2)),hjust=0,vjust=0.5,angle=90,size=2.5)
-  }
-  
-  data.frame(yearcor = mean(yearcor$value[yearcor$length>4]),
-             birthcor=mean(birthcor$value[birthcor$length>4]),
-             freq = sum(loc$nwords) + sum(loc$count))
-}
 
-relative(chunk(list('1850')))
+relative(chunked[[1]])
 
 names(chunked)
 rm(results)
