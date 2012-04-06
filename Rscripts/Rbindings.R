@@ -382,7 +382,7 @@ compareplot = function(word1,word2,country="USA") {
           comparison_words = as.list(word2),
           words_collation='Case_Sensitive')
   USA = genres$data[genres$data$groupingVariable=='USA',]
-  USA$ratio[USA$ratio==0] = min(USA$ratio[USA$ratio!=0])
+  USA$ratio[USA$ratio==0] = min(USA$ratio[USA$ratio!=0)]
   ggplot(USA,aes(x=year,y=ratio)) + 
     opts(
       title=paste(
