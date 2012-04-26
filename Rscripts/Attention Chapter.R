@@ -197,7 +197,20 @@ core_query =
      ))
 
 vals = dbGetQuery(con,APIcall(core_query))
-normstemscore = ddply(vals,.(stem1),function(frame) {
-  data.frame(average = mean(xtabs(frame$count~frame$year)/xtabs(frame$nwords~frame$year)))
-})
 
+words = vals[!is.na(vals$stem1),]
+
+normstemscore = ddply(words,.(stem1),function(frame) {
+  data.frame(
+    average = mean(xtabs(frame$count~frame$year)/xtabs(frame$nwords~frame$year)))*nrow(frame)
+})
+qplot(normstemscore$average) + scale_x_log10()
+normstemscore$stem1[order(-normstemscore$average)][1:500]
+
+top = words[words$stem1 %in% normstemscore$stem1[order(-normstemscore$average)][1:1000]
+,]
+
+dim(top)
+head(top)
+
+ggplot(top,aes(x=year,y=count/nwords)) + geom_smooth()

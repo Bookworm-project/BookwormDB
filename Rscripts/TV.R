@@ -3,7 +3,7 @@ source("Rbindings.R")
 source("Dating tools.R")
 source("Trendspotting.R")
 getwd()
-example('sink ships')
+
 scriptize = function(show) {
   #Go through the folder hierarchy and read in the srt files for each show.
   setwd(paste("~/tv/",show,sep=""))
@@ -58,8 +58,6 @@ example=function(search,shownames = names(scripts),n=5) {
   }
   )
 }
-example("expertise","Pan Am")
-#http://books.google.com/ngrams/graph?content=keep+a+low+profile%2Clie+low&year_start=1945&year_end=2000&corpus=0&smoothing=0
 
 totalframe = ldply(shows,function(show) {
   cat(show,"\n")
@@ -77,6 +75,8 @@ totalframe = ldply(shows,function(show) {
   showframe$show = show
   showframe
 })
+totalframe=totalframe[(totalframe$show=="Mad Men" & totalframe$season==5),]
+unique(totalframe$show)
 
 names(totalframe)[1:2] = c("w1","w2")
 totalframe$word1 = paste(totalframe$w1,totalframe$w2)
@@ -85,20 +85,23 @@ length(unique(totalframe$word1))
 totalframe$show = factor(totalframe$show)
 totalframe$ep = factor(totalframe$ep)
 totalframe$season = factor(totalframe$season)
-
+#rm(con)
+#source("Rbindings.R")
 fullcounts = function(allbigrams,...) {
   #This returns a data.frame with year,word,count information for every bigram in a list of bigrams,
   #so we don't have to keep pulling the same words from the database.
   allbigrams = allbigrams[!duplicated(paste(allbigrams[,1],allbigrams[,2])),]
-  source("Dating tools.R")
   #additional arguments are passed to smoothedCounts
   smoothed = smoothedCounts(allbigrams[,1:2],...)
   smoothed[!is.na(smoothed$word1) & !is.na(smoothed$value),]
 }
+require(ggplot2)
+require(reshape2)
+require(plyr)
 words = fullcounts(totalframe,yearlim=c(1935,2008))
+melville=con
 
-
-totalframe$y1 = words$value[words$year==1963][match(totalframe$word1,words$word1[words$year==1963])]
+totalframe$y1 = words$value[words$year==1966][match(totalframe$word1,words$word1[words$year==1966])]
 totalframe$y2 = words$value[words$year==1995][match(totalframe$word1,words$word1[words$year==1995])]
 locframe = totalframe[!is.na(totalframe$y1*totalframe$y2),]
 locframe = locframe[,3:ncol(locframe)]
@@ -127,32 +130,42 @@ locframe$real[locframe$show %in% c("Lilies of the Field",
                                    "The Apartment", "Twilight Zone",
                                    "Lover Come Back",
                                    "The Hustler",
-                                   "Dr Strangelove")] = T
+                                   "Dr Strangelove","Johnson Tapes","Kennedy Tapes")] = T
 
-example("independently targetable reentry")
-textcloud(locframe[locframe$ep==1 & locframe$season==1,]) + facet_wrap(~show)
+
+levels(locframe$ep)
+locframe = locframe[locframe$y2>0 & locframe$y1 > 0,]
+source("Dating tools.R")
+textcloud(locframe[as.numeric(locframe$ep) <= 3,]) + facet_wrap(~ep,ncol=1,scales="free_y") 
+dim(locframe) 
+cloud(locframe) + geom_hex() 
+head(locframe)
+locframe$freqgroup = cut((locframe$y2+locframe$y1)/2,quantile((locframe$y2+locframe$y1)/2,probs = seq(0, 1, 1/3)),include.lowest=T)
+#Just a quick thing to convert ratios to numbers
+labelz = c("1000:1","300:1","100:1","30:1","10:1","3:1","2:1","1.5:1","1.2:1","1:1","1:2.1","1:1.5","1:2","1:3","1:10","1:30")
+numberplot = function(string) {rel=as.numeric(strsplit(string,":")[[1]]);rel[1]/rel[2]}
+ 
+levels(locframe$show)[levels(locframe$show)=="The Kennedys"]="Kennedys miniseries"
+levels(locframe$show)=levels(locframe$show)=="The Kennedys"]=
+locframe$show = factor(locframe$show)
+ggplot(locframe[locframe$y2/locframe$y1 <= 50 & !duplicated(paste(locframe$word1,locframe$show)),]) +
+  geom_density(aes(x=y2/y1,fill=show,color=show),alpha=.2,adjust=1) + 
+  scale_x_continuous("ratio of modern to period use",trans='log10',limits=c(1/5,5),labels=labelz,
+    breaks = sapply(labelz,numberplot)) + 
+  opts(title="And Mad Men is worst of all") 
+
+
+locframe[sample(nrow(locframe),100),]
+example("on the phone with",n=0)
+summary(locframe$ep)
+?facet_wrap
 attach(locframe)
 locframe[locframe$show=='Playboy Club' & ( (y2/y1 > 30 & mean(y1+y2)>1e-06 & y1 > 0) | (y1==0 & y2> 1e-07) ),]
 detach(locframe)
-textcloud = function(plottable) {
-  #Just a quick thing to convert ratios to numbers
-  labelz = c("1000:1","300:1","100:1","30:1","10:1","3:1","1:1","1:3","1:10","1:30")
-  numberplot = function(string) {rel=as.numeric(strsplit(string,":")[[1]]);rel[1]/rel[2]}
-  ggplot(plottable,aes(x=(y2+y1)/2,y=y2/y1,label=word1)) + 
-  scale_y_continuous(
-    "Ratio of modern use to period use",
-    labels=labelz,
-    breaks = sapply(labelz,numberplot),
-    trans='log10') + 
-  scale_x_continuous("Overall Frequency",labels = c("1 in 10M","1 in 1K","1 in 100K","1 in 1B"),
-                     breaks = c(1/100000,1/10,1/1000,1/10000000),
-                     trans='log10')+
-        geom_text(data=subset(plottable[plottable$y1*plottable$y2!=0,]), 
-                  size=2.5) + 
-        geom_text(data=subset(plottable[plottable$y1==0 & plottable$y2 != 0,]),
-                  size=2.5,color='red',aes(y=500),position=position_jitter(width=0)) + 
-        geom_hline(yint=1,color='black',alpha=.7,lwd=3,lty=2)
-}
+textcloud(locframe[!(grepl('just',locframe$word1) | grepl('need',locframe$word1)),]) + 
+  opts(title="Mad Men Season 5 premiere, two word phrases") + 
+  geom_text(data=locframe[grepl('just',locframe$word1) | grepl('need',locframe$word1),],
+            size=4,color=muted('red'))
 
 textcloud(locframe[locframe$y2/locframe$y1>20 & locframe$y1!=0 & locframe$season==1,]) + aes(color=show)
 example("romantic dinner")

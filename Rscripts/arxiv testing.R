@@ -1,30 +1,55 @@
+setwd("/presidio/Rscripts")
+source("Rbindings.R")
 v = dbConnect(MySQL(),host='chaucer.fas.harvard.edu',password='fake')
-dbGetQuery(v,"USE arxiv")
-
+              
+              dbGetQuery(v,"USE arxiv")
 times = dbGetQuery(v,'
                    SELECT date_format(date, "%w") AS day,
                    date_format(date, "%Y") AS year,
                    date_format(date, "%H") AS hour FROM catalog GROUP BY day,hour,year')
 head(times)
 times$yearcut = factor(times$year>2000)
-
+source("Word Spread.R")
+months = dbGetQuery(v,"SELECT month FROM catalog GROUP BY month")
+require(reshape2)
+query = genreplot(word=list("theory"),
+                  comparison_words=list("model"),
+                  words_collation = "Case_Insensitive",
+                  years=months[months$month>728400,1],
+                  x.value="month",
+                  grouping="subclass",
+                  database="arxiv",
+                  chunkSmoothing=365.25*2.5,
+                  conn=v,
+                  groupings_to_use=17) + 
+                    geom_point(aes(size=nwords),alpha=.25) 
+query$data$timeVariable=query$data$timeVariable/365.25
+query$opt$title
+ggplot(query$data,aes(x=timeVariable,y=value))+
+geom_line()+facet_wrap(~groupingVariable,nrow=2)+scale_y_log10()+
+ylab("higher is usage of 'theory'; lower of 'model'")+
+opts(title="Frequency of 'theory' \n Per Usage of 'model'")
+?facet_wrap
+toJSON(query)
+dbGetQuery(v,"EXPLAIN catalog")
 ggplot(times) + geom_histogram(aes(x=as.numeric(hour),fill=day),binwidth=1,position='dodge') + facet_grid(yearcut~day)
+source("Trendspotting.R")
+classes = dbGetQuery(v,"SELECT subclass FROM subclass GROUP BY subclass")
 
 a= APIcall(
   list("method"="ratio_query",
-       "groups"=list("month"),
-        "counttype"="Occurrences_per_Million_Words",
-           "words_collation"="Case_Sensitive",
-           "smoothingSpan"="0",
+       "groups"=list("subclass"),
+       "counttype"="Number_of_Books",
+       "words_collation"="Case_Sensitive",
+       "smoothingSpan"="0",
        "database"="arxiv",
-      "search_limits"=list(
-             "word"=list("addition"),
+       "search_limits"=list(
+         "word"=list("plain")
+  )))
+head(dbGetQuery(v,a))
 
-             "archive"=list("Physics"),
-             "month" = list("$grep"=list(1780))
-))
-  )
-dbGetQuery(v,a)
+#dbGetQuery(v,a)
+cat(a)
 authors = dbGetQuery(v,"SELECT author FROM catalog")[,1]
 head(authors)
 auth1=gsub("\\([^\\)]*\\)",'',authors)
