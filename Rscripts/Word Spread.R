@@ -230,7 +230,7 @@ genreplot = function(word = list('call attention')
       total$value = total$value *100
     }
     color_scale = scale_fill_gradientn(
-      colours = c('white',rev(heat.colors(5))),trans = NULL)
+      colours = c('white',rev(heat.colors(5))))
   }
   yscale = scale_y_discrete(expand=c(0,0))
   if (numeric.y){

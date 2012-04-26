@@ -1,7 +1,8 @@
+setwd("/presidio/Rscripts")
 source("Rbindings.R")
 v = dbConnect(MySQL(),host='chaucer.fas.harvard.edu',password='fake')
-dbGetQuery(v,"USE arxiv")
-setwd("/presidio/Rscripts")
+              
+              dbGetQuery(v,"USE arxiv")
 times = dbGetQuery(v,'
                    SELECT date_format(date, "%w") AS day,
                    date_format(date, "%Y") AS year,
@@ -10,7 +11,7 @@ head(times)
 times$yearcut = factor(times$year>2000)
 source("Word Spread.R")
 months = dbGetQuery(v,"SELECT month FROM catalog GROUP BY month")
-
+require(reshape2)
 query = genreplot(word=list("theory"),
                   comparison_words=list("model"),
                   words_collation = "Case_Insensitive",
@@ -34,16 +35,19 @@ dbGetQuery(v,"EXPLAIN catalog")
 ggplot(times) + geom_histogram(aes(x=as.numeric(hour),fill=day),binwidth=1,position='dodge') + facet_grid(yearcut~day)
 source("Trendspotting.R")
 classes = dbGetQuery(v,"SELECT subclass FROM subclass GROUP BY subclass")
+
 a= APIcall(
   list("method"="ratio_query",
-       "groups"=list("month"),
-        "counttype"="Percentage_of_Books",
-           "words_collation"="Case_Sensitive",
-           "smoothingSpan"="0",
+       "groups"=list("mld","subclass"),
+       "counttype"="Number_of_Books",
+       "words_collation"="Case_Sensitive",
+       "smoothingSpan"="0",
        "database"="arxiv",
-      "search_limits"=list(
-             "word"=list("compressive sensing")
+       "search_limits"=list(
+         "word"=list("the")
   )))
+head(dbGetQuery(v,a))
+
 #dbGetQuery(v,a)
 cat(a)
 authors = dbGetQuery(v,"SELECT author FROM catalog")[,1]

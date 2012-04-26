@@ -75,7 +75,7 @@ totalframe = ldply(shows,function(show) {
   showframe$show = show
   showframe
 })
-totalframe=totalframe[grepl("Kennedy",totalframe$show) | grepl("Johnson",totalframe$show) | (totalframe$show=="Mad Men" & totalframe$season==5),]
+totalframe=totalframe[(totalframe$show=="Mad Men" & totalframe$season==5),]
 unique(totalframe$show)
 
 names(totalframe)[1:2] = c("w1","w2")
@@ -95,10 +95,13 @@ fullcounts = function(allbigrams,...) {
   smoothed = smoothedCounts(allbigrams[,1:2],...)
   smoothed[!is.na(smoothed$word1) & !is.na(smoothed$value),]
 }
+require(ggplot2)
+require(reshape2)
+require(plyr)
 words = fullcounts(totalframe,yearlim=c(1935,2008))
 melville=con
 
-totalframe$y1 = words$value[words$year==1964][match(totalframe$word1,words$word1[words$year==1964])]
+totalframe$y1 = words$value[words$year==1966][match(totalframe$word1,words$word1[words$year==1966])]
 totalframe$y2 = words$value[words$year==1995][match(totalframe$word1,words$word1[words$year==1995])]
 locframe = totalframe[!is.na(totalframe$y1*totalframe$y2),]
 locframe = locframe[,3:ncol(locframe)]
@@ -129,16 +132,14 @@ locframe$real[locframe$show %in% c("Lilies of the Field",
                                    "The Hustler",
                                    "Dr Strangelove","Johnson Tapes","Kennedy Tapes")] = T
 
-example("ways to")
+
 levels(locframe$ep)
-extra = data.frame(word1="off the\nphone with",y1=.00000017,y2=.00000325)
 locframe = locframe[locframe$y2>0 & locframe$y1 > 0,]
 source("Dating tools.R")
-textcloud(locframe[locframe$y2/locframe$y1 <= 50 & !duplicated(paste(locframe$word1,locframe$show)),]) + facet_wrap(~show) + geom_smooth()
-
-cloud(locframe[locframe$y2/locframe$y1 <= 50 & !duplicated(paste(locframe$word1,locframe$show)),]) + geom_hex()+ 
-  facet_wrap(~show,ncol=1)
-
+textcloud(locframe[as.numeric(locframe$ep) <= 3,]) + facet_wrap(~ep,ncol=1,scales="free_y") 
+dim(locframe) 
+cloud(locframe) + geom_hex() 
+head(locframe)
 locframe$freqgroup = cut((locframe$y2+locframe$y1)/2,quantile((locframe$y2+locframe$y1)/2,probs = seq(0, 1, 1/3)),include.lowest=T)
 #Just a quick thing to convert ratios to numbers
 labelz = c("1000:1","300:1","100:1","30:1","10:1","3:1","2:1","1.5:1","1.2:1","1:1","1:2.1","1:1.5","1:2","1:3","1:10","1:30")
