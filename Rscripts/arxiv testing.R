@@ -38,13 +38,13 @@ classes = dbGetQuery(v,"SELECT subclass FROM subclass GROUP BY subclass")
 
 a= APIcall(
   list("method"="ratio_query",
-       "groups"=list("mld","subclass"),
+       "groups"=list("subclass"),
        "counttype"="Number_of_Books",
        "words_collation"="Case_Sensitive",
        "smoothingSpan"="0",
        "database"="arxiv",
        "search_limits"=list(
-         "word"=list("the")
+         "word"=list("plain")
   )))
 head(dbGetQuery(v,a))
 
