@@ -1,7 +1,25 @@
 #Ocean routes
 
-#All this code was posted by Erian on http://spatialanalysis.co.uk/2012/03/mapped-british-shipping-1750-1800/
 
+
+
+m = data.frame(lat=c(4,6,8,7,5),long=c(8,8,3,5,6))
+ddply(data[1:100],.(group),function(m) {
+  angle = m[-1,]- m[-nrow(m),]
+  bearing = atan2(m$lat,m$long)
+  mean(abs(bearing[-1]-bearing[-(length(bearing))]))
+})
+
+
+?D
+as.matrix(m[-1,]) %*% as.matrix(m[-nrow(m),])
+
+require(ggplot2)
+
+ggplot(m,aes(x=long,y=lat)) + geom_path()
+
+#All this code was posted by Erian on http://spatialanalysis.co.uk/2012/03/mapped-british-shipping-1750-1800/
+setwd("~/shipping")
 require(Hmisc) # need also mdbtools installed
 path <- "~/shipping"
 URL <- "http://www.knmi.nl/";
