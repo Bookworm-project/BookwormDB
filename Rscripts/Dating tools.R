@@ -27,8 +27,9 @@ subtitlrScore = function(episode,...) {
 
 
 tokenize = function(script,grams=2) {
+  script = gsub("^ ","",script)
   script = gsub("\n"," ",script)
-  script = gsub("([\\.,!\\?\\[\\]])"," \\1",script)
+  script = gsub("([\\.,!\\?])"," \\1",script)
   splitted = strsplit(script," ")
   splitted = unlist(splitted)
   splitted = splitted[grep("^$",splitted,invert=T)]
@@ -210,8 +211,8 @@ textcloud = function(plottable) {
                      trans='log10')+
         geom_text(data=subset(plottable[plottable$y1*plottable$y2!=0,]), 
                   size=2.5,alpha=.75) + 
-        geom_text(data=subset(plottable[plottable$y1==0 & plottable$y2 != 0,]),
-                  size=2.5,color='red',aes(y=500),position=position_jitter(width=0)) + 
+        #geom_text(data=subset(plottable[plottable$y1==0 & plottable$y2 != 0,]),
+        #          size=2.5,color='red',aes(y=500),position=position_jitter(width=0)) + 
         geom_hline(yint=1,color='black',alpha=.7,lwd=3,lty=2)
 }
 
