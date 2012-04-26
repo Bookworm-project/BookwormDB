@@ -1,7 +1,7 @@
 setwd("/presidio/Rscripts")
 source("Rbindings.R")
 wordgrid <- function (
-  wordlist = list("democracy")
+  wordlist = list("library")
   ,
   comparelist=list()
   ,
@@ -12,8 +12,6 @@ wordgrid <- function (
   excludeList = c()
   ,
   fitAgainst='raw'
-  ,
-  collation = 'Case_Insensitive'
   ,
   wordfield = 'stem'
   ,
@@ -31,17 +29,25 @@ wordgrid <- function (
   ,
   returnData=F
   ,
-  field = "word2",
+  field = "w2.casesens"
+  ,
   totalProxy="the"
-  ) {
-  if (field=="word1") {
-    otherfield="word2"
-  } else {otherfield = "word1"}
+  ,
+  samplingSpan=13
+
+  )
+  {
+  if (grepl("w1",field)) {
+    otherfield="w2.casesens"
+    otherfieldname = "word2"
+  } else {
+    otherfield = "w1.casesens";     otherfieldname="word1"
+  }
+  wordcollation = sub(".*\\.","",field)
   query = dbGetQuery(mydb,"USE ngrams")
 
   if (is.null(WordsOverride)){
-    samplingSpan=13
-    wheres = list(year = seq(yearlim[1],yearlim[2],by=samplingSpan),word2=unlist(wordlist))
+    wheres = list(year = seq(yearlim[1],yearlim[2],by=samplingSpan),w2.casesens=unlist(wordlist))
     names(wheres)[2] = field
     data = dbGetQuery(
       mydb,
@@ -57,12 +63,16 @@ wordgrid <- function (
         whereterm(wheres),
       " GROUP BY word1,word2,year",sep=""))
     data = data[!is.na(data$word1) & !is.na(data$word2),]
-    data$fixfield = get(otherfield,data)
+    data$fixfield = get(otherfieldname,data)
+
     totals = dbGetQuery(
       mydb,
       paste(
-        "SELECT words,year FROM presidio.1grams WHERE ",
-        whereterm(list(year = seq(yearlim[1],yearlim[2],by=samplingSpan),word1=totalProxy))))
+        "
+        SELECT words,year FROM 
+        presidio.1grams JOIN presidio.wordsheap as w1 
+        ON w1.casesens=1grams.word1 WHERE ",
+        whereterm(list(year = seq(yearlim[1],yearlim[2],by=samplingSpan),w1.casesens=totalProxy))))
     ratios = xtabs(words ~ year + fixfield,data)
     total = totals$words[match(rownames(ratios),totals$year)]
     ratios = ratios/total
@@ -86,13 +96,16 @@ wordgrid <- function (
   
   dunwords = dunwords[1:min(n,length(dunwords))]
   cat("wordlist chosen... Selecting results for those words\n")
-    if (field=="word2") { 
-      wherewords = list(dunwords,unlist(wordlist)) 
-      } else {
-      wherewords = list(unlist(wordlist),dunwords) 
-    }
-    
-    names(wherewords) = paste(c('w1.','w2.'),wordfield,sep="")
+  if (grepl("2",field)) { 
+    wherewords = list(dunwords,unlist(wordlist))
+    names(wherewords) = paste(c('w1.','w2.'),c(wordfield,wordcollation),sep="")
+
+    } else {
+    wherewords = list(unlist(wordlist),dunwords) 
+    names(wherewords) = paste(c('w1.','w2.'),c(wordcollation,wordfield),sep="")
+
+  }
+
    data = dbGetQuery(
       mydb,
       paste(
@@ -113,7 +126,7 @@ wordgrid <- function (
         whereterm(list(word1=totalProxy))))
     data = data[data$year > yearlim[1] & 
     data$year < yearlim[2],]
-    data$fixfield = get(otherfield,data)    
+    data$fixfield = get(otherfieldname,data)    
     ratios = xtabs(words ~ year + fixfield,data)
     ratios = ratios[,order(-colSums(ratios))]
     total = totals$words[match(rownames(ratios),totals$year)]
@@ -185,10 +198,11 @@ wordgrid <- function (
       freqClasses,
       trendClasses,
       paste("Relative share of most frequent words",
-            mytitle,paste(wordlist,collapse="/")),
+            mytitle,paste(wordlist,collapse="/")," (", yearlim[1],"-",yearlim[2],")"),
       "Percentage of all displayed words",
       "Year")
     names(args.list) <- c(clusternames, "nrow","ncol","main","left","sub")
+  cat("preparing plot\n")
   plot = do.call(grid.arrange,args.list)
   if (returnData) {plot = list(plot,matrified)}  
   plot

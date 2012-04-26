@@ -35,21 +35,21 @@ ggplot(
       paste(wheres[['word1']]),
       collapse="/"))
 
-source("ngrams wordgrid.R")
-
-mylist = wordgrid(list("capitalism","Capitalism"),
-    returnData=F,
-    wordfield='lowercase',
-    field='word2',n=50,
-    yearlim=c(1900,2000)
-  )
+con=dbConnect(MySQL())
 dbGetQuery(con,"Use ngrams")
-mylist = wordgrid(list("democratic"),
-    returnData=F,
-    wordfield='lowercase',
-    field='word1',n=48,
-                  excludeList = c("party","Party"),
-    yearlim=c(1815,2000),freqClasses=4,trendClasses=3
-  )
+source("ngrams wordgrid.R")
+  
+  mylist = wordgrid(list("advertising"),
+      returnData=F,
+      wordfield='stem',
+      field='w1.casesens',
+      freqClasses=4,n=50,
+      yearlim=c(1960,2008),
+      mydb=con,
+      excludeList=c("man","men"),
+      samplingSpan=4
+    )
+  mylist
+
 dbGetQuery(con,"Use presidio")
 genreplot(list("democratic principles"),grouping="lc0",groupings_to_use = 15,chunkSmoothing=5)

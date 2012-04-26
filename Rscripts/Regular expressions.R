@@ -4,7 +4,7 @@ core_search = list(
       groups=list("year","words1.word as w1","words2.word as w2"),
       search_limits = 
         list(
-            'word' = "focus attention"
+            'word' = "focus attention,"
             'year' = list("$gte"=list(1900),"$lte"=list(1911)),
             'alanguage' = list('eng'),
             'lc1'='BF'
