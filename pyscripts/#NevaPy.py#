@@ -102,6 +102,7 @@ def load_book_list():
 
 def load_genre_list():
     print "Making a SQL table to hold the data"
+    cursor.execute("""DROP TABLE IF EXISTS genre""")
     cursor.execute("""CREATE TABLE IF NOT EXISTS genre (
         bookid MEDIUMINT, 
         genre VARCHAR(15),
@@ -145,18 +146,15 @@ def create_memory_tables():
     cursor.execute("INSERT INTO tmp SELECT bookid,nwords,day,week,month,tld,mld FROM catalog;");
     cursor.execute("DROP TABLE IF EXISTS fastcat;");
     cursor.execute("RENAME TABLE tmp TO fastcat;");
-
     cursor.execute("CREATE TABLE tmp (wordid MEDIUMINT, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens)) ENGINE=MEMORY;")
     #For some reason, there are some duplicate keys; INSERT IGNORE skips those.
     cursor.execute("INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;")
     cursor.execute("DROP TABLE IF EXISTS wordsheap;");
     cursor.execute("RENAME TABLE tmp TO wordsheap;");
-    
     cursor.execute("CREATE TABLE tmp (bookid MEDIUMINT, subclass VARCHAR(18), PRIMARY KEY (bookid,subclass)) ENGINE=MEMORY ;");
     cursor.execute("INSERT into tmp SELECT bookid,subgenre FROM genre GROUP BY bookid,subgenre;");
     cursor.execute("DROP TABLE IF EXISTS subclass;");
     cursor.execute("RENAME TABLE tmp TO subclass;");
-    
     cursor.execute("CREATE TABLE tmp (bookid MEDIUMINT, INDEX (bookid), archive VARCHAR(13)) ENGINE=MEMORY ;");
     cursor.execute("INSERT into tmp SELECT bookid, genre FROM genre GROUP BY bookid,genre;");
     cursor.execute("DROP TABLE IF EXISTS archive;");
@@ -174,6 +172,8 @@ def create_memory_tables():
 #load_word_list()
 #create_unigram_book_counts()
 #create_bigram_book_counts()
-load_book_list()
-load_genre_list()
+#load_book_list()
+#load_genre_list()
+#set_nwords_domains()
 create_memory_tables()
+
