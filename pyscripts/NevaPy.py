@@ -6,7 +6,7 @@
 import MySQLdb
 
 #txtdir = "/scratch/global/neva/texts/"
-txtdir = "/media/troilus/arxiv/"
+txtdir = "../../"
 catfile = "catalog.txt"
 metafile = "metadata.txt"
 genrefile = "genre.txt"
@@ -21,7 +21,9 @@ def load_word_list():
     cursor.execute("""CREATE TABLE IF NOT EXISTS words (
         wordid MEDIUMINT, 
         word VARCHAR(255), INDEX (word),
-        count BIGINT UNSIGNED
+        count BIGINT UNSIGNED,
+        casesens VARBINARY(255),
+        stem VARCHAR(255)
         );""")
     cursor.execute("ALTER TABLE words DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
@@ -31,6 +33,7 @@ def load_word_list():
                    CHARACTER SET binary
                    (wordid,word,count) """)
     cursor.execute("ALTER TABLE words ENABLE KEYS")
+    cursor.execute("UPDATE words SET casesens=word")
 
 def create_unigram_book_counts():
     print "Making a SQL table to hold the data"
@@ -124,6 +127,8 @@ def load_genre_list():
 #ld3 = SUBSTR(REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',3)), LOCATE('@',REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',3)))+1, LENGTH(REVERSE(SUBSTRING_INDEX(REVERSE(REPLACE(email,'>','')),'.',3))));""");
 #    cursor.execute("UPDATE catalog SET mld=sld;");
 #    cursor.execute("UPDATE catalog SET mld=ld3 WHERE  sld REGEXP '^(ac|edu)';");
+
+
 
 ###This is the part that has to run on every startup.
 def create_memory_tables():
