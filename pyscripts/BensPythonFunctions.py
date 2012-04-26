@@ -336,8 +336,9 @@ def create_memory_tables():
         state CHAR(2),
         author_age SMALLINT,
         lc0 CHAR(1),
+        month MEDIUMINT,
         PRIMARY KEY (bookid)) ENGINE = MEMORY""")
-    cursor.execute("""INSERT INTO tmpheap SELECT bookid,year,lc1,lc2,nwords,publish_country,authorbirth,workyear,language,subset,country,state,author_age,lc0 FROM open_editions WHERE nwords >0 AND (subset='beta' or subset='sprint' or subset='test') AND duplicate != 1; """)
+    cursor.execute("""INSERT INTO tmpheap SELECT bookid,year,lc1,lc2,nwords,publish_country,authorbirth,workyear,language,subset,country,state,author_age,lc0,TO_DAYS(MAKEDATE(year,1)) FROM open_editions WHERE nwords >0  AND duplicate != 1; """)
     cursor.execute("""update tmpheap set subset='beta'""")
     cursor.execute("""DROP TABLE IF EXISTS catalog""")
     cursor.execute("RENAME TABLE tmpheap TO catalog")
