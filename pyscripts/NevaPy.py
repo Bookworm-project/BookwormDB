@@ -148,7 +148,8 @@ def create_memory_tables():
     cursor.execute("RENAME TABLE tmp TO fastcat;");
 
     cursor.execute("CREATE TABLE tmp (wordid MEDIUMINT, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens)) ENGINE=MEMORY;")
-    #For some reason, there are some duplicate keys; INSERT IGNORE skips those.
+    #For some reason, there are some duplicate keys; INSERT IGNORE skips those. It might be worth figuring out exactly how they creep in: it looks to me like it has to with unicode or other non-ascii characters,
+#so we may be losing a few of those here.
     cursor.execute("INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;")
     cursor.execute("DROP TABLE IF EXISTS wordsheap;");
     cursor.execute("RENAME TABLE tmp TO wordsheap;");
@@ -176,5 +177,5 @@ def create_memory_tables():
 #create_unigram_book_counts()
 #create_bigram_book_counts()
 #load_book_list()
-load_genre_list()
+#load_genre_list()
 create_memory_tables()
