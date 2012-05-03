@@ -15,7 +15,7 @@ We start with files at, relative to the main presidio directory:
                   integer guaranteed to be unique across the full dataset).  This
                   should be tab-delimited and should exclude the ".txt" extension.
 
-Example creation of one such text file, run from ../texts/raw:
+Example creation of one such text file, run from ../texts/raw: (this would run better with "find" than "ls" in practice)
 
 ls *.txt | awk -F '.txt' '{count++; print count "\t" $1;}' > ../textids/cat0001.txt
 
@@ -32,20 +32,20 @@ for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unig
 
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
 print "Cleaning the texts"
-#sh(['python','master.py','clean'])
+sh(['python','master.py','clean'])
 print "Creating 1 gram counts"
-#sh(['python','master.py','unigrams'])
+sh(['python','master.py','unigrams'])
 print "Creating 2gram counts"
-#sh(['python','master.py','bigrams'])
-#We could add 3grams, and so forth, here.
+sh(['python','master.py','bigrams'])
 
+print "Would be creating 3gram counts..."
+#Just kidding, this isn't implemented
 print "Creating a master wordlist"
 sh(['python','WordsTableCreate.py'])
 #We could add an option to this to specify the size of the dictionary used. Currently hardcoded at 3,000,000 words. 
-#On very large dictionaries, this may crash for lack of memory; the script is an obvious candidate for map-reduce.
+#On very large dictionaries, this may crash for lack of memory on machines with insufficient RAM; the script is an obvious candidate for map-reduce.
 
-
-#These tend to be the most time-intensive scripts.
+#These tend to be the most time-intensive scripts, since they involve a lot of dictionary lookups
 print "Creating 1grams encodings"
 sh(['python','master.py','encode1'])
 
