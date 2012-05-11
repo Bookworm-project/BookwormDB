@@ -4,7 +4,7 @@ import re
 import codecs
 from xml.dom.minidom import parse,parseString
 
-metadata_fields = ['month','day','year','journalabbrv','journalid','headid','title','languages','type','journaltitle','volume','authors','issueid','issn','fpage','lpage']
+metadata_fields = ['year','month','day','journalabbrv','journalid','headid','title','languages','type','journaltitle','volume','authors','issueid','issn','fpage','lpage']
 
 
 class Export:
