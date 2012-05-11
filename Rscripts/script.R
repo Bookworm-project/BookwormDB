@@ -1,3 +1,5 @@
+setwd("/presidio/Rscripts")
+source("Rbindings.R")
 source("Rbindings.R")
 source("Dating tools.R")
 source("Trendspotting.R")
@@ -72,14 +74,18 @@ downtonScores[[2]][[2]]
 #load("~/PandPeps.R")
 #MarxScores = sdfdfsfd(tokenize(Marx))
 
+
+
+
+data.frame
+setwd("/presidio/Rscripts")
+
 filename = "Downton Abbey - 02x10 - Christmas Special.FoV.English.C.orig.Addic7ed.com.srt"
 text = scan(paste("~/tv/",filename,sep=""),what='raw',sep="\n") 
-text[grep("\\d",text,perl=T)]=""
 newEp = fullGrid(MakeNgramCounts(tokenize(text)),comps=c(1920,1995),weighted=T,
            smoothing=9)
 length(scores[['Downton Abbey']])
 
-scores[['Downton Abbey']][[9]] = newEp
 
 
 

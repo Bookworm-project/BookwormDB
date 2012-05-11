@@ -1,5 +1,4 @@
 #Dating tools
-
 parseScriptline = function(html) {
   script = html[grep('entry-content',html)]
   script = gsub("<[^>]+>","\n",script,perl=T)
@@ -28,13 +27,14 @@ subtitlrScore = function(episode,...) {
 
 
 tokenize = function(script,grams=2) {
-  script = gsub("\n",' ',script)
-  script = gsub("([.,!?\\[])"," \\1",script)
+  script = gsub("^ ","",script)
+  script = gsub("\n"," ",script)
+  script = gsub("([\\.,!\\?])"," \\1",script)
   splitted = strsplit(script," ")
   splitted = unlist(splitted)
-  splitted = splitted[grep("^$",splitted,perl=T,invert=T)]
+  splitted = splitted[grep("^$",splitted,invert=T)]
   words = cbind(splitted[-length(splitted)],splitted[-1])
-  words = words[grepl("^\\w+$",words[,1],perl=T) & grepl("^\\w+$",words[,2],perl=T),]
+  words = words[grepl("^[A-Za-z]+$",words[,1]) & grepl("^[A-Za-z]+$",words[,2]),]
   words
 }
 
@@ -43,7 +43,7 @@ MakeNgramCounts = function(dcounts) {
   counts = table(paste(dcounts[,1],dcounts[,2]))
   words = as.data.frame(do.call(rbind,strsplit(names(counts)," ")))
   words$count = counts
-  words = words[!grepl("[B-HJ-Z]",apply(words,1,paste,collapse=" "),perl=T),]
+  words = words[!grepl("[B-HJ-Z]",apply(words,1,paste,collapse=" ")),]
 }
 
 modernityCheck = function(row,
@@ -97,6 +97,7 @@ fullGrid = function(cnts,yearlim=c(1789,2008),sampling = nrow(cnts),comps=c(1921
   factor = totals$ratio               
   k = smoothing%/%2*2+1
   cat("\nSmoothing matrix\n")
+  require(zoo)
   smoothed = apply(tmp,2,function(col) {
       if (weighted) {
         col = rollapply(col,width=k,FUN=weighted.mean,w = sqrt(c(1:(k%/%2),k%/%2+1,(k%/%2):1)),fill=NA)
@@ -139,29 +140,98 @@ fullGrid = function(cnts,yearlim=c(1789,2008),sampling = nrow(cnts),comps=c(1921
         scale_x_continuous("Overall Frequency",trans='log10'))
 }
 
+smoothedCounts = 
+  function(cnts,
+           smoothing = 9,
+           weighted=F,
+           compareword = 'the',
+           sampling=nrow(cnts),
+           yearlim = c(1900,2010)
+           ) {
+  tmp = return_matrix(grams=2,wordInput=cnts[sample(1:nrow(cnts),sampling),],yearlim=yearlim)
+  tmp = tmp/1000000
+  the = dbGetQuery(con,"SELECT words,year FROM presidio.1grams WHERE word1='the'")
+  you = dbGetQuery(con,paste("SELECT words,year FROM presidio.1grams WHERE word1='",compareword,"'",sep=""))
+  totals = merge(the,you,by='year')
+  attach(totals)
+  totals$ratio = (words.x/(words.y))
+  totals$ratio = totals$ratio/median(totals$ratio)
+  detach(totals)
+  #Using "you" as a proxy for the total words of dialogue--slightly tricky, but workable?
+  tmp = tmp*totals$ratio[match(rownames(tmp),totals$year)]
 
-example = function(downtons,word,k=3) {
-  readable = unlist(lapply(downtons,strsplit,"\n"))
-  readable = readable[readable!=""]
-  lapply(grep(word,readable),function(n) {
-    readable[(n-k):(n+k)]})
+  factor = totals$ratio               
+  k = smoothing%/%2*2+1
+  cat("\nSmoothing matrix\n")
+  require(zoo)
+  
+  tmp = tmp[rownames(tmp) %in% (yearlim[1]-k):(yearlim[2]+k),]
+  smoothed = apply(tmp,2,function(col) {
+      if (weighted) {
+        col = rollapply(col,width=k,FUN=weighted.mean,w = sqrt(c(1:(k%/%2),k%/%2+1,(k%/%2):1)),fill=NA)
+      } else {
+         col = rollapply(col,k,mean,fill=NA)       
+      }
+      col
+  })
+  dimnames(smoothed) = dimnames(tmp)
+  smoothed = smoothed[rownames(smoothed) %in% yearlim[1]:yearlim[2],]
+  dataf = melt(smoothed)
+  dataf
 }
 
+cloud = function(plottable) {
+  #Just a quick thing to convert ratios to numbers
+  labelz = c("1000:1","300:1","100:1","30:1","10:1","3:1","1:1","1:3","1:10","1:30")
+  numberplot = function(string) {rel=as.numeric(strsplit(string,":")[[1]]);rel[1]/rel[2]}
+  ggplot(plottable,aes(x=(y2+y1)/2,y=y2/y1,label=word1)) + 
+  scale_y_continuous(
+    "Ratio of modern use to period use",
+    labels=labelz,
+    breaks = sapply(labelz,numberplot),
+    trans='log10') + 
+  scale_x_continuous("Overall Frequency",labels = c("1 in 10M","1 in 1K","1 in 100K","1 in 1B"),
+                     breaks = c(1/100000,1/10,1/1000,1/10000000),
+                     trans='log10')+
+        geom_hline(yint=1,color='black',alpha=.7,lwd=3,lty=2)
+}
 
-#Scriptline files have their own parsing rule.s
-downtons = c("http://scriptline.livejournal.com/41950.html",
-             "http://scriptline.livejournal.com/42491.html",
-             "http://scriptline.livejournal.com/42876.html",
-             "http://scriptline.livejournal.com/43317.html",
-             "http://scriptline.livejournal.com/43860.html",
-             "http://scriptline.livejournal.com/45325.html",
-             "http://scriptline.livejournal.com/45845.html",
-             "http://scriptline.livejournal.com/46091.html"
-             )
+textcloud = function(plottable) {
+  #Just a quick thing to convert ratios to numbers
+  labelz = c("1000:1","300:1","100:1","30:1","10:1","3:1","1:1","1:3","1:10","1:30")
+  numberplot = function(string) {rel=as.numeric(strsplit(string,":")[[1]]);rel[1]/rel[2]}
+  ggplot(plottable,aes(x=(y2+y1)/2,y=y2/y1,label=word1)) + 
+  scale_y_continuous(
+    "Ratio of modern use to period use",
+    labels=labelz,
+    breaks = sapply(labelz,numberplot),
+    trans='log10') + 
+  scale_x_continuous("Overall Frequency",labels = c("1 in 10M","1 in 1K","1 in 100K","1 in 1B"),
+                     breaks = c(1/100000,1/10,1/1000,1/10000000),
+                     trans='log10')+
+        geom_text(data=subset(plottable[plottable$y1*plottable$y2!=0,]), 
+                  size=2.5,alpha=.75) + 
+        #geom_text(data=subset(plottable[plottable$y1==0 & plottable$y2 != 0,]),
+        #          size=2.5,color='red',aes(y=500),position=position_jitter(width=0)) + 
+        geom_hline(yint=1,color='black',alpha=.7,lwd=3,lty=2)
+}
 
-pandp = c("http://scriptline.livejournal.com/449.html",
-          "http://scriptline.livejournal.com/1095.html",
-          "http://scriptline.livejournal.com/1349.html",
-          "http://scriptline.livejournal.com/1691.html",
-          "http://scriptline.livejournal.com/1962.html",
-          "http://scriptline.livejournal.com/2181.html")
+example=function(search,shownames = names(scripts),n=5) {
+  #This is a great example of a time that vectorizing code in R 
+  #produces uglier, more difficult to read, and slower results than
+  #just using a for-loop.
+  silent=lapply(shownames,function(showname) {
+    scriptz = scripts[[showname]]
+    for (season in 1:length(scriptz)) {
+      for (ep in 1:length(scriptz[[season]])) {
+        matches = grep(search,scriptz[[season]][[ep]])
+        if (length(matches)>=1) {
+          sapply(matches,function(match){
+            try(cat(toupper(x=paste(showname,season,ep)),scriptz[[season]][[ep]][(match-n):(match+n)],sep="\n"))
+          })
+        }       
+      }
+    }
+  }
+  )
+}

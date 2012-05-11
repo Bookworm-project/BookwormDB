@@ -2,9 +2,8 @@
 require(RJSONIO)
 require(RMySQL)
 require(ggplot2)
-con = dbConnect(MySQL(),db="presidio")
 
-
+if (!exists("con")) {con = dbConnect(MySQL(),db="presidio")}
 #install.packages("RMySQL")
 
 APIcall = function(constraints = 
@@ -187,12 +186,15 @@ wordgrid <- function (
 
 
 flagBookids = function(bookids,flag=1,preclear=T) {
+ con <- dbConnect(MySQL())
+
  if (preclear) {
   dbGetQuery(con,"UPDATE catalog SET bflag=0")
  }
  dbGetQuery(con,
             paste("UPDATE catalog SET bflag = ",flag," WHERE ",
                       paste("bookid=",bookids,collapse = " OR ")))
+ dbDisconnect(con)
 }
 
 flagWordids = function(words,field='casesens',n=1,preclear=T) {
@@ -379,7 +381,7 @@ compareplot = function(word1,word2,country="USA") {
           comparison_words = as.list(word2),
           words_collation='Case_Sensitive')
   USA = genres$data[genres$data$groupingVariable=='USA',]
-  USA$ratio[USA$ratio==0] = min(USA$ratio[USA$ratio!=0])
+  USA$ratio[USA$ratio==0] = min(USA$ratio[USA$ratio!=0)]
   ggplot(USA,aes(x=year,y=ratio)) + 
     opts(
       title=paste(

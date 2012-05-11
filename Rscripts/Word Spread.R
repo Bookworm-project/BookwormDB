@@ -1,11 +1,11 @@
 #rm(list=ls())
-setwd("/presidio/Rscripts")
-source("Rbindings.R")
+#setwd("/presidio/Rscripts")
+#source("Rbindings.R")
   
 
 genreplot = function(word = list('call attention')
                      ,
-                     years = c(1830,1922)
+                     years = c(1830:1922)
                      ,
                      grouping = 'author_age'
                      ,
@@ -25,6 +25,10 @@ genreplot = function(word = list('call attention')
                      ,
                      x.value = 'year'
                      ,
+                     conn=con
+                     ,
+                     database="presidio"
+                     ,
                      ...
                      #ChunkOffset can be false, in which the smoothed data is presented as is;
                      #or it can be numeric, in which case if span is 15, for example, only years with 
@@ -33,11 +37,14 @@ genreplot = function(word = list('call attention')
   #If smoothing is less than 1, it's a loess span; if greater, it's a moving average;
   #If exactly 1, no smoothing
   #Moving average not currently implemented for double-numeric plots
-  
-  catalog = dbGetQuery(con,"EXPLAIN catalog")
-  
+  dbGetQuery(conn,paste("USE",database))
+  catalog = dbGetQuery(conn,"EXPLAIN catalog")
+  numeric.y=FALSE
   #Find out if the grouping is numeric; this affects smoothing and some other things.
-  numeric.y = as.logical(!length(grep('char',catalog$Type[catalog$Field==grouping])))
+  if (length(catalog$Field[catalog$Field==grouping])>0) {
+    numeric.y = as.logical(!length(grep('char',catalog$Type[catalog$Field==grouping])))
+  }
+  cat("numeric.y is ",as.character(numeric.y))
   
   groupeds = list(paste(grouping,'as groupingVariable'),
                   paste('ROUND(',x.value,'/',chunkSmoothing,')*',chunkSmoothing,' as timeVariable',sep=""))
@@ -51,34 +58,31 @@ genreplot = function(word = list('call attention')
       method = 'counts_query',
       counttype = counttype,
       words_collation=words_collation,
-      groups=groupeds,      
+      groups=groupeds,
+      database=database,
       search_limits = 
         list(
-            'word' = word,
-            'year' = as.list(years[1]:years[2]),
-            'alanguage' = list('eng')
-    )
-  )  
-  
+            'word' = word
+        )
+  )
+  core_search[['search_limits']][[x.value]] = as.list(years)
   for (element in names(list(...))) {
     cat(element,"\n")
     core_search[['search_limits']][[element]] = list(...)[[element]]
   }
-<<<<<<< HEAD
-  
-=======
->>>>>>> acf8814630e85b20011991f31a4fe9e90f574bdc
-  mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+  #return(APIcall(core_search))
+
+  mainquery =    try(dbGetQuery(conn,APIcall(core_search)))
   
   if(class(mainquery) == "try-error") {
     source("Rbindings.R")
-    mainquery =    try(dbGetQuery(con,APIcall(core_search)))
+    mainquery =    try(dbGetQuery(conn,APIcall(core_search)))
   } 
 
   #Get the totals by deleting the words terms from the search
   new = core_search
   new[['search_limits']][['word']] = comparison_words
-  allwords = dbGetQuery(con,APIcall(new))
+  allwords = dbGetQuery(conn,APIcall(new))
   names(allwords)[ncol(allwords)] = 'nwords'
   #merge them together
   mylist = merge(mainquery,allwords,by=gsub(".* as ","",groupeds),all=T)
@@ -170,7 +174,7 @@ genreplot = function(word = list('call attention')
     if (numeric.y) {
       model = loess(ratio ~ timeVariable+groupingVariable,mylist,weights = nwords,span=smoothing)
       groupingVariable = seq(from=min(mylist$groupingVariable),to = max(mylist$groupingVariable),length.out=length(unique(mylist$groupingVariable)))
-      year = seq(from=years[1],to=years[2],length.out=length(years[1]:years[2]))
+      year = seq(from=years[1],to=years[length(years)],length.out=length(years[1]:years[length(years)]))
       predictions = merge(year,groupingVariable,all=T)
       names(predictions) = c("timeVariable","groupingVariable")      
       predictions$ratio = predict(model,newdata = predictions)
@@ -226,7 +230,7 @@ genreplot = function(word = list('call attention')
       total$value = total$value *100
     }
     color_scale = scale_fill_gradientn(
-      colours = c('white',rev(heat.colors(5))),trans = NULL)
+      colours = c('white',rev(heat.colors(5))))
   }
   yscale = scale_y_discrete(expand=c(0,0))
   if (numeric.y){
