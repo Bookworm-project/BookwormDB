@@ -6,14 +6,8 @@ import codecs
 from xml.dom.minidom import parse,parseString
 import json
 
-<<<<<<< HEAD
-metadata_fields = ['year','month','day','journalabbrv','journalid','headid','title','languages','type','journaltitle','volume','authors','issueid','issn','fpage','lpage']
-=======
-
 #These are the names of the metadata fields that it will look for.
 metadata_fields = ['month','day','year','journalabbrv','journalid','headid','title','languages','type','journaltitle','volume','authors','issueid','issn','fpage','lpage']
->>>>>>> 6ea30f6424ac968b1a033f9fc7d20ec2af29daff
-
 metadatafile = open ('../../metadata/jsoncatalog.txt','a')
 
 
@@ -28,26 +22,12 @@ class Export:
             self.filenames.append(mystring)
     def exportall(self):
         for p in self.filenames:
-<<<<<<< HEAD
             working = jstorID(p,metadatafile)
             #working.writeText()
             working.writeMetadata()
             
 class jstorID():
     def __init__(self,string,metadatafile):
-=======
-            #first it cues up the object below by reading in the data:
-            working = jstorID(p)
-            #This is where it calls the attributes of the jstorID object to write things out.
-            #To avoid writing all the texts, you'd just need to an 'if' here: for exmle
-            #if working.metadata['journalabbrv']=='royalsocietyjournal'
-            working.writeText()
-            working.writeMetadata()
-
-#A jstorid is used as an object to iterate over. This clss is called thousands of times by the one "Export" instance you run.
-class jstorID:
-    def __init__(self,string):
->>>>>>> 6ea30f6424ac968b1a033f9fc7d20ec2af29daff
         self.id = string
         self.metadatafile=metadatafile
         self.open_xml()
@@ -71,12 +51,9 @@ class jstorID:
                 self.metadata[item] = re.sub("\n","",self.metadata[item])
                 self.metadata[item] = re.sub("\t","",self.metadata[item])
             except:
-<<<<<<< HEAD
-                self.metadata[item] = ""
-=======
                 #If it doesn't have that metadata field, we just take a blank line instead.
                 self.metadata[item] = ''
->>>>>>> 6ea30f6424ac968b1a033f9fc7d20ec2af29daff
+
     def writeText(self):
         #Here it opens a new file in a specified text to write the place.
         output = open('../../texts/' + self.id + '.txt','w')
@@ -85,7 +62,9 @@ class jstorID:
     def writeMetadata(self):
         self.get_metadata()
         self.metadata["id"] = str(self.id)
-        self.metadata["searchstring"] = self.metadata["title"] + "," + self.metadata["journaltitle"] + "<a href=www.jstor.org/" + re.sub("_","/",self.id) + ">" + read + "</a>"
+        self.metadata["filename"] = str(self.id)
+        #There's no avoiding this sort of messiness, I think. It doesn't have to be buried so deep, though.
+        self.metadata["searchstring"] = self.metadata["title"] + ", <i>" + self.metadata["journaltitle"] + "</i> <a href=www.jstor.org/" + re.sub("_","/",self.id) + ">read online</a>"
         self.metadatafile.write(json.dumps(self.metadata))
         self.metadatafile.write("\n")
 
