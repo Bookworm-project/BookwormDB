@@ -1,8 +1,9 @@
 #!/usr/bin/python
-#Currently only doing the last few stages!
+
 import subprocess
 from subprocess import call as sh
 import os
+
 """
 We start with files at, relative to the main presidio directory:
 
@@ -21,7 +22,9 @@ ls *.txt | awk -F '.txt' '{count++; print count "\t" $1;}' > ../textids/cat0001.
 
 The easiest form of parallelization at the moment is just to shift around the 
 number of files in each location at /texts/textfiles. This allows the use of multiple processors.
-Adding more locations with knowledge onlyof a few files would allow easy multi-machine parallelization as well.
+Adding more locations each with separate bookid files would allow easy multi-machine parallelization as well.
+
+Currently this whole series takes a couple days on a large (8-core) machine.
 
 """
 
@@ -36,7 +39,10 @@ print "Cleaning the texts"
 print "Creating 1 gram counts"
 #sh(['python','master.py','unigrams'])
 print "Creating 2gram counts"
+
 #sh(['python','master.py','bigrams'])
+#We could add 3grams, and so forth, here.
+=======
 
 print "Would be creating 3gram counts..."
 #Just kidding, this isn't implemented
