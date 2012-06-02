@@ -1,0 +1,5 @@
+#!/usr/bin/python
+
+file = open("../../metadata/main.txt")
+
+for line in file:
