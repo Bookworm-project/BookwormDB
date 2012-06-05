@@ -5,6 +5,8 @@ from subprocess import call as sh
 import os
 
 """
+This code preprocesses texts up to, but not including, the point where they will be loaded into a database. That separation allows this to be run on multiple smaller instances if needed.
+
 We start with files at, relative to the main presidio directory:
 
 ../texts/raw      The raw text files.  The files themselves should be named
@@ -24,7 +26,7 @@ The easiest form of parallelization at the moment is just to shift around the
 number of files in each location at /texts/textfiles. This allows the use of multiple processors.
 Adding more locations each with separate bookid files would allow easy multi-machine parallelization as well.
 
-Currently this whole series takes a couple days on a large (8-core) machine.
+Currently this whole series takes a couple days on a large (8-core) machine with a million article-length documents.
 
 """
 
@@ -40,17 +42,15 @@ print "Creating 1 gram counts"
 sh(['python','master.py','unigrams'])
 print "Creating 2gram counts"
 sh(['python','master.py','bigrams'])
-<<<<<<< HEAD
 #We could add 3grams, and so forth, here.
-=======
->>>>>>> 6ea30f6424ac968b1a033f9fc7d20ec2af29daff
+
 
 print "Would be creating 3gram counts..."
 #Just kidding, this isn't implemented
 print "Creating a master wordlist"
 sh(['python','WordsTableCreate.py'])
-#We could add an option to this to specify the size of the dictionary used. Currently hardcoded at 3,000,000 words. 
-#On very large dictionaries, this may crash for lack of memory on machines with insufficient RAM; the script is an obvious candidate for map-reduce.
+#We could add an option to this to specify the size of the dictionary used. Currently hardcoded in there. 
+#On very large dictionaries, this may crash for lack of memory on machines with insufficient RAM; the script is an obvious candidate for map-reduce or something.
 
 #These tend to be the most time-intensive scripts, since they involve a lot of dictionary lookups
 print "Creating 1grams encodings"
