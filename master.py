@@ -30,7 +30,7 @@ fine for now.)
 try:
     mode = sys.argv[1]
 except:
-    print "This probably won't work without an argv value"
+    print "This probably won't work without an argv value, but we'll let you try."
     mode = None
     
 class bookids_file:

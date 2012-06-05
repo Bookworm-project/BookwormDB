@@ -1,0 +1,3 @@
+Different files have different metadata. But some of the code will be adaptable, so they're all being saved here. These work from whatever native metadata format is being stored to create a parseable, neat little json file that the CreateDatabase python program can work with easily.
+
+This directory also stores json definitions for different databases. These are used to control what and how metadata is acceded into the database: and they are used to create an options file that the Bookworm website can run a basic version some. (Those files may require some tweaking to produce pretty results).
