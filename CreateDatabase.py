@@ -29,8 +29,10 @@ class dataField():
         #The table it's stored in will be either catalog, or it's own name
         if self.unique:
             self.table = "catalog"
+            self.fasttab = "fastcat"
         else:
             self.table = self.field + "Disk"
+            self.fasttab = self.field
             self.output = open("../metadata/" + variable['field'] + ".txt",'w')
 
     def slowSQL(self):
@@ -72,7 +74,7 @@ class dataField():
             mydict['initial'] = [results[0],results[1]]
         if (self.datatype=="categorical"):
             #Find all the variables used more than 100 times from the database, and build them into something json-usable.
-            cursor.execute("SELECT " + self.field + ",count(*) as count from " + self.field + " GROUP BY " + self.field + " HAVING count >= 250 ORDER BY count DESC")
+            cursor.execute("SELECT " + self.field + ",count(*) as count from " + self.fasttab + " GROUP BY " + self.field + " HAVING count >= 250 ORDER BY count DESC")
             sort_order = []
             descriptions = dict()
             for row in cursor.fetchall():
