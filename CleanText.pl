@@ -37,7 +37,7 @@ foreach my $i (0..$checkrange) {
     }
 }
 
-#This just ignores the ones that are HTML junk.
+#This just ignores the ones that are HTML junk--other files will have to be handled differently.
 if ($strip_html) {
     if ($z[0] =~ m/html/) {
 	die;
