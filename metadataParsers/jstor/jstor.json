@@ -1,0 +1,9 @@
+[
+    {"field":"year","type":"integer","datatype":"time","unique":true},
+    {"field":"month","type":"integer","datatype":"time","unique":true},
+    {"field":"day","type":"integer","datatype":"time","unique":true},
+    {"field":"title","type":"text","fast":"no","datatype":"etc","unique":true},
+    {"field":"searchstring","type":"text","datatype":"searchstring","unique":true},
+    {"field":"journalabbrv","type":"character","datatype":"categorical","unique":true},
+    {"field":"discipline","type":"character","datatype":"categorical","unique":false}
+]
