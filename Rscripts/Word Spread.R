@@ -220,7 +220,7 @@ genreplot = function(word = list('call attention')
     total$groupingVariable=as.numeric(as.character(total$groupingVariable))
   }
   mytrans='log10'
-  color_scale = scale_fill_gradient2(trans = 'log')
+  color_scale = scale_fill_gradient2(paste(gsub("_","\n",counttype)),trans = 'log')
   
   if (length(comparison_words)==0) {
     if (counttype == 'Occurrences_per_Million_Words') {
@@ -229,8 +229,8 @@ genreplot = function(word = list('call attention')
     if (counttype == 'Percentage_of_Books') {
       total$value = total$value *100
     }
-    color_scale = scale_fill_gradientn(
-      colours = c('white',rev(heat.colors(5))))
+    color_scale = scale_fill_gradientn(paste(gsub("_","\n",counttype)),
+      colours = c('white','steelblue','red'))
   }
   yscale = scale_y_discrete(expand=c(0,0))
   if (numeric.y){
@@ -246,7 +246,8 @@ genreplot = function(word = list('call attention')
          panel.background = theme_rect(fill="grey"),
          panel.grid.major = theme_blank(),
          panel.grid.major = theme_blank()) + 
-    labs(fill="score",x="",y="") + color_scale + xlab(paste("Count type:",gsub("_"," ",counttype)))
+    labs(fill="score",x="",y="") + 
+    color_scale
   genres$data$year = genres$data$timeVariable
   genres
   }

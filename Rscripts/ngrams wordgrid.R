@@ -1,5 +1,6 @@
 setwd("/presidio/Rscripts")
 source("Rbindings.R")
+
 wordgrid <- function (
   wordlist = list("library")
   ,
@@ -29,6 +30,9 @@ wordgrid <- function (
   ,
   returnData=F
   ,
+  plotData=T
+  ,
+  
   field = "w2.casesens"
   ,
   totalProxy="the"
@@ -203,9 +207,9 @@ wordgrid <- function (
       "Year")
     names(args.list) <- c(clusternames, "nrow","ncol","main","left","sub")
   cat("preparing plot\n")
-  plot = do.call(grid.arrange,args.list)
-  if (returnData) {plot = list(plot,matrified)}  
-  plot
+  if (plotData) {plot = do.call(grid.arrange,args.list)
+                 return(plot)}
+  if (returnData) {return(matrified)}  
 }
 if (FALSE) {
   rm(list=ls())
@@ -228,3 +232,63 @@ if (FALSE) {
    country = list()) 
 
 }
+
+ngramsGridMovie = function(word = "attention",
+                           field = 'w2.casesens',range = 20) { 
+  source("Rbindings.R")
+  dbGetQuery(con,"Use ngrams")
+  source("ngrams wordgrid.R")
+  mylist = wordgrid(list(word),
+        wordfield='stem',
+        field=field,
+        freqClasses=4,
+        n=450,
+        excludeStopwords = F,
+        yearlim=c(1825,2008),
+        mydb=con,
+        samplingSpan=4,
+        returnData=T,
+        plotData=F
+      )
+
+  loessSmooth = function(col) {
+    vals = 1:length(col)
+    y = log(col)
+    model = loess(y~vals,span=.3)
+    vals = exp(predict(model))
+  }
+  unzeroed = mylist
+  unzeroed[unzeroed<=0] = min(unzeroed[unzeroed>0])
+  smoothed = apply(unzeroed,2,loessSmooth)
+  head(smoothed)
+  rownames(smoothed) = rownames(mylist)
+  nearterm = smoothed[-1,]/smoothed[-nrow(smoothed),]
+  nearterm = apply(nearterm,2,loessSmooth)
+  rownames(nearterm) = rownames(mylist)[-1]  
+  longterm = smoothed[-c(1:range),]/smoothed[-c((nrow(smoothed)-range+1):nrow(smoothed)),]
+  longterm = apply(longterm,2,loessSmooth)
+  rownames(longterm) = rownames(mylist)[-c(1:range)] 
+  merged = merge(melt(nearterm),melt(longterm),by=c("Var.1","fixfield"))
+  merged = merge(merged,melt(smoothed),by=c("Var.1","fixfield"))
+  names(merged) = c("year","word","nearterm","longterm","freq")
+  
+  try(system(paste("mkdir ~/movies/",word,sep="")))
+  for (year in min(merged$year):max(merged$year)) {
+    cat("writing ",year,"\n")
+  png(
+    paste("~/movies/",word,"/output",year,'.png',sep=''),
+    width=1920,height=1080)
+  myplot = ggplot(merged[merged$year==year,]) + 
+    geom_text(aes(x=freq,y=longterm,label=word,size=freq)) + 
+    scale_y_continuous(trans='log10',
+                       limits = c(1/10,range(merged$longterm)[2])) + 
+    scale_x_continuous(trans='log',
+                       limits = c(range(merged$freq))) + 
+    scale_size_continuous(trans='log') + opts(legend.position = 'none',title=paste(year-range,year))
+  print (myplot)
+  graphics.off()  
+  }
+  system(paste("cd ~/movies; ~/movies/moviemake.sh",word,sep=" "))
+  system(command=paste("cp ~/movies/",word,".mp4 /var/www/",word,".mp4",sep=""))
+} 
+

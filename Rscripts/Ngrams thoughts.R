@@ -35,7 +35,7 @@ ggplot(
       paste(wheres[['word1']]),
       collapse="/"))
 
-con=dbConnect(MySQL())
+source("Rbindings.R")
 dbGetQuery(con,"Use ngrams")
 source("ngrams wordgrid.R")
   
