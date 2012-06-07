@@ -24,6 +24,7 @@ for file in os.listdir('../texts/textids'):
                 countcounts = dict()
         except:
             print "Error on WordsTableCreate: could not find file " + filename + "\n"
+            raise
 for key in wordcounts:
     try:
         countcounts[wordcounts[key]] += 1

@@ -26,12 +26,14 @@ The general workflow is:
 
 1) write a metadata parser and, if needed, a text downloader that fills the /text/raw and /metadata files with appropriately formatted information.
 
-2) Run "ImportNewLibrary.py", which calls master.py a bunch of times and creates the necessary word files and encodes them. (This works primarily by calling master.py a bunch of times). This leaves many text files on disk. The actual code is at the end of that file--it can be commented or uncommented to run only particular parts of the code.
+2) Run python Oneclick.py $project $username $password", which builds the database for you, assuming your my.cnf file is working.
 
-3) Run "CreateDatabase.py $project $username $password", which builds the database for you, assuming your my.cnf file is working.
+3) Go do something else for several days.
 
-4) Other folders will be created by the code.
+4) It's still not finished? You can read the program output to see how far it's gotten. The initial steps, which involve pushing around text files, will writo texts/logs/{whatever process you care about}. They give some sense of how far along you are. In the later stages, which may not take quite as long, the documentation is less clear--you can check the MySQL index files, though. If you want to improve the code, note: The first step calls "ImportNewLibrary.py", which calls master.py a bunch of times and creates the necessary word files and encodes them. This leaves many text files on disk. The actual code is at the end of that file--it can be commented or uncommented to run only particular parts of the code if you've already, say, built up some Ngram counts.
 
-5) Set up a bookworm installation with the Bookworm code and the API implementation
+5) OK, it's done.
 
-Adding new files is not currently supported--you just have to rebuild the database. That won't hold for the long term, though.
+6) Set up a bookworm installation with the Bookworm code and the API implementation.
+
+Adding new files is not currently supported--you just have to rebuild the database. We'll have to write a couple new methods to take care of that.
