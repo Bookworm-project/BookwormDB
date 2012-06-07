@@ -1,13 +1,37 @@
-This is the code repository for BUILDING the databases we're working with on Bookworm. The Bookworm project is a separate github 
-directory at mcamac/Bookworm. That project is for the bookworm web site, which lives in a single directory on the web server; this 
-project gathers together the various snippets of code that we'll need to run on many different computers.
+This is the code repository for BUILDING the databases we're working with on Bookworm. This takes three parameters, and builds a MySQL database out of them that can be queried using the Bookworm API. (And thus allows a Bookworm website to be set up on it. The Bookworm website project is a separate github directory at bmschmidt/Bookworm. That project is for the bookworm web site, which lives in a single directory on the web server.)
 
-Much of this code is going to rely on directory structures that may only exist on certain machines. In general, I think we will 
-assume access to the following directories, with filepaths relative to /Presidio:
+It requires a lot of time, memory and disk space to run. Don't try it on your laptop. (For example: the 600,000 article JSTOR version takes about 4 days, maxing out at 8 GB of RAM, and maybe a terabyte or so on disk.)
 
-1) ../books. This is where the actual texts are going to live; subdirectories may carry different variations of them.
+All work is done in two places: one, a local directory including this folder (presidio); and second, a MySQL database that must be pre-created with permissions in an appropriate place.
 
-2) ../metadata. (On Wumpus, currently at ../code) This is where we'll store information like filenames, wordid lookup tables, and 
-logs that we don't want pushed to git.
+In general,we will assume access to the following files. Project-specific code is indicated by dollar signs: if you're working on arxiv, for example, metadata/$project.json would actually indicate a file called metadata/arxiv.json. All paths are relative to presidio.
 
-3) A MySQL database. 
+FILES TO START WITH
+
+IN PRESIDIO (changes will be synced to git, because individual project code may be useful for other ones.)
+
+metadata/$projectparser.py: This doesn't HAVE to be there, per se, but you might as well put your metadata parser here so people can see how it works and rerun on the data.
+
+metadata/$project/$project.json: A JSON file specifying the data types for keys in the JSON objects in ../metadata/jsoncatalog.json. On running, that jsoncatalog will be parsed and the files dealt with according to the rules laid out here: it will also dump out a file to ../$project.json that can be placed in Bookworm to make Bookworm work properly. To see examples, look in one of the existing files; for an explanation of the keys, see the README in the metadata folder.
+
+IN OUTSIDE FILES (changes will not be synced, because they are too large)
+
+1) ../texts/raw. This is where the actual texts are going to live, all at the same depth. (This can be big--about a million files in a single directory is pretty common.) They will have arbitrary, unique names. You'll have to create. 
+
+2) ../metadata/jsoncatalog.json: a set of lines with one JSON object per line. Each line looks something like this: {"title":"Ulysses","author":"James Joyce","authorbirth":"1880"}. Tabs and newlines ARE NOT currently permitted to appear in this file.
+
+3) A MySQL database you are authorized to edit, and a my.cnf file that python can load with your permissions.
+
+The general workflow is:
+
+1) write a metadata parser and, if needed, a text downloader that fills the /text/raw and /metadata files with appropriately formatted information.
+
+2) Run "ImportNewLibrary.py", which calls master.py a bunch of times and creates the necessary word files and encodes them. (This works primarily by calling master.py a bunch of times). This leaves many text files on disk. The actual code is at the end of that file--it can be commented or uncommented to run only particular parts of the code.
+
+3) Run "CreateDatabase.py $project $username $password", which builds the database for you, assuming your my.cnf file is working.
+
+4) Other folders will be created by the code.
+
+5) Set up a bookworm installation with the Bookworm code and the API implementation
+
+Adding new files is not currently supported--you just have to rebuild the database. That won't hold for the long term, though.
