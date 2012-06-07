@@ -1,0 +1,24 @@
+Different files have different metadata. But some of the code will be adaptable, so they're all being saved here. These work from whatever native metadata format is being stored to create a parseable, neat little json file that the CreateDatabase python program can work with easily.
+
+This directory also stores json definitions for different databases. These are used to control what and how metadata is acceded into the database: and they are used to create an options file that the Bookworm website can run a basic version some. (Those files may require some tweaking to produce pretty results.
+
+Each project should have a subdirectory here to build its own metadata parsers: grander schemes (MARC-XML, DPLA data) may be placed in the main file for cross-project use. We save them here a) to backup the code--the metadata parser will be the most intensive part of most projects; and b) because that code may be generally useful. Although they're called metadataParsers, they frequently will also be pulling and configuring the raw texts themselves. Any code that preps for the main import, basically, should live here.
+
+JSON DEFINITIONS.
+
+In addition to all that specific code, there will be one other file REQUIRED by the main import. It is the json definition. See existing ones for examples. It is an array of dictionaries. Each dictionary corresponds to a single metadata field we have collected for each text. (eg, 'title' or 'year of publication'). The possible keys for that 
+
+"field"--the name of the metadata field. "Title", "Author", etc.
+"type"--the RAW DATA TYPE of the field--primarily used for MySQL. Options are:
+	    1. 'character': stored as a VARCHAR field. HARD LIMIT 255 characters.
+	    2. 'text': stored as a text field--soft limit of 5000 characters, though this could be changed. Useful for things like title.
+	    3. 'integer': stored as an int.
+	    ('float','logical', and other types haven't been supported yet--for now, they can generally be coerced to one of these types. For example,
+	    storing 'T' and 'F' as one-byte characters is not any worse for performance than storing them as logical integers.)
+
+"datatype"
+	1. time--it's a time field, to be grouped by and displayed on X axes.
+	2. categorical--it has several options, and should display as a grouping option in the search dialogue.
+	3. etc--it won't be used in the public Bookworm, but we keep it in the database for more specialized analysis.
+	4. searchstring--it's the REQUIRED field that will display when the user clicks for search results. This will be an ugly HTML string with a link, etc. Formats are too diverse to construct this on the fly.
+

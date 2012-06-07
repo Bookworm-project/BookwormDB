@@ -30,7 +30,7 @@ fine for now.)
 try:
     mode = sys.argv[1]
 except:
-    print "This probably won't work without an argv value"
+    print "This probably won't work without an argv value, but we'll let you try."
     mode = None
     
 class bookids_file:
@@ -108,12 +108,6 @@ class book:
             lines.append("\t".join(line))
             #This little 'append' here and then 'write' later loop seems like it's probably the fastest way to do this in Python; at least, it isn't slow.
         writefile.write("".join(lines))
-    def IAdownload(self):
-        #This downloads an internet Archive identifier,currently. Might be worth generalizing, though hard to pass the parameters
-        self.start_operator = 'curl'
-        self.start = "http://www.archive.org/download/"+self.bookid+"_djvu.txt")
-        self.destination = "../texts/raw/"+self.coreloc
-        self.execute = self.shell_execute
     def unigrams(self):
         self.start_operator = "cat"
         self.start = "../texts/cleaned/" + self.coreloc
@@ -157,7 +151,7 @@ class book:
         if os.path.exists(self.destination):
             self.LOGFILE.write("No cleaning. "+self.destination+" already exists.\n")
             return
-        if not os.path.exists(self.start) & self.start_operator != 'curl':
+        if not os.path.exists(self.start):
             self.LOGFILE.write("No cleaning. "+self.start+" does not exist.\n")
             return
         if os.path.getsize(self.start) < 10:
