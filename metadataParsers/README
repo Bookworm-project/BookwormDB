@@ -22,3 +22,9 @@ In addition to all that specific code, there will be one other file REQUIRED by 
 	3. etc--it won't be used in the public Bookworm, but we keep it in the database for more specialized analysis.
 	4. searchstring--it's the REQUIRED field that will display when the user clicks for search results. This will be an ugly HTML string with a link, etc. Formats are too diverse to construct this on the fly.
 
+REQUIRED FIELDS:
+(it will break if you haven't defined these):
+
+"searchstring"
+"filename" (which DOESN'T include '.txt' at the end)
+--at least one "time" field

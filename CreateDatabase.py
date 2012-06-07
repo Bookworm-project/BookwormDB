@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import subprocess
 import MySQLdb
 import re
 import sys
@@ -15,7 +16,10 @@ try:
     #The dbuser and db password aren't too secure--they should be read-only in any case--but no point exposing them anyway, even though it makes this a bit trickier to run.
     dbuser = sys.argv[2]
     dbpassword = sys.argv[3]
-    variablefile = open("metadataParsers/" + dbname + "/" + dbname + ".json",'r')
+    try:
+        variablefile = open("metadataParsers/" + dbname + "/" + dbname + ".json",'r')
+    except:
+        sys.exit("you must have a json file for your database located in metadataParsers: see the README in presidio/metadata")
     variables = json.loads(''.join(variablefile.readlines()))
 except:
     raise
@@ -103,8 +107,13 @@ class textids(dict):
     #Create a dictionary, and initialize it with all the bookids we already have.
     #And make it so that any new entries are also written to disk, so that they are kept permanently.
     def __init__(self):
+        try:
+            subprocess.call(['mkdir','../texts/textids'])
+        except:
+            raise
         filelists = os.listdir("../texts/textids")
-        numbers = []
+
+        numbers = [0]
         for filelist in filelists:
             reading = open("../texts/textids/" + filelist)
             for line in reading:
@@ -134,7 +143,7 @@ for variable in variables:
         #This will create as many separate files as there are categorical data.
 
 
-#And this function turns out to be pretty helpful.
+#This function turns out to be pretty helpful.
 def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
         if not isinstance(obj, unicode):
@@ -144,6 +153,7 @@ def to_unicode(obj, encoding='utf-8'):
 def write_metadata(limit = float("inf")):
     linenum = 1
     bookids = textids()
+    metadatafile = open("../metadata/jsoncatalog.txt")
     for entry in metadatafile:
         try:
             entry = to_unicode(entry)
@@ -161,7 +171,8 @@ def write_metadata(limit = float("inf")):
         for var in uniqueVariableNames:
             myfield = entry.get(var,"")
             mainfields.append(to_unicode(myfield))
-        catalogtext = '\t'.join(mainfields) + "\n"
+            #Adding str() to the line below--hopefully it won't mess up the unicoding.
+        catalogtext = '\t'.join(str(mainfields)) + "\n"
         catalog.write(catalogtext.encode('utf-8'))
         for variable in [variable for variable in variables if not variable.unique]:
              #Each of these has a different file it must write to...
@@ -178,7 +189,7 @@ def write_metadata(limit = float("inf")):
 
 variables = [dataField(variable) for variable in variables]
 #This must be run as a MySQL user with create_table privileges
-cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = "jstor")
+cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
 cursor = cnx.cursor()
 cursor.execute("SET NAMES 'utf8'")
 cursor.execute("SET CHARACTER SET 'utf8'")
@@ -321,6 +332,7 @@ def create_memory_table_script(variables,run=True):
             cursor.execute(line)
 
 def jsonify_data(variables):
+    #This creates a JSON file compliant with the Bookworm web site.
     output = dict()
     output['settings'] = {"dbname":dbname,"itemName":"text","sourceName":dbname,"sourceURL":dbname}
     ui_components = [{"type":"text","dbfield":"word","name":"Word(s)"}]
@@ -338,15 +350,6 @@ def jsonify_data(variables):
     outfile = open("../" + dbname + ".json",'w')
     outfile.write(json.dumps(output))
 
-#We'll need something like this eventually.
-
-#    cursor.execute("DROP TABLE if exists column_options;");
-#    cursor.execute("""CREATE TABLE column_options ENGINE=MEMORY 
-#    SELECT TABLE_NAME,
-#                 COLUMN_NAME,
-#                 DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS   
-#        WHERE TABLE_SCHEMA='arxiv';""");
-
 def create_API_settings(variables):
     try:
         cursor.execute("DROP TABLE IF EXISTS API_settings")
@@ -356,13 +359,4 @@ def create_API_settings(variables):
     addCode = json.dumps({"HOST":"10.102.15.45","database":dbname,"fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":[variable.field for variable in variables if not (variable.unique or variable.type=="etc") ],"read_url_head":"arxiv.culturomics.org" })
     print addCode
     cursor.execute("INSERT INTO API_settings VALUES ('" + addCode + "');")
-
-write_metadata()
-#load_word_list()
-#create_unigram_book_counts()
-#create_bigram_book_counts()
-load_book_list()
-create_memory_table_script(allVariables)
-jsonify_data(allVariables)
-create_API_settings(allVariables)
 
