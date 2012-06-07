@@ -24,7 +24,7 @@ for file in os.listdir('../texts/textids'):
         filename = re.sub('\n','',filename)
         try:
             readnum = readnum+1
-            print str(readnum) + " " + filename
+            #logfile.write(str(readnum) + " " + filename)
             reading = open('../texts/unigrams/'+filename+'.txt')
             for wordEntry in reading:
                 wordEntry = wordEntry.split(' ')
@@ -41,7 +41,7 @@ for file in os.listdir('../texts/textids'):
 #Now we need to delete the words that appear below a cutoff that we find dynamically:
                 countcounts = dict()
         except:
-            print "Error on WordsTableCreate: could not find file " + filename + "\n"
+            print "Error on WordsTableCreate: could not find file " + filename + " (...moving on to next file...)"
         if len(wordcounts) > maxMemoryStorage:
             logfile.write("Creating tmp table number " + str(filenum) + " (" + str(readnum) + "books)\n")
             file = open('../texts/wordlist/tmp/'+str(filenum) + '.txt','w')
@@ -77,7 +77,7 @@ if filenum > 2:
 
 args.append(">")
 args.append("../texts/wordlist/tmp/countnums.txt")
-print "Running code snippet of -- " + " ".join(args)
+logfile.write( "Running code snippet of -- " + " ".join(args))
 
 call(" ".join(args),shell=True)
 
