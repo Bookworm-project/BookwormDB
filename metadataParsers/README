@@ -17,7 +17,7 @@ In addition to all that specific code, there will be one other file REQUIRED by 
 	    storing 'T' and 'F' as one-byte characters is not any worse for performance than storing them as logical integers.)
 
 "datatype"
-	1. time--it's a time field, to be grouped by and displayed on X axes.
+	1. time--it's a time field, to be grouped by and displayed on X axes. (Note--if you want time rounding, you'll have to do the grouping beforehand, not in the database.)
 	2. categorical--it has several options, and should display as a grouping option in the search dialogue.
 	3. etc--it won't be used in the public Bookworm, but we keep it in the database for more specialized analysis.
 	4. searchstring--it's the REQUIRED field that will display when the user clicks for search results. This will be an ugly HTML string with a link, etc. Formats are too diverse to construct this on the fly.

@@ -95,5 +95,5 @@ for(i=2;i<=NF;i++)
 logfile.write("Sorting full word counts\n")
 call(["""sort -nrk2 ../texts/wordlist/counts.txt > ../texts/wordlist/complete.txt"""],shell=True)
 logfile.write("Adding rank numbers to the usable ones")
-call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR " " $0}' > ../texts/wordlist/wordlist.txt """],shell=True)  
+call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $0}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 

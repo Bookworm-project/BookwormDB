@@ -99,7 +99,6 @@ arrayVariableNames = []
 allVariables = [dataField(variable) for variable in variables]
 
 dataFields = dict()
-catalog = open("../metadata/catalog.txt",'w')
 #Metadatafile is a file of json rows with keys for metadata.
 metadatafile = open("../metadata/jsoncatalog.txt")
 
@@ -154,6 +153,7 @@ def write_metadata(limit = float("inf")):
     linenum = 1
     bookids = textids()
     metadatafile = open("../metadata/jsoncatalog.txt")
+    catalog = open("../metadata/catalog.txt",'w')
     for entry in metadatafile:
         try:
             entry = to_unicode(entry)
@@ -170,9 +170,8 @@ def write_metadata(limit = float("inf")):
         #First, pull the unique variables and write them to the 'catalog' table
         for var in uniqueVariableNames:
             myfield = entry.get(var,"")
-            mainfields.append(to_unicode(myfield))
-            #Adding str() to the line below--hopefully it won't mess up the unicoding.
-        catalogtext = '\t'.join(str(mainfields)) + "\n"
+            mainfields.append(str(to_unicode(myfield)))
+        catalogtext = '\t'.join(mainfields) + "\n"
         catalog.write(catalogtext.encode('utf-8'))
         for variable in [variable for variable in variables if not variable.unique]:
              #Each of these has a different file it must write to...
@@ -185,6 +184,7 @@ def write_metadata(limit = float("inf")):
            break
         linenum=linenum+1
     bookids.close()
+    catalog.close()
 
 
 variables = [dataField(variable) for variable in variables]
@@ -193,6 +193,7 @@ cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset
 cursor = cnx.cursor()
 cursor.execute("SET NAMES 'utf8'")
 cursor.execute("SET CHARACTER SET 'utf8'")
+cursor.execute("SET storage_engine=MYISAM")
 cursor.execute("USE " + dbname)
 
 def create_database():
@@ -208,7 +209,6 @@ def create_database():
         raise
 
 def load_book_list():
-    catalog.close()
     print "Making a SQL table to hold the catalog data"
     mysqlfields = ["bookid MEDIUMINT, PRIMARY KEY(bookid)","filename VARCHAR(255)","nwords INT"]
     for variable in [variable for variable in variables if variable.unique]:
