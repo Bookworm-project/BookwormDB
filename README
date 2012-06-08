@@ -10,9 +10,9 @@ FILES TO START WITH
 
 IN PRESIDIO (changes will be synced to git, because individual project code may be useful for other ones.)
 
-metadata/$projectparser.py: This doesn't HAVE to be there, per se, but you might as well put your metadata parser here so people can see how it works and rerun on the data.
+metadataParsers/$projectparser.py: This doesn't HAVE to be there, per se, but you might as well put your metadata parser here so people can see how it works and rerun on the data.
 
-metadata/$project/$project.json: A JSON file specifying the data types for keys in the JSON objects in ../metadata/jsoncatalog.json. On running, that jsoncatalog will be parsed and the files dealt with according to the rules laid out here: it will also dump out a file to ../$project.json that can be placed in Bookworm to make Bookworm work properly. To see examples, look in one of the existing files; for an explanation of the keys, see the README in the metadata folder.
+metadataParsers/$project/$project.json: A JSON file specifying the data types for keys in the JSON objects in ../metadata/jsoncatalog.json. On running, that jsoncatalog will be parsed and the files dealt with according to the rules laid out here: it will also dump out a file to ../$project.json that can be placed in Bookworm to make Bookworm work properly. To see examples, look in one of the existing files; for an explanation of the keys, see the README in the metadata folder.
 
 IN OUTSIDE FILES (changes will not be synced, because they are too large)
 
@@ -34,6 +34,6 @@ The general workflow is:
 
 5) OK, it's done.
 
-6) Set up a bookworm installation with the Bookworm code and the API implementation.
+6) Set up a bookworm installation with the Bookworm code and the API implementation: the file at WebsiteCreate.pl will do this locally on Chaucer, but details will be different for different servers.
 
 Adding new files is not currently supported--you just have to rebuild the database. We'll have to write a couple new methods to take care of that.

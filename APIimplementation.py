@@ -7,10 +7,11 @@ import re
 
 class dbConnect():
     #This is a read-only account, but we should find a way not to expose it online if it becomes part of the GitHub.
-    def __init__(self,read_default_file="/etc/mysql/my.cnf",HOST='melville.seas.harvard.edu',database='presidio'):
+    def __init__(self,read_default_file="~/.my.cnf",HOST='chaucer.fas.harvard.edu',database='LOC'):
         import MySQLdb
         self.db = MySQLdb.connect(host=HOST,read_default_file = read_default_file,use_unicode='True',charset='utf8',db=database)
         self.cursor = self.db.cursor()
+        self.cursor.execute("SET storage_engine=MYISAM;")
 
 
 # The basic object here is a userquery: it takes dictionary as input, as defined in the API, and returns a value 
