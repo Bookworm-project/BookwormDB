@@ -36,4 +36,9 @@ The general workflow is:
 
 6) Set up a bookworm installation with the Bookworm code and the API implementation: the file at WebsiteCreate.pl will do this locally on Chaucer, but details will be different for different servers.
 
+7) Ensure that the user you specified in the create call has select permissions on the MySQL database, and that its password is specified in /etc/mysql/my.cnf.
+
+8) Plug the settings in the API_SETTINGS table that has been create at the end of the hash at the beginning of 
+(I know this is a pain--at some point we'll have to think of a way to update this automatically. The problem is that we need to explicitly tell the website what database to query, and it can't just pull that from the database. Probably this file should live somewhere in the web directory, or even the options settings, but that would make API calls much more complicated, and that's an extremely bad thing in my mind. (Far worse than a more circuitous set-up).
+
 Adding new files is not currently supported--you just have to rebuild the database. We'll have to write a couple new methods to take care of that.
