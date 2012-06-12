@@ -8,11 +8,11 @@ use warnings;
 
 #Here are some options that may be customized with values that evaulate true or false:
 #Whether to strip Google Book scan language (also removes books legitimately about Google):
-my $use_goog_switch = 1;
+my $use_goog_switch = 0;
 
 #Whether to ignore html files (which are often "File not Found" pages from webcrawling)
-my $strip_html = 1;
-
+my $strip_html = 0;
+my $skip_mostly_uppercase=0;
 my @z = <>;
 
 ##Google files start with boilerplate about the book being scanned by google: this figures out how to ignore that.
@@ -30,13 +30,13 @@ if ($use_goog_switch) {
 }
 
 if ($#z < $checkrange) {$checkrange = $#z} 
-
-foreach my $i (0..$checkrange) {
-    if ($z[$i] =~ m/Google/) {
-	$needs_goog_switch = 1;
+if ($use_goog_switch) {
+    foreach my $i (0..$checkrange) {
+	if ($z[$i] =~ m/Google/) {
+	    $needs_goog_switch = 1;
+	}
     }
 }
-
 #This just ignores the ones that are HTML junk--other files will have to be handled differently.
 if ($strip_html) {
     if ($z[0] =~ m/html/) {
@@ -53,7 +53,9 @@ foreach my $line (@z) {
 	my $upper_case_letters = $line =~ tr/A-Z//;
 	#Skip lines that are more than half uppercase, which are mostly headings.
 	if ($upper_case_letters/length($line) >= 0.5) {
-	    $line = "";
+	    if ($skip_mostly_uppercase) {
+		$line = "";
+	    }
 	}
         #DROPPING OUT CAPITALIZED LINES ELIMINATES A _LOT_ OF JUNK HEADERS. This is a judgment call, but does a heck of a lot of good on most OCR'ed text
 	$line =~ s/-\s*[\n\r]//g; #hyphenated words at lineend shouldn't even have spaces
