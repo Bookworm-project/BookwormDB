@@ -23,6 +23,22 @@ try:
     variables = json.loads(''.join(variablefile.readlines()))
 except:
     raise
+	
+class DB:
+    conn = None
+
+    def connect(self):
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
+
+    def query(self, sql):
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+        except:
+            self.connect()
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+        return cursor
 
 #Then define a class that supports a data field from a json definition.
 #We'll use this to spit out appropriate sql code and JSON objects where needed.
@@ -49,7 +65,7 @@ class dataField():
         #This creates code to go in a memory table: it assumes that the disk tables are already there, and that a connection cursor is active.
         #Memory tables DON'T SUPPORT VARCHAR; thus, it has to be stored this other way.
         if self.type == "character":
-            cursor.execute("SELECT max(char_length("+self.field+")) FROM " + self.table)
+            cursor = db.query("SELECT max(char_length("+self.field+")) FROM " + self.table)
             length = cursor.fetchall()[0][0]
             return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
         if self.type == "integer":
@@ -72,13 +88,13 @@ class dataField():
         if (self.datatype=="time"):
             mydict['unit'] = self.field
             #default to the full min and max date ranges
-            cursor.execute("SELECT MIN(" + self.field + "), MAX(" + self.field + ") FROM catalog")
+            cursor = db.query("SELECT MIN(" + self.field + "), MAX(" + self.field + ") FROM catalog")
             results = cursor.fetchall()[0]
             mydict['range'] = [results[0],results[1]]
             mydict['initial'] = [results[0],results[1]]
         if (self.datatype=="categorical"):
             #Find all the variables used more than 100 times from the database, and build them into something json-usable.
-            cursor.execute("SELECT " + self.field + ",count(*) as count from " + self.fasttab + " GROUP BY " + self.field + " HAVING count >= 250 ORDER BY count DESC")
+            cursor = db.query("SELECT " + self.field + ",count(*) as count from " + self.fasttab + " GROUP BY " + self.field + " HAVING count >= 250 ORDER BY count DESC")
             sort_order = []
             descriptions = dict()
             for row in cursor.fetchall():
@@ -147,6 +163,8 @@ def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
         if not isinstance(obj, unicode):
             obj = unicode(obj, encoding)
+    if isinstance(obj,int):
+        obj=unicode(str(obj),encoding)
     return obj
 
 def write_metadata(limit = float("inf")):
@@ -157,8 +175,10 @@ def write_metadata(limit = float("inf")):
     for entry in metadatafile:
         try:
             entry = to_unicode(entry)
+            entry = re.sub("\\n"," ",entry)
             entry = json.loads(entry)
         except:
+            print entry
             raise
         #We always lead with the bookid and the filename. Unicode characters in filenames may cause problems.
         filename = to_unicode(entry['filename'])
@@ -170,7 +190,7 @@ def write_metadata(limit = float("inf")):
         #First, pull the unique variables and write them to the 'catalog' table
         for var in uniqueVariableNames:
             myfield = entry.get(var,"")
-            mainfields.append(str(to_unicode(myfield)))
+            mainfields.append(to_unicode(myfield))
         catalogtext = '\t'.join(mainfields) + "\n"
         catalog.write(catalogtext.encode('utf-8'))
         for variable in [variable for variable in variables if not variable.unique]:
@@ -189,21 +209,21 @@ def write_metadata(limit = float("inf")):
 
 variables = [dataField(variable) for variable in variables]
 #This must be run as a MySQL user with create_table privileges
-cnx = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
-cursor = cnx.cursor()
-cursor.execute("SET NAMES 'utf8'")
-cursor.execute("SET CHARACTER SET 'utf8'")
-cursor.execute("SET storage_engine=MYISAM")
-cursor.execute("USE " + dbname)
+
+db = DB()
+db.query("SET NAMES 'utf8'")
+db.query("SET CHARACTER SET 'utf8'")
+db.query("SET storage_engine=MYISAM")
+db.query("USE " + dbname)
 
 def create_database():
     try:
-        cursor.execute("CREATE DATABASE " + dbname)
+        db.query("CREATE DATABASE " + dbname)
     except:
         print "Database " + dbname + " already exists: that might be intentional, so not dying"
     try:
         "Setting up permissions for web user..."
-        cursor.execute("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'%' IDENTIFIED BY '" + dbpassword + "'")
+        db.query("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'%' IDENTIFIED BY '" + dbpassword + "'")
     except:
         print "Something went wrong with the permissions"
         raise
@@ -215,89 +235,89 @@ def load_book_list():
         createstring = variable.slowSQL()
         mysqlfields.append(createstring)
     #This creates the main (slow) catalog table
-    cursor.execute("""DROP TABLE IF EXISTS catalog""")
+    db.query("""DROP TABLE IF EXISTS catalog""")
     createcode = """CREATE TABLE IF NOT EXISTS catalog (
         """ + ",\n".join(mysqlfields) + """
         );"""
-    cursor.execute(createcode)
+    db.query(createcode)
     #Never have keys before a LOAD DATA INFILE
-    cursor.execute("ALTER TABLE catalog DISABLE KEYS")
+    db.query("ALTER TABLE catalog DISABLE KEYS")
     print "loading data into catalog using LOAD DATA LOCAL INFILE..."
     loadcode = """LOAD DATA LOCAL INFILE '../metadata/catalog.txt' 
                    INTO TABLE catalog
                    (bookid,filename,""" + ','.join([field.field for field in variables if field.unique]) + """) """
     print loadcode
-    cursor.execute(loadcode)
-    cursor.execute("ALTER TABLE catalog ENABLE KEYS")
+    db.query(loadcode)
+    db.query("ALTER TABLE catalog ENABLE KEYS")
     #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
-    cursor.execute("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;")
+    db.query("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;")
     #And then make the ones that are distinct:
     alones = [variable for variable in variables if not variable.unique]
     for dfield in alones:
         dfield.output.close()
         print "Making a SQL table to hold the data for " + dfield.field
-        cursor.execute("""DROP TABLE IF EXISTS """       + dfield.field + "Disk")
-        cursor.execute("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
+        db.query("""DROP TABLE IF EXISTS """       + dfield.field + "Disk")
+        db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
             bookid MEDIUMINT, 
             """ +dfield.slowSQL() + """, PRIMARY KEY (bookid,""" +dfield.field + """)
             );""")
-        cursor.execute("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
+        db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
         loadcode = """LOAD DATA LOCAL INFILE '../metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk;"""
-        cursor.execute(loadcode)
-        cursor.execute("""SELECT count(*) FROM disciplineDisk""")
+        db.query(loadcode)
+        cursor = db.query("""SELECT count(*) FROM disciplineDisk""")
         print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
-        cursor.execute("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
+        db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
 def load_word_list():
     print "Making a SQL table to hold the words"
-    cursor.execute("""CREATE TABLE IF NOT EXISTS words (
+    db.query("""CREATE TABLE IF NOT EXISTS words (
         wordid MEDIUMINT, 
         word VARCHAR(255), INDEX (word),
         count BIGINT UNSIGNED,
         casesens VARBINARY(255),
         stem VARCHAR(255)
         );""")
-    cursor.execute("ALTER TABLE words DISABLE KEYS")
+    db.query("ALTER TABLE words DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
-    cursor.execute("""LOAD DATA LOCAL INFILE '../texts/wordlist/wordlist.txt' 
+    db.query("""LOAD DATA LOCAL INFILE '../texts/wordlist/wordlist.txt' 
                    INTO TABLE words
                    CHARACTER SET binary
                    (wordid,word,count) """)
-    cursor.execute("ALTER TABLE words ENABLE KEYS")
-    cursor.execute("UPDATE words SET casesens=word")
+    db.query("ALTER TABLE words ENABLE KEYS")
+    db.query("UPDATE words SET casesens=word")
 
 def create_unigram_book_counts():
     print "Making a SQL table to hold the unigram counts"
-    cursor.execute("""CREATE TABLE IF NOT EXISTS master_bookcounts (
+    db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
         bookid MEDIUMINT NOT NULL, INDEX(bookid,wordid,count),
         wordid MEDIUMINT NOT NULL, INDEX(wordid,bookid,count),    
         count MEDIUMINT UNSIGNED NOT NULL);""")
-    cursor.execute("ALTER TABLE master_bookcounts DISABLE KEYS")
+    db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
     for line in open(txtdir+"metadata/catalog.txt"):
         fields = line.split()
         try:
-            cursor.execute("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]);
+            db.query("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]);
         except:
             pass
-    cursor.execute("ALTER TABLE master_bookcounts ENABLE KEYS")
+    db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
 
 def create_bigram_book_counts():
     print "Making a SQL table to hold the bigram counts"
-    cursor.execute("""CREATE TABLE IF NOT EXISTS master_bigrams (
+    db.query("""CREATE TABLE IF NOT EXISTS master_bigrams (
         bookid MEDIUMINT NOT NULL, 
         word1 MEDIUMINT NOT NULL, INDEX (word1,word2,bookid,count),    
         word2 MEDIUMINT NOT NULL,     
         count MEDIUMINT UNSIGNED NOT NULL);""")
-    cursor.execute("ALTER TABLE master_bigrams DISABLE KEYS")
+    db.query("ALTER TABLE master_bigrams DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
     for line in open(txtdir+"metadata/catalog.txt"):
         fields = line.split()
         try:
-            cursor.execute("LOAD DATA LOCAL INFILE '../texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]);
+            db.query("LOAD DATA LOCAL INFILE '../texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]);
         except:
             pass
-    cursor.execute("ALTER TABLE master_bigrams ENABLE KEYS")
+    db.query("ALTER TABLE master_bigrams ENABLE KEYS")
 
 ###This is the part that has to run on every startup. Now we make a SQL code that can just run on its own, stored in the root directory.
 def create_memory_table_script(variables,run=True):
@@ -329,7 +349,7 @@ def create_memory_table_script(variables,run=True):
     if run:
         for line in commands:
             #Run them, too.
-            cursor.execute(line)
+            db.query(line)
 
 def jsonify_data(variables):
     #This creates a JSON file compliant with the Bookworm web site.
@@ -352,11 +372,11 @@ def jsonify_data(variables):
 
 def create_API_settings(variables):
     try:
-        cursor.execute("DROP TABLE IF EXISTS API_settings")
-        cursor.execute("CREATE TABLE API_settings (settings VARCHAR(8192));")
+        db.query("DROP TABLE IF EXISTS API_settings")
+        db.query("CREATE TABLE API_settings (settings VARCHAR(8192));")
     except:
         pass
     addCode = json.dumps({"HOST":"10.102.15.45","database":dbname,"fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":[variable.field for variable in variables if not (variable.unique or variable.type=="etc") ],"read_url_head":"arxiv.culturomics.org" })
     print addCode
-    cursor.execute("INSERT INTO API_settings VALUES ('" + addCode + "');")
+    db.query("INSERT INTO API_settings VALUES ('" + addCode + "');")
 
