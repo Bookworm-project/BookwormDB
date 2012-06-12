@@ -1,0 +1,7 @@
+[
+    {"field":"year","type":"integer","datatype":"time","unique":"true"},
+    {"field":"month","type":"integer","datatype":"time","unique":"true"},
+    {"field":"day","type":"integer","datatype":"time","unique":"true"},
+    {"field":"paperid","type":"character","fast":"yes","datatype":"categorical","unique":"true"},
+    {"field":"searchstring","type":"text","datatype":"searchstring","unique":"true"}
+]
