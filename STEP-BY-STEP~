@@ -1,7 +1,0 @@
-1. Install github on your system.
-
-2. Fork the project bmschmidt/presidio.
-
-3. Set up, in the directory "presidio" inside  a new git repository with your fork as the origin. (You can add the main branch as a remote later, so that changes can be merged back in).
-
-4. 
