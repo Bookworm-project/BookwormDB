@@ -85,7 +85,7 @@ class book:
         self.destination = "../texts/encoded/unigrams/" + self.coreloc
         self.execute = self.encode
     def upload(self):
-        cursor.execute("LOAD DATA INFILE")
+        db.query("LOAD DATA INFILE")
     def encode(self):
         #This works for any number of ngrams as an input file.
         self.wordids = self.auxdata
