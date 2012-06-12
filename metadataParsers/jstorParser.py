@@ -7,7 +7,7 @@ from xml.dom.minidom import parse,parseString
 
 
 #These are the names of the metadata fields that it will look for.
-metadata_fields = ['month','day','year','journalabbrv','journalid','headid','title','languages','type','journaltitle','volume','authors','issueid','issn','fpage','lpage']
+metadata_fields = ['month','day','year', 'journalabbrv','journalid','headid', 'title','languages','type','journaltitle','volume','authors', 'issueid','issn','fpage','lpage']
 
 
 
@@ -25,7 +25,7 @@ class Export:
             #first it cues up the object below by reading in the data:
             working = jstorID(p)
             #This is where it calls the attributes of the jstorID object to write things out.
-            #To avoid writing all the texts, you'd just need to an 'if' here: for exmle
+            #To avoid writing all the texts, you'd just need to an 'if' here: for example
             #if working.metadata['journalabbrv']=='royalsocietyjournal'
             working.writeText()
             working.writeMetadata()
