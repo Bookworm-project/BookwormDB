@@ -1,0 +1,1 @@
+http://www.syamsul.net/2011/09/15/fixing-the-annoying-perl-warning-setting-locale-failed-error-message/ has instructions for fixing locales
