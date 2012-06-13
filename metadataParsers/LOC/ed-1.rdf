@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+   xmlns:dcterms="http://purl.org/dc/terms/"
+   xmlns:ore="http://www.openarchives.org/ore/terms/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+>
+  <rdf:Description rdf:about="/lccn/sn85038615/1903-08-08/ed-1.rdf">
+    <dcterms:creator rdf:resource="http://chroniclingamerica.loc.gov/awardees/dlc#awardee"/>
+    <ore:describes rdf:resource="/lccn/sn85038615/1903-08-08/ed-1#issue"/>
+    <dcterms:modified rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2012-03-27T23:22:41-04:00</dcterms:modified>
+    <rdf:type rdf:resource="http://www.openarchives.org/ore/terms/ResourceMap"/>
+    <dcterms:created rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2012-03-27T23:22:41-04:00</dcterms:created>
+  </rdf:Description>
+  <rdf:Description rdf:about="/lccn/sn85038615/1903-08-08/ed-1#issue">
+    <ore:isAggregatedBy rdf:resource="/lccn/sn85038615#title"/>
+    <ore:isAggregatedBy rdf:resource="/batches/batch_vi_gualala_ver01#batch"/>
+    <ore:isDescribedBy rdf:resource="/lccn/sn85038615/1903-08-08/ed-1.rdf"/>
+    <dcterms:title>The times dispatch. - 1903-08-08</dcterms:title>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-3#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-6#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-4#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-7#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-1#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-2#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-8#page"/>
+    <ore:aggregates rdf:resource="/lccn/sn85038615/1903-08-08/ed-1/seq-5#page"/>
+    <rdf:type rdf:resource="http://purl.org/ontology/bibo/Issue"/>
+    <dcterms:issued rdf:datatype="http://www.w3.org/2001/XMLSchema#date">1903-08-08</dcterms:issued>
+  </rdf:Description>
+</rdf:RDF>
