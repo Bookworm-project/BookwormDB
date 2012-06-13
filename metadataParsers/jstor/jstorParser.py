@@ -32,6 +32,10 @@ class Export:
             self.filenames.append(mystring)
     def exportall(self):
         for p in self.filenames:
+            #first it cues up the object below by reading in the data:
+            #This is where it calls the attributes of the jstorID object to write things out.
+            #To avoid writing all the texts, you'd just need to an 'if' here: for example
+            #if working.metadata['journalabbrv']=='royalsocietyjournal'
             working = jstorID(p,metadatafile)
             #working.writeText()
             working.writeMetadata()
