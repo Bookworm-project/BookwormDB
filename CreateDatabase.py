@@ -26,7 +26,6 @@ except:
 	
 class DB:
     conn = None
-
     def connect(self):
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
 
