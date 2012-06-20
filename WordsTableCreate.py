@@ -51,6 +51,11 @@ for file in os.listdir('../texts/textids'):
             print "  export done"
 #        if filenum > 1000:
 #            break
+    keys = wordcounts.keys()
+    for key in keys:
+        database.write(key + " " + str(wordcounts[key]) + "\n")
+    wordcounts=dict()
+#dump vocab for the last time when it hasn't reached the limit.
 
 database.close()
 
@@ -75,5 +80,5 @@ call(["""awk 'BEGIN{count=0}
 
 call(["""sort -nrk2 ../texts/wordlist/counts.txt > ../texts/wordlist/complete.txt"""],shell=True)
 logfile.write("Adding rank numbers to the usable ones")
-call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $0}' > ../texts/wordlist/wordlist.txt """],shell=True)  
+call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 

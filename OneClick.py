@@ -9,9 +9,9 @@ txtdir = "../"
 #As well as the username and password. 
 
 execfile("CreateDatabase.py")
-#write_metadata()
+write_metadata()
 
-#execfile("ImportNewLibrary.py")
+execfile("ImportNewLibrary.py")
 
 #Most of these commands are inside CreateNewDatabase.py
 load_word_list()
