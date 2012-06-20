@@ -1,14 +1,15 @@
 import json
 import datetime
 import time
+import sys
 
-PROJECT = "erez"
+PROJECT = sys.argv[1]
 
 f = open("../metadata/jsoncatalog.txt", "r")
 md = f.readlines()
 f.close()
 
-f = open("metadataParsers/" + PROJECT + "/field_descriptions.json", "r")
+f = open("../metadata/field_descriptions.json", "r")
 fields = json.loads(f.read())
 f.close()
 
@@ -28,7 +29,7 @@ for field in fields:
 output = []
 for field in fields_to_derive:
     for derive in field["derived"]:
-        output.append({"field":str(json.dumps(field["field"])[1:-1] + '_' + json.dumps(derive)[1:-1]), "datatype":"time", "type":"integer", "unique":"true"})
+        output.append({"field":str(json.dumps(field["field"])[1:-1] + '_' + json.dumps(derive)[1:-1]), "datatype":"time", "type":"integer", "unique":True})
 f.write(str(output)[1:])
 f.close()
 
