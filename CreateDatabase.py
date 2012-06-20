@@ -116,7 +116,7 @@ allVariables = [dataField(variable) for variable in variables]
 
 dataFields = dict()
 #Metadatafile is a file of json rows with keys for metadata.
-metadatafile = open("../metadata/jsoncatalog.txt")
+metadatafile = open("../metadata/jsoncatalog_derived.txt")
 
 class textids(dict):
     #Create a dictionary, and initialize it with all the bookids we already have.
@@ -170,7 +170,7 @@ def to_unicode(obj, encoding='utf-8'):
 def write_metadata(limit = float("inf")):
     linenum = 1
     bookids = textids()
-    metadatafile = open("../metadata/jsoncatalog.txt")
+    metadatafile = open("../metadata/jsoncatalog_derived.txt")
     catalog = open("../metadata/catalog.txt",'w')
     for entry in metadatafile:
         try:
@@ -188,10 +188,14 @@ def write_metadata(limit = float("inf")):
             bookid = bookids.bump(entry['filename'])
         mainfields = [str(bookid),to_unicode(entry['filename'])]
         #First, pull the unique variables and write them to the 'catalog' table
-        for var in uniqueVariableNames:
-            myfield = entry.get(var,"")
+        for var in [variable for variable in variables if variable.unique]:
+            myfield = entry.get(var.field,"")
             mainfields.append(to_unicode(myfield))
-        catalogtext = '\t'.join(mainfields) + "\n"
+        try:
+            catalogtext = '\t'.join(mainfields) + "\n"
+        except:
+            print mainfields
+            raise
         catalog.write(catalogtext.encode('utf-8'))
         for variable in [variable for variable in variables if not variable.unique]:
              #Each of these has a different file it must write to...
@@ -264,7 +268,7 @@ def load_book_list():
         db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
         loadcode = """LOAD DATA LOCAL INFILE '../metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk;"""
         db.query(loadcode)
-        cursor = db.query("""SELECT count(*) FROM disciplineDisk""")
+        cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
         print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
@@ -297,7 +301,7 @@ def create_unigram_book_counts():
     for line in open(txtdir+"metadata/catalog.txt"):
         fields = line.split()
         try:
-            db.query("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]);
+            db.query("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]+";")
         except:
             pass
     db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
@@ -314,7 +318,7 @@ def create_bigram_book_counts():
     for line in open(txtdir+"metadata/catalog.txt"):
         fields = line.split()
         try:
-            db.query("LOAD DATA LOCAL INFILE '../texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]);
+            db.query("LOAD DATA LOCAL INFILE '../texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]+";")
         except:
             pass
     db.query("ALTER TABLE master_bigrams ENABLE KEYS")
