@@ -30,7 +30,7 @@ output = []
 for field in fields_to_derive:
     for derive in field["derived"]:
         output.append({"field":str(json.dumps(field["field"])[1:-1] + '_' + json.dumps(derive)[1:-1]), "datatype":"time", "type":"integer", "unique":True})
-f.write(str(output)[1:])
+f.write(str(output)[1:].replace("'", '"'))
 f.close()
 
 
