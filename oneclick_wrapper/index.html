@@ -1,0 +1,90 @@
+<html>
+  <head>
+    <title>One Click Bookworm</title>
+    <link rel="stylesheet" href="style.css" type="text/css" />
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+  </head>
+  <body>
+    <div id="help-box">
+      <div class="help-info field-descriptions">
+        A file specifying metadata fields present for each text in JSON format:<br><br>
+        <pre>
+[
+  {"field":"author","datatype":"categorical","type":"text","unique":false}
+  {"field":"searchstring","datatype":"searchstring","type":"text","unique":true}
+]
+        </pre>
+        "field"--the name of the metadata field. "Title", "Author", etc.<br><br>
+"type"--the RAW DATA TYPE of the field--primarily used for MySQL. Options are:<br>
+	    1. 'character': stored as a VARCHAR field. HARD LIMIT 255 characters.<br>
+	    2. 'text': stored as a text field--soft limit of 5000 characters, though this could be changed. Useful for things like title.<br>
+	    3. 'integer': stored as an int.<br>
+	    ('float','logical', and other types haven't been supported yet--for now, they can generally be coerced to one of these types. For example,
+	    storing 'T' and 'F' as one-byte characters is not any worse for performance than storing them as logical integers.)<br><br>
+
+"datatype"<br>
+	1. time--it's a time field, to be grouped by and displayed on X axes. (Note--if you want time rounding, you'll have to do the grouping beforehand, not in the database.)<br>
+	2. categorical--it has several options, and should display as a grouping option in the search dialogue.<br>
+	3. etc--it won't be used in the public Bookworm, but we keep it in the database for more specialized analysis.<br>
+	4. searchstring--it's the REQUIRED field that will display when the user clicks for search results. This will be an ugly HTML string with a link, etc. Formats are too diverse to construct this on the fly.<br><br>
+
+REQUIRED FIELDS:<br>
+(it will break if you haven't defined these):<br><br>
+
+"searchstring"<br>
+"filename" (which DOESN'T include '.txt' at the end)<br>
+--at least one "time" field
+      </div>
+    </div>
+    <div id="full-box">
+      <div id="head">One Click Bookworm</div>
+      <a href="http://culturomics.org">Cultural Observatory</a>, 2012
+      
+      <form action="#" method="post" onsubmit="return false">
+      
+        <div class="subhead">Locations</div>
+        <div class="opt">
+          <div class="help" id="field-descriptions">[?]</div>
+          
+          <div class="label-wrapper"><label for="project" class="label">Field descriptions file:</label></div>
+          <input type="text" id="project" class="in" placeholder="" />
+        </div>
+        <div class="opt">
+          <div class="label-wrapper"><label for="project" class="label">Metadata file:</label></div>
+          <input type="text" id="project" class="in" placeholder="" />
+        </div>
+        <div class="opt">
+          <div class="label-wrapper"><label for="project" class="label">Texts folder:</label></div>
+          <input type="text" id="project" class="in" placeholder="" />
+        </div>
+        
+        <div class="subhead">Options</div>
+      
+      
+        <div class="opt">
+          <div class="label-wrapper"><label for="project" class="label">Project name:</label></div>
+          <input type="text" id="project" class="in" placeholder="" />
+        </div>
+        <div class="opt">
+          <div class="label-wrapper"><label for="dbname" class="label">Database name:</label></div>
+          <input type="text" id="dbname" class="in" placeholder="" />
+        </div>
+        <div class="opt">
+          <div class="label-wrapper"><label for="dbpw" class="label">Database password:</label></div>
+          <input type="text" id="dbpw" class="in" placeholder="" />
+        </div>
+      
+        <input style="width: 100px; float: right; margin-top: 30px;" type="submit" value="Create" />
+      
+      </form>
+    </div>
+    <script>
+      //$("#full-box").css("left", (window.innerWidth-450)/2 + "px");
+      $(".help").hover(function(){
+        $('.' + $(this).attr('id')).fadeIn('fast');
+      }, function(){
+        $('.' + $(this).attr('id')).fadeOut('fast');
+      });
+    </script>
+  </body>
+</html>
