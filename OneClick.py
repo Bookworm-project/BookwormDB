@@ -4,11 +4,17 @@ import sys
 import json
 import os
 txtdir = "../"
+from subprocess import call
 
 #First off: what are we using? Pull a dbname from command line input.                                                                 
 #As well as the username and password. 
+dbname = sys.argv[1]
+call(['python','ParseDate.py',dbname])
+
 
 execfile("CreateDatabase.py")
+
+
 write_metadata()
 
 execfile("ImportNewLibrary.py")
