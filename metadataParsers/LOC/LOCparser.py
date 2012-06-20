@@ -8,7 +8,7 @@ import os
 import json
 import subprocess
 
-filelist = open("../../../papers.txt")
+filelist = open("../../../metadata/papers.txt")
 metadata = open('../../../metadata/jsoncatalog.txt','w')
 for line in filelist:
     try:
@@ -22,6 +22,7 @@ for line in filelist:
         mydict['year'] = int(dates[0])
         mydict['month'] = int(dates[1])
         mydict['day'] = int(dates[2])
+        mydict['date'] = '-'.join([str(dates[0]),str(dates[1]),str(dates[2])])
         mydict['filename'] = re.sub(".txt\n","",raw)
         LOCbase = "http://chroniclingamerica.loc.gov/lccn/" + line[0] + "/" + "-".join([dates[0],dates[1],dates[2]]) + "/ed-1/seq-" + line[2] + "/"
         mydict['searchstring'] = "<img src=" + LOCbase + "thumbnail.jpg></img>  <a href = " + LOCbase+ "> Read page at LOC.gov</a>"
