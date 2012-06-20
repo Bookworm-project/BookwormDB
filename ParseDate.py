@@ -15,22 +15,21 @@ f.close()
 
 fields_to_derive = []
 
-output = []
 
 f = open("metadataParsers/" + PROJECT + '/' + PROJECT + ".json", "w")
-f.write('[')
+
+output = []
 
 for field in fields:
     if field["datatype"] == "time":
          if "derived" in field: fields_to_derive.append(field)
-         else: f.write(json.dumps(field) + ', ')
-    else: f.write(json.dumps(field) + ', ')
+         else: output.append(field)
+    else: output.append(field)
 
-output = []
 for field in fields_to_derive:
     for derive in field["derived"]:
         output.append({"field":str(json.dumps(field["field"])[1:-1] + '_' + json.dumps(derive)[1:-1]), "datatype":"time", "type":"integer", "unique":True})
-f.write(str(output)[1:])
+f.write(json.dumps(output).replace("[", "[\n").replace("}, {", "},\n{").replace("]", "\n]"))
 f.close()
 
 
