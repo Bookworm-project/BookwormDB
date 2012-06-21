@@ -1,1 +1,9 @@
-[{"datatype": "time", "field": "year", "unique": true, "type": "integer"}, {"datatype": "time", "field": "month", "unique": true, "type": "integer"}, {"datatype": "time", "field": "day", "unique": true, "type": "integer"}, {"datatype": "categorical", "field": "paperid", "unique": true, "type": "character", "fast": "yes"}, {"datatype": "searchstring", "field": "searchstring", "unique": true, "type": "text"}, {'datatype': 'time', 'field': 'date_day_cycle', 'unique': True, 'type': 'integer'}, {'datatype': 'time', 'field': 'date_month_round', 'unique': True, 'type': 'integer'}]
+[
+{"datatype": "time", "field": "year", "unique": true, "type": "integer"},
+{"datatype": "time", "field": "month", "unique": true, "type": "integer"},
+{"datatype": "time", "field": "day", "unique": true, "type": "integer"},
+{"datatype": "categorical", "field": "paperid", "unique": true, "type": "character", "fast": "yes"},
+{"datatype": "searchstring", "field": "searchstring", "unique": true, "type": "text"},
+{"datatype": "time", "field": "date_day_cycle", "unique": true, "type": "integer"},
+{"datatype": "time", "field": "date_month_round", "unique": true, "type": "integer"}
+]

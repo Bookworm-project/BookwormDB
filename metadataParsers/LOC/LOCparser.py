@@ -8,7 +8,7 @@ import os
 import json
 import subprocess
 
-filelist = open("../../../metadata/papers.txt")
+filelist = open("../../../texts/papers.txt")
 metadata = open('../../../metadata/jsoncatalog.txt','w')
 for line in filelist:
     try:
@@ -27,8 +27,10 @@ for line in filelist:
         LOCbase = "http://chroniclingamerica.loc.gov/lccn/" + line[0] + "/" + "-".join([dates[0],dates[1],dates[2]]) + "/ed-1/seq-" + line[2] + "/"
         mydict['searchstring'] = "<img src=" + LOCbase + "thumbnail.jpg></img>  <a href = " + LOCbase+ "> Read page at LOC.gov</a>"
         metadata.write(json.dumps(mydict)+"\n")
-        if not os.path.exists("../../../texts/raw/"+re.sub("\n","",raw)):
-            subprocess.call(['cp','../../../../LOCpapers/NewspaperFiles/'+re.sub("\n","",raw),"../../../texts/raw/"+re.sub("\n","",raw)])
+#        if not os.path.exists("../../../texts/raw/"+re.sub("\n","",raw)):
+#            subprocess.call(['cp','../../../../LOCpapers/NewspaperFiles/'+re.sub("\n","",raw),"../../../texts/raw/"+re.sub("\n","",raw)])
     except:
         #some lines are throwing errors. Just skipping them until it's proved bad to do so.
         pass
+
+metadata.close()
