@@ -273,6 +273,7 @@ def load_book_list():
 
 def load_word_list():
     print "Making a SQL table to hold the words"
+    db.query("""DROP TABLE IF EXISTS words""")
     db.query("""CREATE TABLE IF NOT EXISTS words (
         wordid MEDIUMINT, 
         word VARCHAR(255), INDEX (word),
@@ -290,6 +291,7 @@ def load_word_list():
     db.query("UPDATE words SET casesens=word")
 
 def create_unigram_book_counts():
+    db.query("""DROP TABLE IF EXISTS master_bookcounts""")
     print "Making a SQL table to hold the unigram counts"
     db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
         bookid MEDIUMINT NOT NULL, INDEX(bookid,wordid,count),
@@ -307,6 +309,7 @@ def create_unigram_book_counts():
 
 def create_bigram_book_counts():
     print "Making a SQL table to hold the bigram counts"
+    db.query("""DROP TABLE IF EXISTS master_bigrams""")
     db.query("""CREATE TABLE IF NOT EXISTS master_bigrams (
         bookid MEDIUMINT NOT NULL, 
         word1 MEDIUMINT NOT NULL, INDEX (word1,word2,bookid,count),    
