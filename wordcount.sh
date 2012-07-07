@@ -1,0 +1,1 @@
+find encoded/unigrams/ -exec awk '{sum+=$2}END{print FILENAME "\t" sum}' {} \; > counts.txt

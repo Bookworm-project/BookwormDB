@@ -34,7 +34,7 @@ def exec_commands(cmds):
         if not processes and not cmds:
             break
         else:
-            time.sleep(0.05)
+            time.sleep(1)
 
 # open the newspapers file
 newspaper_file = open('newspapers.rdf', 'r')
@@ -85,6 +85,9 @@ for newspaper in newspapers:
                                 page_dl = ['curl', '-so', PATH + newspaper + '_' + issue + '_' + page + '.txt', 'http://chroniclingamerica.loc.gov/lccn/' + newspaper + '/' + issue + '/' + 'ed-1' + '/' + 'seq-' + page + '/' + 'ocr.txt']
                                 commands.append(page_dl) 
                 #Once a big backlog is built up, start them downloading.
+                if len(commands) >= 1000:
+                    exec_commands(commands)
+                    commands = []
                 issue_out = open(metadatapath + "issues/" + newspaper + '_' + issue + '.rdf', 'w')
                 issue_out.write("\n".join(issue_desc))
                 issue_out.close()

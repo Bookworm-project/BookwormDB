@@ -294,8 +294,8 @@ def create_unigram_book_counts():
     db.query("""DROP TABLE IF EXISTS master_bookcounts""")
     print "Making a SQL table to hold the unigram counts"
     db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
-        bookid MEDIUMINT NOT NULL, INDEX(bookid,wordid,count),
-        wordid MEDIUMINT NOT NULL, INDEX(wordid,bookid,count),    
+        bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
+        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),    
         count MEDIUMINT UNSIGNED NOT NULL);""")
     db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
@@ -305,7 +305,7 @@ def create_unigram_book_counts():
             db.query("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]+";")
         except:
             pass
-    db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
+    #db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
 
 def create_bigram_book_counts():
     print "Making a SQL table to hold the bigram counts"
@@ -344,7 +344,7 @@ def create_memory_table_script(variables,run=True):
     commands.append("DROP TABLE IF EXISTS wordsheap;");
     commands.append("RENAME TABLE tmp TO wordsheap;");
     for variable in [variable for variable in variables if not variable.unique]:
-        commands.append("CREATE TABLE tmp (bookid MEDIUMINT, " + variable.fastSQL() + ", PRIMARY KEY (bookid," + variable.field + ")) ENGINE=MEMORY ;");
+        commands.append("CREATE TABLE tmp (bookid MEDIUMINT, " + variable.fastSQL() + ", INDEX (bookid) ) ENGINE=MEMORY ;");
         commands.append("INSERT into tmp SELECT * FROM " +  variable.field +  "Disk  ")
         commands.append("DROP TABLE IF EXISTS " +  variable.field)
         commands.append("RENAME TABLE tmp TO " + variable.field)
