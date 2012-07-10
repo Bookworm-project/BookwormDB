@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #So we load in the terms that allow the API implementation to happen for now. (Really, I'd like to actually run the API implementation, but this works for now; in fact, this is probably cleaner overall).
-execfile("/usr/lib/cgi-bin/APIimplementation.py")
+execfile("APIimplementation.py")
 
 import cgitb
 cgitb.enable()

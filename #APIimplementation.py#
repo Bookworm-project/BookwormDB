@@ -72,6 +72,7 @@ class userquery():
         #I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries: 
         #this makes the syntax cleaner on most queries,
         #while still allowing some more complicated ones.
+
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
         self.defaults(outside_dictionary) #Take some defaults
@@ -184,7 +185,8 @@ class userquery():
     def make_wordwheres(self):
         self.max_word_length = 0
         if 'word' in self.limits.keys():
-            #This doesn't currently allow mixing of one and two word searches together in a logical way. There's not a really easy solution here.
+            #This doesn't currently allow mixing of one and two word searches together in a logical way. 
+            #Would it be possible to just join on two different big tables? Only one way to find out, I guess...
             limits = []
             for phrase in self.limits['word']:
                 locallimits = dict()
@@ -195,7 +197,6 @@ class userquery():
                     self.max_word_length = max(self.max_word_length,n)
                     n = n+1
                 limits.append(where_from_hash(locallimits))
-                self.words_searched = phrase
             del self.limits['word']
             self.wordswhere = '(' + ' OR '.join(limits) + ')'
         else:
@@ -374,7 +375,7 @@ class userquery():
                 %(main)s                                                                                             
                 %(wordstables)s                                                                                      
             WHERE                                                                                                    
-                 %(catwhere)s AND %(wordswhere)s                                                                                        
+                 %(catwhere)s                                                                                        
         GROUP BY bookid ORDER BY sum(main.count*1000/nwords%(idfterm)s) DESC LIMIT %(limit)s                              
         ) as tmp USING(bookid)""" % self.__dict__
         return bibQuery
@@ -412,7 +413,7 @@ class userquery():
         except:
             mydict = {0:"0"}
         #This is a good place to change some values.
-        return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
+        return {'index':self.index, 'Name':"","values":mydict,'words_searched':""}
 
     def return_tsv(self,query = "ratio_query"):
         if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
