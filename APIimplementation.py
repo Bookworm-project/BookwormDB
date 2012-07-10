@@ -15,7 +15,7 @@ import copy
 #of tables with two columns one of which is 'bookid', maybe, or something like that.
 #(Or to add it as error handling when a query failed; only then check for missing files.
 
-general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"chaucer.fas.harvard.edu","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"chaucer.fas.harvard.edu","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}}
+general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"chaucer.fas.harvard.edu","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"chaucer.fas.harvard.edu","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"}}
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect():
@@ -88,6 +88,7 @@ class userquery():
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
         if 'compare_limits' in self.outside_dictionary.keys():
             self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
+            del outside_dictionary['compare_limits']
         else: #if nothing specified, we compare the word to the corpus.
             for key in ['word','word1','word2','word3','word4','word5']:
                 try:
@@ -181,83 +182,78 @@ class userquery():
             self.catwhere = "TRUE"
 
     def make_wordwheres(self):
+        self.max_word_length = 0
         if 'word' in self.limits.keys():
-            self.words_actually_searched = self.limits['word']
             #This doesn't currently allow mixing of one and two word searches together in a logical way. There's not a really easy solution here.
-            try:
-                if re.search(' ',self.limits['word'][0]):
-                    self.limits['word1'] = []
-                    self.limits['word2'] = []
-                    for word in self.limits['word']:
-                        array = word.split(" ")
-                        self.limits['word1'].append(array[0])
-                        self.limits['word2'].append(array[1])
-                    del self.limits['word']
-                else:
-                    pass
-            except:
-                #This fails if there's a regular expression in the word. For now, regexes only work with single
-                #words.
-                pass
-
-    def return_wordstable(self, words = ['polka dot'], pos=1):
-        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
-        #listed in the query; it works with different word fields
-        #The pos value specifies a number to go after the table names, so that we can have more than one table in the join. But those numbers
-        #have to be assigned elsewhere, so overlap is a danger if programmed poorly.
-        self.lookupname = "lookup" + str(pos)
-        self.wordsname  = "words" + str(pos)
-        if len(words) > 0:
-            self.wordwhere = where_from_hash({self.lookupname + ".casesens":words})
-            self.wordstable = """
-            %(wordsheap)s as %(wordsname)s JOIN 
-            %(wordsheap)s AS %(lookupname)s 
-            ON ( %(wordsname)s.%(word_field)s=%(lookupname)s.%(word_field)s 
-            AND  %(wordwhere)s   )  """ % self.__dict__ 
+            limits = []
+            for phrase in self.limits['word']:
+                locallimits = dict()
+                array = phrase.split(" ")
+                n=1
+                for word in array:
+                    locallimits['words'+str(n) + "." + self.word_field] = word
+                    self.max_word_length = max(self.max_word_length,n)
+                    n = n+1
+                limits.append(where_from_hash(locallimits))
+            del self.limits['word']
+            self.wordswhere = '(' + ' OR '.join(limits) + ')'
         else:
-            #We want to have some words returned even if _none_ are the query so that they can be selected. Having all the joins doesn't allow that,
-            #because in certain cases (merging by stems, eg) it would have multiple rows returned for a single word.
-            self.wordstable = """
-            %(wordsheap)s as %(wordsname)s """ % self.__dict__
-        return self.wordstable
+            self.wordswhere = " TRUE "
+
+#    def return_wordstableOld(self, words = ['polka dot'], pos=1):
+#        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
+#        #listed in the query; it works with different word fields
+#        #The pos value specifies a number to go after the table names, so that we can have more than one table in the join. But those numbers
+#        #have to be assigned elsewhere, so overlap is a danger if programmed poorly.
+#        self.lookupname = "lookup" + str(pos)
+#        self.wordsname  = "words" + str(pos)
+#        if len(words) > 0:
+#            self.wordwhere = where_from_hash({self.lookupname + ".casesens":words})
+#            self.wordstable = """
+#            %(wordsheap)s as %(wordsname)s JOIN 
+#            %(wordsheap)s AS %(lookupname)s 
+#            ON ( %(wordsname)s.%(word_field)s=%(lookupname)s.%(word_field)s 
+#            AND  %(wordwhere)s   )  """ % self.__dict__ 
+#        else:
+#            #We want to have some words returned even if _none_ are the query so that they can be selected. Having all the joins doesn't allow that,
+#            #because in certain cases (merging by stems, eg) it would have multiple rows returned for a single word.
+#            self.wordstable = """
+#            %(wordsheap)s as %(wordsname)s """ % self.__dict__
+#        return self.wordstable
 
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
         #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
-        if re.search("word\d",','.join(self.limits.keys())) or re.search("words2",self.selections):
+        if self.max_word_length == 2 or re.search("words2",self.selections):
             self.maintable = 'master_bigrams'
             self.main = '''
                  JOIN
                  master_bigrams as main
                  ON ('''+ self.prefs['fastcat'] +'''.bookid=main.bookid)
                  '''
-            self.wordstable1 = self.return_wordstable(words = self.limits.setdefault('word1',[]),pos = 1)
-            self.wordstable2 = self.return_wordstable(words = self.limits.setdefault('word2',[]),pos = 2)
-            self.wordstables = """
-                JOIN ( %(wordstable2)s )
-                 ON (main.word2 = words2.wordid )
-                JOIN 
-                 ( %(wordstable1)s )
-                 ON (main.word1 = words1.wordid )""" % self.__dict__
+            self.wordstables =  """
+            JOIN %(wordsheap)s as words1 ON (main.word1 = words1.wordid) 
+            JOIN %(wordsheap)s as words2 ON (main.word2 = words2.wordid) """ % self.__dict__
+
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
-        elif re.search("word",','.join(self.limits.keys())) or re.search("word",self.selections):
+        elif self.max_word_length == 1 or re.search("word",self.selections):
             self.maintable = 'master_bookcounts'
             self.main = '''
                 JOIN
                  master_bookcounts as main
                  ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
             self.tablename = 'master_bookcounts'
-            self.wordstable1 = self.return_wordstable(words=self.limits.setdefault('word',[]),pos=1)
             self.wordstables = """
-              JOIN ( %(wordstable1)s )  ON (main.wordid = words1.wordid)
+              JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
         #Have _no_ words table if no words searched for or grouped by; instead just use nwords. This 
         #isn't strictly necessary, but means the API can be used for the slug-filling queries, and some others.
         else:
             self.main = " "
-            self.operation = self.catoperation[self.counttype]            
+            self.operation = self.catoperation[self.counttype] #Why did I do this?    
             self.wordstables = " "
+            self.wordswhere  = " TRUE " #Just a dummy thing. Shouldn't take any time, right?
 
     def counts_query(self,countname='count'):
         self.countname=countname
@@ -274,7 +270,7 @@ class userquery():
                 %(main)s
                 %(wordstables)s 
             WHERE
-                 %(catwhere)s
+                 %(catwhere)s AND %(wordswhere)s
             GROUP BY 
                 %(groupings)s
         """ % self.__dict__
@@ -293,7 +289,8 @@ class userquery():
             for key in self.limits.keys():
                 if re.match('word',key):
                     del self.limits[key]
-        self.supersetquery = self.counts_query(countname='total')
+        a = userquery(outside_dictionary = self.compare_dictionary)
+        self.supersetquery = a.counts_query(countname='total')
         self.selections  = ",".join([re.sub(".* as","",group) for group in self.groups])
         self.groupings   = self.selections
         query = """
@@ -381,6 +378,9 @@ class userquery():
         ) as tmp USING(bookid)""" % self.__dict__
         return bibQuery
 
+    def disk_query(self,limit="100"):
+        pass
+
     def return_books(self):
         #This preps up the display elements for a search.
         #All this needs to be rewritten.
@@ -458,7 +458,6 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = "):
         #Or queries are special, since the default is "AND". This toggles that around for a subportion.
         if key=='$or' or key=="$OR":
             for comparison in values:
-                print comparison
                 whereterm.append(where_from_hash(comparison,joiner=" OR ",comp=comp))
                 #The or doesn't get populated any farther down.
         elif isinstance(values,dict):
@@ -560,7 +559,6 @@ try:
     print command
     p = userqueries(command)
     result = p.execute()
-    print '===RESULT==='
     print json.dumps(result)
 except:
     pass
