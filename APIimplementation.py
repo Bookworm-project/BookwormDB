@@ -355,6 +355,13 @@ class userquery():
     def bibliography_query(self,limit = "100"):
         #I'd like to redo this at some point so it could work as an API call.
         self.limit = limit
+        self.ordertype = "sum(main.count*10000/nwords)"
+        try:
+            if self.outside_dictionary['ordertype'] == "random":
+                self.ordertype = "RANDOM"
+        except KeyError:
+            pass
+
         #If IDF searching is enabled, we could add a term like '*IDF' here to overweight better selecting words
         #in the event of a multiple search.
         self.idfterm = ""
@@ -375,7 +382,7 @@ class userquery():
                 %(wordstables)s                                                                                      
             WHERE                                                                                                    
                  %(catwhere)s AND %(wordswhere)s                                                                                        
-        GROUP BY bookid ORDER BY sum(main.count*1000/nwords%(idfterm)s) DESC LIMIT %(limit)s                              
+        GROUP BY bookid ORDER BY %(ordertype)s DESC LIMIT %(limit)s                              
         ) as tmp USING(bookid)""" % self.__dict__
         return bibQuery
 
