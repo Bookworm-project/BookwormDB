@@ -391,7 +391,7 @@ class userquery():
         self.ordertype = "sum(main.count*10000/nwords)"
         try:
             if self.outside_dictionary['ordertype'] == "random":
-                self.ordertype = "RANDOM"
+                self.ordertype = "RAND()"
         except KeyError:
             pass
 
