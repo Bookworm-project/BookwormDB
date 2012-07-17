@@ -452,7 +452,10 @@ class userquery():
         except:
             mydict = {0:"0"}
         #This is a good place to change some values.
-        return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
+        try:
+            return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
+        except:
+            return{'values':mydict}
 
     def return_tsv(self,query = "ratio_query"):
         if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
