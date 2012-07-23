@@ -85,32 +85,60 @@ class userquery():
 
         #Set up a dictionary for the denominator of any fraction if it doesn't already exist:
         self.search_limits = outside_dictionary.setdefault('search_limits',[{"word":["polka dot"]}])
+
+        self.words_collation = outside_dictionary.setdefault('words_collation',"Case_Insensitive")
+        lookups = {"Case_Insensitive":'word',"case_insensitive":"word","Case_Sensitive":"casesens","Correct_Medial_s":'ffix',"All_Words_with_Same_Stem":"stem","Flagged":'wflag'}
+        self.word_field = lookups[self.words_collation]
+
+        self.groups = []
+        try:
+            groups = outside_dictionary['groups']
+        except:
+            groups = [outside_dictionary['time_measure']]
+
+        if groups == []:
+            groups = ["bookid is not null as In_Library"]
+        if (len (groups) > 1):
+            pass
+            #self.groups = credentialCheckandClean(self.groups)
+            #Define some sort of limitations here.
+        for group in groups:
+            group = group
+            if group=="unigram" or group=="word":
+                group = "words1." + self.word_field + " as unigram"
+            if group=="bigram":
+                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram"
+            self.groups.append(group)
+
+        self.selections = ",".join(self.groups)
+        self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
+
+
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
         if 'compare_limits' in self.outside_dictionary.keys():
             self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
             del outside_dictionary['compare_limits']
         else: #if nothing specified, we compare the word to the corpus.
-            for key in ['word','word1','word2','word3','word4','word5']:
+            for key in ['word','word1','word2','word3','word4','word5','unigram','bigram']:
                 try:
                     del self.compare_dictionary['search_limits'][key]
                 except:
                     pass
+        comparegroups = []
+        #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
+        for group in self.compare_dictionary['groups']:
+            if not re.match("words",group) and not re.match("[u]?[bn]igram",group):
+                comparegroups.append(group)
+        self.compare_dictionary['groups'] = comparegroups
         self.time_limits = outside_dictionary.setdefault('time_limits',[0,10000000])
         self.time_measure = outside_dictionary.setdefault('time_measure','year')
         self.counttype = outside_dictionary.setdefault('counttype',"Occurrences_per_Million_Words")
-        self.words_collation = outside_dictionary.setdefault('words_collation',"Case_Insensitive")
-        lookups = {"Case_Insensitive":'word',"case_insensitive":"word","Case_Sensitive":"casesens","Correct_Medial_s":'ffix',"All_Words_with_Same_Stem":"stem","Flagged":'wflag'}
-        self.word_field = lookups[self.words_collation]
+
         self.index  = outside_dictionary.setdefault('index',0)
         #Ordinarily, the input should be an an array of groups that will both select and group by.
         #The joins may be screwed up by certain names that exist in multiple tables, so there's an option to do something like 
         #SELECT catalog.bookid as myid, because WHERE clauses on myid will work but GROUP BY clauses on catalog.bookid may not 
         #after a sufficiently large number of subqueries.
-        self.groups = outside_dictionary.setdefault('groups',[self.time_measure])
-        if self.groups == []:
-            self.groups = ["bookid is not null as In_Library"]
-        self.selections = ",".join(self.groups)
-        self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
         #This smoothing code really ought to go somewhere else, since it doesn't quite fit into the whole API mentality and is 
         #more about the webpage.
         self.smoothingType = outside_dictionary.setdefault('smoothingType',"triangle")
@@ -277,21 +305,26 @@ class userquery():
         """ % self.__dict__
         return countsQuery
     
+    def ratio_denominator(self):
+        outside_dict = copy.deepcopy(self.compare_dictionary)
+        m = userquery(outside_dictionary=outside_dict)
+        return m.counts_query()
+
     def ratio_query(self):
         finalcountcommands = {"Occurrences_per_Million_Words":"IFNULL(count,0)*1000000/total","Raw_Counts":"IFNULL(count,0)","Percentage_of_Books":"IFNULL(count,0)*100/total","Number_of_Books":"IFNULL(count,0)"}
         self.mainquery    = self.counts_query()
+
         self.countcommand = finalcountcommands[self.counttype]
         if True: #In the case that we're not using a superset of words; this can be changed later
             supersetGroups = [group for group in self.groups if not re.match('word',group)]
-            self.selections= ",".join(supersetGroups)
-            #The "selections" and the "groupings" are different in that "groups" can have aliases
-            self.groupings = ",".join([re.sub(".* as","",group) for group in supersetGroups])
             self.finalgroupings = self.groupings
             for key in self.limits.keys():
                 if re.match('word',key):
                     del self.limits[key]
-        a = userquery(outside_dictionary = self.compare_dictionary)
-        self.supersetquery = a.counts_query(countname='total')
+        self.denominator =  userquery(outside_dictionary = self.compare_dictionary)
+        self.supersetquery = self.denominator.counts_query(countname='total')
+        self.finalgroupings = self.denominator.groupings
+
         self.selections  = ",".join([re.sub(".* as","",group) for group in self.groups])
         self.groupings   = self.selections
         query = """
@@ -419,7 +452,10 @@ class userquery():
         except:
             mydict = {0:"0"}
         #This is a good place to change some values.
-        return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
+        try:
+            return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
+        except:
+            return{'values':mydict}
 
     def return_tsv(self,query = "ratio_query"):
         if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
