@@ -126,7 +126,11 @@ class userquery():
                     pass
         comparegroups = []
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
-        for group in self.compare_dictionary['groups']:
+        try:
+            compareGroups = self.compare_dictionary['groups']
+        except:
+            compareGroups = [self.compare_dictionary['time_measure']]
+        for group in compareGroups:
             if not re.match("words",group) and not re.match("[u]?[bn]igram",group):
                 comparegroups.append(group)
         self.compare_dictionary['groups'] = comparegroups
@@ -202,7 +206,7 @@ class userquery():
         #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
         for key in self.limits.keys():
-            if key not in ('word','word1','word2','hasword'):
+            if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
                 catlimits[key] = self.limits[key]
         if len(catlimits.keys()) > 0:
             self.catwhere = where_from_hash(catlimits)
@@ -210,10 +214,12 @@ class userquery():
             self.catwhere = "TRUE"
 
     def make_wordwheres(self):
+        self.wordswhere = " TRUE "
         self.max_word_length = 0
+        limits = []
         if 'word' in self.limits.keys():
-            #This doesn't currently allow mixing of one and two word searches together in a logical way. There's not a really easy solution here.
-            limits = []
+            #This doesn't currently allow mixing of one and two word searches together in a logical way.
+            #It might be possible to just join on both the tables in MySQL--I'm not completely sure what would happen.
             for phrase in self.limits['word']:
                 locallimits = dict()
                 array = phrase.split(" ")
@@ -226,8 +232,16 @@ class userquery():
                 self.words_searched = phrase
             del self.limits['word']
             self.wordswhere = '(' + ' OR '.join(limits) + ')'
-        else:
-            self.wordswhere = " TRUE "
+        limits = dict()
+        limitlist = copy.deepcopy(self.limits.keys())
+        for key in limitlist:
+            if re.search("words\d",key):
+                limits[key] = self.limits[key]
+                del self.limits[key]
+        if len(limits.keys()) > 0:
+            self.wordswhere = where_from_hash(limits)
+
+ 
 
 #    def return_wordstableOld(self, words = ['polka dot'], pos=1):
 #        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
@@ -462,12 +476,13 @@ class userquery():
             query="counts_query"
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
-        results = ["\t".join([str(item[0]) for item in self.cursor.description])]
+        results = ["\t".join([to_unicode(item[0]) for item in self.cursor.description])]
         lines = self.cursor.fetchall()
         for line in lines:
             items = []
             for item in line:
-                item = str(item)
+                item = to_unicode(item)
+                item = re.sub("\t","<tab>",item)
                 items.append(item)
             results.append("\t".join(items))
         return "\n".join(results)
@@ -488,6 +503,15 @@ class userquery():
     ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
     #############
     
+def to_unicode(obj, encoding='utf-8'):
+    if isinstance(obj, basestring):
+        if not isinstance(obj, unicode):
+            obj = unicode(obj, encoding)
+    elif isinstance(obj,int):
+        obj=unicode(str(obj),encoding)
+    else:
+        obj = unicode(str(obj),encoding)
+    return obj
 
 def where_from_hash(myhash,joiner=" AND ",comp = " = "):
     whereterm = []

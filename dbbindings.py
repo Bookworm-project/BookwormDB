@@ -56,6 +56,7 @@ if method=="return_tsv":
     #Return_tsv can only give back a single file at a time.
     result = p.execute()[0]
     print result.encode('utf-8')
+    print "\n"
 
 """
 #This is no longer needed: export_tsv does the job much more cleanly.
