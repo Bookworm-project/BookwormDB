@@ -405,7 +405,10 @@ class userquery():
         self.ordertype = "sum(main.count*10000/nwords)"
         try:
             if self.outside_dictionary['ordertype'] == "random":
-                self.ordertype = "RAND()"
+                if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
+                    self.ordertype = "RAND()"
+                else:
+                    self.ordertype = "LOG(1-RAND())/sum(main.count)"
         except KeyError:
             pass
 
@@ -422,7 +425,7 @@ class userquery():
         SELECT searchstring 
         FROM """ % self.__dict__ + self.prefs['fullcat'] + """ RIGHT JOIN (
         SELECT                                                                                                       
-        """+ self.prefs['fastcat'] + """.bookid                                                                                               
+        """+ self.prefs['fastcat'] + """.bookid, %(ordertype)s as ordering
             FROM                                                                                                     
                 %(catalog)s                                                                                          
                 %(main)s                                                                                             
@@ -430,7 +433,8 @@ class userquery():
             WHERE                                                                                                    
                  %(catwhere)s AND %(wordswhere)s                                                                                        
         GROUP BY bookid ORDER BY %(ordertype)s DESC LIMIT %(limit)s                              
-        ) as tmp USING(bookid)""" % self.__dict__
+        ) as tmp USING(bookid) ORDER BY ordering DESC;
+        """ % self.__dict__
         return bibQuery
 
     def disk_query(self,limit="100"):
