@@ -72,7 +72,6 @@ class userquery():
         #I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries: 
         #this makes the syntax cleaner on most queries,
         #while still allowing some more complicated ones.
-
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
         self.defaults(outside_dictionary) #Take some defaults
@@ -86,32 +85,64 @@ class userquery():
 
         #Set up a dictionary for the denominator of any fraction if it doesn't already exist:
         self.search_limits = outside_dictionary.setdefault('search_limits',[{"word":["polka dot"]}])
+
+        self.words_collation = outside_dictionary.setdefault('words_collation',"Case_Insensitive")
+        lookups = {"Case_Insensitive":'word',"case_insensitive":"word","Case_Sensitive":"casesens","Correct_Medial_s":'ffix',"All_Words_with_Same_Stem":"stem","Flagged":'wflag'}
+        self.word_field = lookups[self.words_collation]
+
+        self.groups = []
+        try:
+            groups = outside_dictionary['groups']
+        except:
+            groups = [outside_dictionary['time_measure']]
+
+        if groups == []:
+            groups = ["bookid is not null as In_Library"]
+        if (len (groups) > 1):
+            pass
+            #self.groups = credentialCheckandClean(self.groups)
+            #Define some sort of limitations here.
+        for group in groups:
+            group = group
+            if group=="unigram" or group=="word":
+                group = "words1." + self.word_field + " as unigram"
+            if group=="bigram":
+                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram"
+            self.groups.append(group)
+
+        self.selections = ",".join(self.groups)
+        self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
+
+
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
         if 'compare_limits' in self.outside_dictionary.keys():
             self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
             del outside_dictionary['compare_limits']
         else: #if nothing specified, we compare the word to the corpus.
-            for key in ['word','word1','word2','word3','word4','word5']:
+            for key in ['word','word1','word2','word3','word4','word5','unigram','bigram']:
                 try:
                     del self.compare_dictionary['search_limits'][key]
                 except:
                     pass
+        comparegroups = []
+        #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
+        try:
+            compareGroups = self.compare_dictionary['groups']
+        except:
+            compareGroups = [self.compare_dictionary['time_measure']]
+        for group in compareGroups:
+            if not re.match("words",group) and not re.match("[u]?[bn]igram",group):
+                comparegroups.append(group)
+        self.compare_dictionary['groups'] = comparegroups
         self.time_limits = outside_dictionary.setdefault('time_limits',[0,10000000])
         self.time_measure = outside_dictionary.setdefault('time_measure','year')
         self.counttype = outside_dictionary.setdefault('counttype',"Occurrences_per_Million_Words")
-        self.words_collation = outside_dictionary.setdefault('words_collation',"Case_Insensitive")
-        lookups = {"Case_Insensitive":'word',"case_insensitive":"word","Case_Sensitive":"casesens","Correct_Medial_s":'ffix',"All_Words_with_Same_Stem":"stem","Flagged":'wflag'}
-        self.word_field = lookups[self.words_collation]
+
         self.index  = outside_dictionary.setdefault('index',0)
         #Ordinarily, the input should be an an array of groups that will both select and group by.
         #The joins may be screwed up by certain names that exist in multiple tables, so there's an option to do something like 
         #SELECT catalog.bookid as myid, because WHERE clauses on myid will work but GROUP BY clauses on catalog.bookid may not 
         #after a sufficiently large number of subqueries.
-        self.groups = outside_dictionary.setdefault('groups',[self.time_measure])
-        if self.groups == []:
-            self.groups = ["bookid is not null as In_Library"]
-        self.selections = ",".join(self.groups)
-        self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
         #This smoothing code really ought to go somewhere else, since it doesn't quite fit into the whole API mentality and is 
         #more about the webpage.
         self.smoothingType = outside_dictionary.setdefault('smoothingType',"triangle")
@@ -175,7 +206,7 @@ class userquery():
         #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
         for key in self.limits.keys():
-            if key not in ('word','word1','word2','hasword'):
+            if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
                 catlimits[key] = self.limits[key]
         if len(catlimits.keys()) > 0:
             self.catwhere = where_from_hash(catlimits)
@@ -183,11 +214,12 @@ class userquery():
             self.catwhere = "TRUE"
 
     def make_wordwheres(self):
+        self.wordswhere = " TRUE "
         self.max_word_length = 0
+        limits = []
         if 'word' in self.limits.keys():
-            #This doesn't currently allow mixing of one and two word searches together in a logical way. 
-            #Would it be possible to just join on two different big tables? Only one way to find out, I guess...
-            limits = []
+            #This doesn't currently allow mixing of one and two word searches together in a logical way.
+            #It might be possible to just join on both the tables in MySQL--I'm not completely sure what would happen.
             for phrase in self.limits['word']:
                 locallimits = dict()
                 array = phrase.split(" ")
@@ -197,10 +229,19 @@ class userquery():
                     self.max_word_length = max(self.max_word_length,n)
                     n = n+1
                 limits.append(where_from_hash(locallimits))
+                self.words_searched = phrase
             del self.limits['word']
             self.wordswhere = '(' + ' OR '.join(limits) + ')'
-        else:
-            self.wordswhere = " TRUE "
+        limits = dict()
+        limitlist = copy.deepcopy(self.limits.keys())
+        for key in limitlist:
+            if re.search("words\d",key):
+                limits[key] = self.limits[key]
+                del self.limits[key]
+        if len(limits.keys()) > 0:
+            self.wordswhere = where_from_hash(limits)
+
+ 
 
 #    def return_wordstableOld(self, words = ['polka dot'], pos=1):
 #        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
@@ -278,21 +319,26 @@ class userquery():
         """ % self.__dict__
         return countsQuery
     
+    def ratio_denominator(self):
+        outside_dict = copy.deepcopy(self.compare_dictionary)
+        m = userquery(outside_dictionary=outside_dict)
+        return m.counts_query()
+
     def ratio_query(self):
         finalcountcommands = {"Occurrences_per_Million_Words":"IFNULL(count,0)*1000000/total","Raw_Counts":"IFNULL(count,0)","Percentage_of_Books":"IFNULL(count,0)*100/total","Number_of_Books":"IFNULL(count,0)"}
         self.mainquery    = self.counts_query()
+
         self.countcommand = finalcountcommands[self.counttype]
         if True: #In the case that we're not using a superset of words; this can be changed later
             supersetGroups = [group for group in self.groups if not re.match('word',group)]
-            self.selections= ",".join(supersetGroups)
-            #The "selections" and the "groupings" are different in that "groups" can have aliases
-            self.groupings = ",".join([re.sub(".* as","",group) for group in supersetGroups])
             self.finalgroupings = self.groupings
             for key in self.limits.keys():
                 if re.match('word',key):
                     del self.limits[key]
-        a = userquery(outside_dictionary = self.compare_dictionary)
-        self.supersetquery = a.counts_query(countname='total')
+        self.denominator =  userquery(outside_dictionary = self.compare_dictionary)
+        self.supersetquery = self.denominator.counts_query(countname='total')
+        self.finalgroupings = self.denominator.groupings
+
         self.selections  = ",".join([re.sub(".* as","",group) for group in self.groups])
         self.groupings   = self.selections
         query = """
@@ -356,6 +402,16 @@ class userquery():
     def bibliography_query(self,limit = "100"):
         #I'd like to redo this at some point so it could work as an API call.
         self.limit = limit
+        self.ordertype = "sum(main.count*10000/nwords)"
+        try:
+            if self.outside_dictionary['ordertype'] == "random":
+                if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
+                    self.ordertype = "RAND()"
+                else:
+                    self.ordertype = "LOG(1-RAND())/sum(main.count*10000/nwords)"
+        except KeyError:
+            pass
+
         #If IDF searching is enabled, we could add a term like '*IDF' here to overweight better selecting words
         #in the event of a multiple search.
         self.idfterm = ""
@@ -369,15 +425,16 @@ class userquery():
         SELECT searchstring 
         FROM """ % self.__dict__ + self.prefs['fullcat'] + """ RIGHT JOIN (
         SELECT                                                                                                       
-        """+ self.prefs['fastcat'] + """.bookid                                                                                               
+        """+ self.prefs['fastcat'] + """.bookid, %(ordertype)s as ordering
             FROM                                                                                                     
                 %(catalog)s                                                                                          
                 %(main)s                                                                                             
                 %(wordstables)s                                                                                      
             WHERE                                                                                                    
-                 %(catwhere)s                                                                                        
-        GROUP BY bookid ORDER BY sum(main.count*1000/nwords%(idfterm)s) DESC LIMIT %(limit)s                              
-        ) as tmp USING(bookid)""" % self.__dict__
+                 %(catwhere)s AND %(wordswhere)s                                                                                        
+        GROUP BY bookid ORDER BY %(ordertype)s DESC LIMIT %(limit)s                              
+        ) as tmp USING(bookid) ORDER BY ordering DESC;
+        """ % self.__dict__
         return bibQuery
 
     def disk_query(self,limit="100"):
@@ -413,19 +470,23 @@ class userquery():
         except:
             mydict = {0:"0"}
         #This is a good place to change some values.
-        return {'index':self.index, 'Name':"","values":mydict,'words_searched':""}
+        try:
+            return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
+        except:
+            return{'values':mydict}
 
     def return_tsv(self,query = "ratio_query"):
         if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
             query="counts_query"
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
-        results = ["\t".join([str(item[0]) for item in self.cursor.description])]
+        results = ["\t".join([to_unicode(item[0]) for item in self.cursor.description])]
         lines = self.cursor.fetchall()
         for line in lines:
             items = []
             for item in line:
-                item = str(item)
+                item = to_unicode(item)
+                item = re.sub("\t","<tab>",item)
                 items.append(item)
             results.append("\t".join(items))
         return "\n".join(results)
@@ -446,6 +507,15 @@ class userquery():
     ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
     #############
     
+def to_unicode(obj, encoding='utf-8'):
+    if isinstance(obj, basestring):
+        if not isinstance(obj, unicode):
+            obj = unicode(obj, encoding)
+    elif isinstance(obj,int):
+        obj=unicode(str(obj),encoding)
+    else:
+        obj = unicode(str(obj),encoding)
+    return obj
 
 def where_from_hash(myhash,joiner=" AND ",comp = " = "):
     whereterm = []
