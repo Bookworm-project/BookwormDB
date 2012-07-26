@@ -241,8 +241,6 @@ class userquery():
         if len(limits.keys()) > 0:
             self.wordswhere = where_from_hash(limits)
 
- 
-
 #    def return_wordstableOld(self, words = ['polka dot'], pos=1):
 #        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
 #        #listed in the query; it works with different word fields
@@ -470,6 +468,32 @@ class userquery():
             return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
         except:
             return{'values':mydict}
+
+    def arrayNest(self,array,returnt):
+        #A recursive function to transform a list into a nested array
+        if len(array)==2:
+            try:
+                returnt[array[0]] = float(array[1])
+            except:
+                returnt[array[0]] = array[1]
+        else:
+            try:
+                returnt[array[0]] = self.arrayNest(array[1:len(array)],returnt[array[0]])
+            except KeyError:
+                returnt[array[0]] = self.arrayNest(array[1:len(array)],dict())
+        return returnt
+
+    def return_json(self,query='ratio_query'):
+        if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
+            query="counts_query"
+        querytext = getattr(self,query)()
+        silent = self.cursor.execute(querytext)
+        names = [to_unicode(item[0]) for item in self.cursor.description]
+        returnt = dict()
+        lines = self.cursor.fetchall()
+        for line in lines:
+            returnt = self.arrayNest(line,returnt)
+        return returnt
 
     def return_tsv(self,query = "ratio_query"):
         if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":

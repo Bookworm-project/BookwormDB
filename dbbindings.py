@@ -1,7 +1,9 @@
 #!/usr/bin/python
 
-#So we load in the terms that allow the API implementation to happen for now. (Really, I'd like to actually run the API implementation, but this works for now; in fact, this is probably cleaner overall).
+#So we load in the terms that allow the API implementation to happen for now.
 execfile("APIimplementation.py")
+
+
 
 import cgitb
 cgitb.enable()
@@ -35,9 +37,24 @@ if len(form) > 0: #(Use CGI input if it's there:)
             raise
             pass
     headers(method)
+
+    privileges = 1
+
+    #if somewhere else has already set a privileges level, then you can get higher ones here.
+    try:
+        privileges = priorPrivileges
+    except:
+        pass
+
+    if privileges < 1:
+        if len (data['groupings']) > 1:
+            print "Too many groupings: please request an API key to complete this operation"
+        for group in data['groupings']:
+            pass
+            #if group not in ['year','month','day']
     p = userqueries(data)
 
-else: #(Use command line input otherwise--this shouldn't be necessary except for testing)
+else: #(Use command line input otherwise--this shouldn't be necessary anymore except for testing)
   try:
       command = str(sys.argv[1])
       command = json.loads(command)
@@ -47,9 +64,13 @@ else: #(Use command line input otherwise--this shouldn't be necessary except for
       raise
 
 #print p.method
-if method!='return_tsv':
+if method!='return_tsv' and method!='return_json':
     result = p.execute()
     print '===RESULT==='
+    print json.dumps(result)
+
+if method=='return_json':
+    result = p.execute()[0]
     print json.dumps(result)
 
 if method=="return_tsv":
