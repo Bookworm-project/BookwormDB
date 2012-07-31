@@ -49,12 +49,11 @@ for file in os.listdir('../texts/textids'):
                 database.write(key + " " + str(wordcounts[key])+"\n")
             wordcounts=dict()
             print "  export done"
-#        if filenum > 1000:
-#            break
-    keys = wordcounts.keys()
-    for key in keys:
-        database.write(key + " " + str(wordcounts[key]) + "\n")
-    wordcounts=dict()
+
+keys = wordcounts.keys()
+for key in keys:
+    database.write(key + " " + str(wordcounts[key]) + "\n")
+
 #dump vocab for the last time when it hasn't reached the limit.
 
 database.close()
@@ -80,5 +79,20 @@ call(["""awk 'BEGIN{count=0}
 
 call(["""sort -nrk2 ../texts/wordlist/counts.txt > ../texts/wordlist/complete.txt"""],shell=True)
 logfile.write("Adding rank numbers to the usable ones")
+
+
+#To get this working with already entered lists of words, this idea should be implemented: (it could also work from the raw file)
+#CALL DATABASE RESULTS:
+
+#FOR EACH, ADD word->key to dictionary:
+
+#Read in the top maxDictionaryLength items from the new list:
+
+#Add new entries for any words in that list that aren't in the new one.
+
+#write out to ../texts/wordlist/wordlist.txt
+
+
+
 call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 

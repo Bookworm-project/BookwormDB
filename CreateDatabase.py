@@ -20,7 +20,7 @@ try:
         variablefile = open("metadataParsers/" + dbname + "/" + dbname + ".json",'r')
     except:
         sys.exit("you must have a json file for your database located in metadataParsers: see the README in presidio/metadata")
-    variables = json.loads(''.join(variablefile.readlines()))
+    variables = json.loads(variablefile.read())
 except:
     raise
 	
@@ -252,8 +252,13 @@ def load_book_list():
     print loadcode
     db.query(loadcode)
     db.query("ALTER TABLE catalog ENABLE KEYS")
+
     #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
-    db.query("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;")
+    db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT, PRIMARY KEY (bookid), nwords INT);")
+    db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+    db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
+    db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+
     #And then make the ones that are distinct:
     alones = [variable for variable in variables if not variable.unique]
     for dfield in alones:
@@ -385,4 +390,22 @@ def create_API_settings(variables):
     addCode = json.dumps({"HOST":"10.102.15.45","database":dbname,"fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":[variable.field for variable in variables if not (variable.unique or variable.type=="etc") ],"read_url_head":"arxiv.culturomics.org" })
     print addCode
     db.query("INSERT INTO API_settings VALUES ('" + addCode + "');")
+
+def update_Porter_stemming(): #We use stems occasionally.                                                                                                                                                                                   
+    print "Updating stems from Porter algorithm..."
+    from nltk import PorterStemmer
+    stemmer = PorterStemmer()
+    cursor.execute("""SELECT word FROM words""")
+    words = cursor.fetchall()
+    for local in words:
+        word = ''.join(local)
+        #Apostrophes have the save stem as the word, if they're included                                                                                                                                                                     
+        word = re.sub("'s","",word)
+        if re.match("^[A-Za-z]+$",word):
+            query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
+            z = cursor.execute(query)
+
+
+
+
 
