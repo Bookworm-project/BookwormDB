@@ -15,7 +15,7 @@ import copy
 #of tables with two columns one of which is 'bookid', maybe, or something like that.
 #(Or to add it as error handling when a query failed; only then check for missing files.
 
-general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"}}
+general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"}}
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect():
@@ -124,6 +124,13 @@ class userquery():
                     del self.compare_dictionary['search_limits'][key]
                 except:
                     pass
+            for key in self.outside_dictionary['search_limits'].keys():
+                if re.search('words?\d',key):
+                    try:
+                        del self.compare_dictionary['search_limits'][key]
+                    except:
+                        pass
+
         comparegroups = []
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
         try:
@@ -163,9 +170,11 @@ class userquery():
 
     def create_catalog_table(self):
         self.catalog = self.prefs['fastcat'] #'catalog' #Can be replaced with a more complicated query.
+
         #Rather than just search for "LCSH", this should check query constraints against a list of tables, and join to them.
         #So if you query with a limit on LCSH, it joins the table "LCSH" to catalog; and then that table has one column, ALSO
         #called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
+
         for limitation in self.prefs['separateDataTables']:
             #That re.sub thing is in here because sometimes I do queries that involve renaming.
             if limitation in [re.sub(" .*","",key) for key in self.limits.keys()] or limitation in [re.sub(" .*","",group) for group in self.groups]:
@@ -194,6 +203,7 @@ class userquery():
             tempquery = userquery(mydict)
             bookids = ''
             bookids = tempquery.counts_query()
+
             #If this is ever going to work, 'catalog' here should be some call to self.prefs['fastcat']
             bookids = re.sub("(?s).*catalog[^\.]?[^\.\n]*\n","\n",bookids)
             bookids = re.sub("(?s)WHERE.*","\n",bookids)
@@ -217,9 +227,13 @@ class userquery():
         self.wordswhere = " TRUE "
         self.max_word_length = 0
         limits = []
+        
         if 'word' in self.limits.keys():
-            #This doesn't currently allow mixing of one and two word searches together in a logical way.
-            #It might be possible to just join on both the tables in MySQL--I'm not completely sure what would happen.
+            """
+            This doesn't currently allow mixing of one and two word searches together in a logical way.
+            It might be possible to just join on both the tables in MySQL--I'm not completely sure what would happen.
+            But the philosophy has been to keep users from doing those searches as far as possible in any case.
+            """
             for phrase in self.limits['word']:
                 locallimits = dict()
                 array = phrase.split(" ")
@@ -229,19 +243,24 @@ class userquery():
                     self.max_word_length = max(self.max_word_length,n)
                     n = n+1
                 limits.append(where_from_hash(locallimits))
+                #XXX for backward compatability
                 self.words_searched = phrase
-            del self.limits['word']
+            #del self.limits['word']
             self.wordswhere = '(' + ' OR '.join(limits) + ')'
-        limits = dict()
+
+        wordlimits = dict()
+
         limitlist = copy.deepcopy(self.limits.keys())
+
         for key in limitlist:
             if re.search("words\d",key):
-                limits[key] = self.limits[key]
+                wordlimits[key] = self.limits[key]
+                self.max_word_length = max(self.max_word_length,2)
                 del self.limits[key]
-        if len(limits.keys()) > 0:
-            self.wordswhere = where_from_hash(limits)
 
- 
+        if len(wordlimits.keys()) > 0:
+            self.wordswhere = where_from_hash(wordlimits)
+
 
 #    def return_wordstableOld(self, words = ['polka dot'], pos=1):
 #        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
@@ -267,7 +286,7 @@ class userquery():
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
         #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
-        if self.max_word_length == 2 or re.search("words2",self.selections):
+        if (self.max_word_length == 2 or re.search("words2",self.selections)):
             self.maintable = 'master_bigrams'
             self.main = '''
                  JOIN
@@ -319,38 +338,48 @@ class userquery():
         """ % self.__dict__
         return countsQuery
     
-    def ratio_denominator(self):
-        outside_dict = copy.deepcopy(self.compare_dictionary)
-        m = userquery(outside_dictionary=outside_dict)
-        return m.counts_query()
-
     def ratio_query(self):
         finalcountcommands = {"Occurrences_per_Million_Words":"IFNULL(count,0)*1000000/total","Raw_Counts":"IFNULL(count,0)","Percentage_of_Books":"IFNULL(count,0)*100/total","Number_of_Books":"IFNULL(count,0)"}
-        self.mainquery    = self.counts_query()
-
         self.countcommand = finalcountcommands[self.counttype]
-        if True: #In the case that we're not using a superset of words; this can be changed later
-            supersetGroups = [group for group in self.groups if not re.match('word',group)]
-            self.finalgroupings = self.groupings
-            for key in self.limits.keys():
-                if re.match('word',key):
-                    del self.limits[key]
+        #if True: #In the case that we're not using a superset of words; this can be changed later
+        #    supersetGroups = [group for group in self.groups if not re.match('word',group)]
+        #    self.finalgroupings = self.groupings
+        #    for key in self.limits.keys():
+        #        if re.match('word',key):
+        #            del self.limits[key]
+        
         self.denominator =  userquery(outside_dictionary = self.compare_dictionary)
         self.supersetquery = self.denominator.counts_query(countname='total')
-        self.finalgroupings = self.denominator.groupings
 
-        self.selections  = ",".join([re.sub(".* as","",group) for group in self.groups])
-        self.groupings   = self.selections
+        if re.search("In_Library",self.denominator.selections):
+            self.selections = self.selections + ", fastcat.bookid is not null as In_Library"
+
+        #See above: In_Library is a dummy variable so that there's always something to join on.            
+        self.mainquery    = self.counts_query()
+        
+
+        """
+        We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most 
+        cases is the search_limits without the keys, see above.
+        We then get the counts_query results out of that result.
+        """
+        
+
+        self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
+
+
+        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.groups])
+
         query = """
         SELECT
-            %(selections)s,
+            %(totalselections)s,
             %(countcommand)s as value
         FROM 
             ( %(mainquery)s 
             ) as tmp 
             RIGHT JOIN 
              ( %(supersetquery)s ) as totaller
-             USING (%(finalgroupings)s)
+             %(totalMergeTerms)s
         GROUP BY %(groupings)s;""" % self.__dict__
         return query        
 
@@ -408,7 +437,7 @@ class userquery():
                 if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
                     self.ordertype = "RAND()"
                 else:
-                    self.ordertype = "LOG(1-RAND())/sum(main.count*10000/nwords)"
+                    self.ordertype = "LOG(1-RAND())/sum(main.count)"
         except KeyError:
             pass
 
@@ -416,11 +445,7 @@ class userquery():
         #in the event of a multiple search.
         self.idfterm = ""
         prep = self.counts_query()
-        if self.prefs['database'] == 'arxiv':
-            self.returnlist = "author, title, arxivid, arxivid as dummyvar"
-            self.catwhere = re.sub("as day"," ",self.catwhere) 
-        if self.prefs['database'] == 'presidio':
-            self.returnlist = "author,title,editionid,ocaid"
+
         bibQuery = """
         SELECT searchstring 
         FROM """ % self.__dict__ + self.prefs['fullcat'] + """ RIGHT JOIN (
@@ -448,10 +473,47 @@ class userquery():
         for line in self.cursor.fetchall():
             returnarray.append(line[0])
         if not returnarray:
-            #We want this text here.
             returnarray.append("No results for this particular point: try again without smoothing")
-        return json.dumps(returnarray)
-        
+        newerarray = self.custom_SearchString_additions(returnarray)
+        return json.dumps(newerarray)
+
+    def getActualSearchedWords(self):
+        if len(self.wordswhere) > 7:
+            words = self.outside_dictionary['search_limits']['word']
+            #Break bigrams into single words.
+            words = ' '.join(words).split(' ')
+            self.cursor.execute("""SELECT word FROM wordsheap WHERE """ + where_from_hash({self.word_field:words}))
+            self.actualWords =[item[0] for item in self.cursor.fetchall()]
+        else:
+            self.actualWords = ["tasty","mistake","happened","here"]
+
+    def custom_SearchString_additions(self,returnarray):
+        db = self.outside_dictionary['database']
+        if db in ('jstor','presidio','ChronAm','LOC'):
+            self.getActualSearchedWords()
+            if db=='jstor':
+                joiner = "&searchText="
+                preface = "?Search=yes&searchText="
+                urlRegEx = "http://www.jstor.org/stable/\d+"
+            if db=='presidio':
+                joiner = "+"
+                preface =  "#page/1/mode/2up/search/"
+                urlRegEx = 'http://archive.org/stream/[^"# ><]*'
+            if db in ('ChronAm','LOC'):
+                preface = "/;words="
+                joiner = "+"
+                urlRegEx = 'http://chroniclingamerica.loc.gov[^\"><]*/seq-\d'
+            newarray = []
+            for string in returnarray:
+                base = re.findall(urlRegEx,string)[0]
+                newcore = ' <a href = "' +  base  + preface + joiner.join(self.actualWords) + '"> search inside </a>'
+                string = re.sub("^<td>","",string)
+                string = re.sub("</td>$","",string)
+                string = string+newcore
+                newarray.append(string)
+        #Arxiv is messier, requiring a whole different URL interface: http://search.arxiv.org:8081/paper.jsp?r=1204.3352&qs=network
+        return newarray
+
     def return_query_values(self,query = "ratio_query"):
         #The API returns a dictionary with years pointing to values.
         values = []
@@ -467,13 +529,41 @@ class userquery():
                 else:
                     del mydict[key]
             mydict = smooth_function(mydict,smooth_method = self.smoothingType,span = self.smoothingSpan)
+
         except:
             mydict = {0:"0"}
+
         #This is a good place to change some values.
         try:
             return {'index':self.index, 'Name':self.words_searched,"values":mydict,'words_searched':""}
         except:
             return{'values':mydict}
+
+    def arrayNest(self,array,returnt):
+        #A recursive function to transform a list into a nested array
+        if len(array)==2:
+            try:
+                returnt[array[0]] = float(array[1])
+            except:
+                returnt[array[0]] = array[1]
+        else:
+            try:
+                returnt[array[0]] = self.arrayNest(array[1:len(array)],returnt[array[0]])
+            except KeyError:
+                returnt[array[0]] = self.arrayNest(array[1:len(array)],dict())
+        return returnt
+
+    def return_json(self,query='ratio_query'):
+        if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
+            query="counts_query"
+        querytext = getattr(self,query)()
+        silent = self.cursor.execute(querytext)
+        names = [to_unicode(item[0]) for item in self.cursor.description]
+        returnt = dict()
+        lines = self.cursor.fetchall()
+        for line in lines:
+            returnt = self.arrayNest(line,returnt)
+        return returnt
 
     def return_tsv(self,query = "ratio_query"):
         if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":

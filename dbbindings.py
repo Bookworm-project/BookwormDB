@@ -3,8 +3,6 @@
 #So we load in the terms that allow the API implementation to happen for now.
 execfile("APIimplementation.py")
 
-
-
 import cgitb
 cgitb.enable()
 
@@ -16,7 +14,7 @@ def headers(method):
         print "Content-Disposition: filename=Bookworm-data.txt"
         print "Pragma: no-cache"
         print "Expires: 0\n"
-
+        
 outfile = open("/var/log/presidio/log.txt",'a')
 form = cgi.FieldStorage()
 
@@ -38,15 +36,14 @@ if len(form) > 0: #(Use CGI input if it's there:)
             pass
     headers(method)
 
-    privileges = 1
-
     #if somewhere else has already set a privileges level, then you can get higher ones here.
     try:
         privileges = priorPrivileges
     except:
-        pass
+        privileges = "basic"
 
-    if privileges < 1:
+
+    if privileges == "minimaL":
         if len (data['groupings']) > 1:
             print "Too many groupings: please request an API key to complete this operation"
         for group in data['groupings']:
