@@ -502,7 +502,7 @@ class userquery():
             if db in ('ChronAm','LOC'):
                 preface = "/;words="
                 joiner = "+"
-                urlRegEx = 'http://chroniclingamerica.loc.gov[^\"><]*/seq-\d'
+                urlRegEx = 'http://chroniclingamerica.loc.gov[^\"><]*/seq-\d+'
             newarray = []
             for string in returnarray:
                 base = re.findall(urlRegEx,string)[0]
@@ -512,6 +512,8 @@ class userquery():
                 string = string+newcore
                 newarray.append(string)
         #Arxiv is messier, requiring a whole different URL interface: http://search.arxiv.org:8081/paper.jsp?r=1204.3352&qs=network
+        else:
+            newarray = returnarray
         return newarray
 
     def return_query_values(self,query = "ratio_query"):
