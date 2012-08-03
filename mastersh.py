@@ -45,12 +45,12 @@ class bookids_file:
         self.auxdata = auxdata
 
     def execute(self):
-        print "Performing "+mode
+        #print "Performing "+mode
         i = 0
         for bookid in self.targetfiles:
             if len(bookid) > 0:
                 i = i+1
-                print str(i) + " " + bookid + " " + str(round(time.time()-start,2))
+                #print str(i) + " " + bookid + " " + str(round(time.time()-start,2))
                 mybook = book(bookid,self.auxdata)
                 getattr(mybook,self.mode)()
                 try:
@@ -82,6 +82,7 @@ class book:
         cursor.fetchall()
         #if it hasn't already been added:
         db.query("LOAD DATA INFILE")
+
     def encode(self):
         #This works for any number of ngrams as an input file.
         self.wordids = self.auxdata
@@ -104,6 +105,7 @@ class book:
             lines.append("\t".join(line))
             #This little 'append' here and then 'write' later loop seems like it's probably the fastest way to do this in Python; at least, it isn't slow.
         writefile.write("".join(lines))
+
     def unigrams(self):
         self.start_operator = "cat"
         self.start = "../texts/cleaned/" + self.coreloc
@@ -115,28 +117,30 @@ class book:
         }'"""
         self.destination = "../texts/unigrams/" + self.coreloc
         self.execute = self.shell_execute
+
     def bigrams(self):
         self.start_operator = "cat"
         self.start = "../texts/cleaned/" + self.coreloc
-        self.function = """awk '{ for(i=1; i<NF-1; i++)
-                                  {count[$i " " $(i+1)]++}
-                                  }
-                                 END{
-                                  for(i in count){print i, count[i]}}'"""
+        self.function = """awk '{ for(i=1; i<NF-1; i++) {count[$i " " $(i+1)]++} }  END  { for(i in count){print i, count[i]}}'"""
         self.destination = "../texts/bigrams/" + self.coreloc
         self.execute     = self.shell_execute
-    def ngrams(self,n):
+
+    def ngrams(self):
+        n = self.auxdata
         #This generalizes writing an awk script to pull out gram counts
         #The join loop here prints a string like '$(i+0) " " $(i+1) " " $(i+2)' that gets the words in position i to i+2 plus two as a group for the thing to use.
-        self.start_operator = "cat"
-        self.start = "../texts/cleaned/" + self.coreloc
-        self.function = """awk '{ for(i=1; i<NF-""" +str(n-1)+ """; i++)
-                                  {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,n)]) + """]++}
-                                  }
-                                 END{
-                                  for(i in count){print i, count[i]}}'"""
-        self.destination = "../texts/bigrams/" + self.coreloc
-        self.execute     = self.shell_execute
+        lookups = dict()
+        lookups[1] = 'unigrams'
+        lookups[2] = 'bigrams'
+        self.start = "../texts/cleaned/" + self.coreloc        
+        self.destination = "../texts/" + lookups[2] + "/" + self.coreloc
+        self.function = """awk '{ for(i=1; i<NF-""" +str(int(n)-1)+ """; i++) {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,int(n))]) + """]++} }  END  {  for(i in count){print i, count[i]}}'"""
+        self.script = "if [ ! -f " + self.start + " ] ; then " + self.function + " " + self.start + " > " + self.destination + '; fi;' 
+        self.execute = self.outPrint
+
+    def outPrint(self):
+        print self.script
+
     def clean(self):
         self.start_operator = "cat"
         self.start = "../texts/raw/" + self.coreloc
@@ -146,15 +150,15 @@ class book:
 
     def shell_execute(self):
         if os.path.exists(self.destination):
-            print "No cleaning. "+self.destination+" already exists."
+            #print "No cleaning. "+self.destination+" already exists."
             return
         if not os.path.exists(self.start):
-            print "No cleaning. "+self.start+" does not exist."
+            #print "No cleaning. "+self.start+" does not exist."
             return
         if os.path.getsize(self.start) < 10:
-            print "No cleaning. "+self.start+" is too small."
+            #print "No cleaning. "+self.start+" is too small."
             return
-        print "working on " + self.bookid
+        #print "working on " + self.bookid
         shell_operators = [self.start_operator,self.start,"|",self.function,">",self.destination]
         results = subprocess.call([" ".join(shell_operators)],shell=True,stderr=subprocess.STDOUT)
             
@@ -179,14 +183,14 @@ def get_wordids():
     return wordids
 
 if re.search("encode",mode):
-    print "Getting wordids from file"
+    #print "Getting wordids from file"
     wordids = get_wordids()
 
 filelists = os.listdir("../texts/textids")
 
 bookids = []
 
-for filename in filelists:
+for filename in [filelists[16]]:
     for line in open("../texts/textids/" + filename):
         splitted = line.split("\t")
         intid = splitted[0]
@@ -195,14 +199,18 @@ for filename in filelists:
         bookid = re.sub(" ","",bookid)
         bookids.append(bookid)
 
-print "Done reading in files: moving to create subprocesses"
+#print "Done reading in files: moving to create subprocesses"
 
-processNumber = 24
+processNumber = 1
 
 booklists = [bookids[i::processNumber] for i in range(processNumber)]
 for booklist in booklists:
     if re.search("encode",mode):
         instance = bookids_Instance(booklist,mode,auxdata=wordids)
+    if re.search("\dgrams",mode):
+        n = mode[0]
+        mode = 'ngrams'
+        instance = bookids_Instance(booklist,mode,auxdata=n)
     else:
         instance = bookids_Instance(booklist,mode)
     instance.start()
