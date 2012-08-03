@@ -25,9 +25,18 @@ except:
     raise
 	
 class DB:
-    conn = None
+    def __init__(self,dbname):
+        self.dbname = dbname
+        self.conn = None
+
     def connect(self):
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = self.dbname)
+        cursor = self.conn.cursor()
+        #Don't use native query attribute here to avoid infinite loops
+        cursor.execute("SET NAMES 'utf8'")
+        cursor.execute("SET CHARACTER SET 'utf8'")
+        cursor.execute("SET storage_engine=MYISAM")
+        cursor.execute("USE " + self.dbname)
 
     def query(self, sql):
         try:
@@ -38,6 +47,7 @@ class DB:
             cursor = self.conn.cursor()
             cursor.execute(sql)
         return cursor
+
 
 #Then define a class that supports a data field from a json definition.
 #We'll use this to spit out appropriate sql code and JSON objects where needed.
@@ -213,11 +223,6 @@ def write_metadata(limit = float("inf")):
 variables = [dataField(variable) for variable in variables]
 #This must be run as a MySQL user with create_table privileges
 
-db = DB()
-db.query("SET NAMES 'utf8'")
-db.query("SET CHARACTER SET 'utf8'")
-db.query("SET storage_engine=MYISAM")
-db.query("USE " + dbname)
 
 def create_database():
     try:
