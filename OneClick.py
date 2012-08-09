@@ -11,21 +11,21 @@ from subprocess import call
 dbname = sys.argv[1]
 
 print "Parsing the dates to a native format"
-#call(['python','ParseDate.py',dbname])
+call(['python','ParseDate.py',dbname])
 
 "Loading necessary scripts..."
 execfile("CreateDatabase.py")
 
 "Writing metadata to new catalog file..."
-write_metadata()
+#write_metadata()
 
-#execfile("ImportNewLibrary.py")
+execfile("ImportNewLibrary.py")
 
 #Most of these commands are inside CreateNewDatabase.py
 #load_word_list()
 #create_unigram_book_counts()
 #create_bigram_book_counts()
-load_book_list()
+#load_book_list()
 #create_memory_table_script(allVariables)
 #jsonify_data(allVariables)
 #create_API_settings(allVariables)
