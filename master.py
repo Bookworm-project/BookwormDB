@@ -197,7 +197,7 @@ for filename in filelists:
 
 print "Done reading in files: moving to create subprocesses"
 
-processNumber = 24
+processNumber = 9
 
 booklists = [bookids[i::processNumber] for i in range(processNumber)]
 for booklist in booklists:

@@ -66,7 +66,7 @@ class dataField():
 
     def slowSQL(self):
         #This returns something like """author VARCHAR(255)"""
-        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)"}
+        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)","decimal":"DECIMAL (9,4)"}
         createstring = " " + self.field + " " + mysqltypes[self.type]
         return createstring
 
@@ -79,6 +79,8 @@ class dataField():
             return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
         if self.type == "integer":
             return " " + self.field + " " + "INT"
+        if self.type == "decimal":
+            return " " + self.field + " " + "DECIMAL (9,4) "
         else:
             return None
 
@@ -136,7 +138,6 @@ class textids(dict):
         except:
             raise
         filelists = os.listdir("../texts/textids")
-
         numbers = [0]
         for filelist in filelists:
             reading = open("../texts/textids/" + filelist)

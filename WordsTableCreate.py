@@ -140,3 +140,4 @@ def WordsTableCreate(dbname,maxDictionaryLength=2000000,maxMemoryStorage = 20000
 
     #call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 
+WordsTableCreate(maxDictionary=1000000,maxMemoryStorageStorage = 20000000)
