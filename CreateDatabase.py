@@ -20,14 +20,23 @@ try:
         variablefile = open("metadataParsers/" + dbname + "/" + dbname + ".json",'r')
     except:
         sys.exit("you must have a json file for your database located in metadataParsers: see the README in presidio/metadata")
-    variables = json.loads(''.join(variablefile.readlines()))
+    variables = json.loads(variablefile.read())
 except:
     raise
 	
 class DB:
-    conn = None
+    def __init__(self,dbname):
+        self.dbname = dbname
+        self.conn = None
+
     def connect(self):
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = self.dbname)
+        cursor = self.conn.cursor()
+        #Don't use native query attribute here to avoid infinite loops
+        cursor.execute("SET NAMES 'utf8'")
+        cursor.execute("SET CHARACTER SET 'utf8'")
+        cursor.execute("SET storage_engine=MYISAM")
+        cursor.execute("USE " + self.dbname)
 
     def query(self, sql):
         try:
@@ -38,6 +47,7 @@ class DB:
             cursor = self.conn.cursor()
             cursor.execute(sql)
         return cursor
+
 
 #Then define a class that supports a data field from a json definition.
 #We'll use this to spit out appropriate sql code and JSON objects where needed.
@@ -56,7 +66,7 @@ class dataField():
 
     def slowSQL(self):
         #This returns something like """author VARCHAR(255)"""
-        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)"}
+        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)","decimal":"DECIMAL (9,4)"}
         createstring = " " + self.field + " " + mysqltypes[self.type]
         return createstring
 
@@ -69,6 +79,8 @@ class dataField():
             return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
         if self.type == "integer":
             return " " + self.field + " " + "INT"
+        if self.type == "decimal":
+            return " " + self.field + " " + "DECIMAL (9,4) "
         else:
             return None
 
@@ -126,7 +138,6 @@ class textids(dict):
         except:
             raise
         filelists = os.listdir("../texts/textids")
-
         numbers = [0]
         for filelist in filelists:
             reading = open("../texts/textids/" + filelist)
@@ -213,11 +224,6 @@ def write_metadata(limit = float("inf")):
 variables = [dataField(variable) for variable in variables]
 #This must be run as a MySQL user with create_table privileges
 
-db = DB()
-db.query("SET NAMES 'utf8'")
-db.query("SET CHARACTER SET 'utf8'")
-db.query("SET storage_engine=MYISAM")
-db.query("USE " + dbname)
 
 def create_database():
     try:
@@ -252,8 +258,13 @@ def load_book_list():
     print loadcode
     db.query(loadcode)
     db.query("ALTER TABLE catalog ENABLE KEYS")
+
     #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
-    db.query("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;")
+    db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT, PRIMARY KEY (bookid), nwords INT);")
+    db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+    db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
+    db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+
     #And then make the ones that are distinct:
     alones = [variable for variable in variables if not variable.unique]
     for dfield in alones:
@@ -385,4 +396,22 @@ def create_API_settings(variables):
     addCode = json.dumps({"HOST":"10.102.15.45","database":dbname,"fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":[variable.field for variable in variables if not (variable.unique or variable.type=="etc") ],"read_url_head":"arxiv.culturomics.org" })
     print addCode
     db.query("INSERT INTO API_settings VALUES ('" + addCode + "');")
+
+def update_Porter_stemming(): #We use stems occasionally.                                                                                                                                                                                   
+    print "Updating stems from Porter algorithm..."
+    from nltk import PorterStemmer
+    stemmer = PorterStemmer()
+    cursor.execute("""SELECT word FROM words""")
+    words = cursor.fetchall()
+    for local in words:
+        word = ''.join(local)
+        #Apostrophes have the save stem as the word, if they're included                                                                                                                                                                     
+        word = re.sub("'s","",word)
+        if re.match("^[A-Za-z]+$",word):
+            query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
+            z = cursor.execute(query)
+
+
+
+
 
