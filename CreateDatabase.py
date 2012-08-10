@@ -7,6 +7,7 @@ import re
 import sys
 import json
 import os
+import decimal
 txtdir = "../"
 
 #First off: what are we using? Pull a dbname from command line input.
@@ -48,6 +49,7 @@ class DB:
             cursor.execute(sql)
         return cursor
 
+db = DB(dbname)
 
 #Then define a class that supports a data field from a json definition.
 #We'll use this to spit out appropriate sql code and JSON objects where needed.
@@ -72,15 +74,18 @@ class dataField():
 
     def fastSQL(self):
         #This creates code to go in a memory table: it assumes that the disk tables are already there, and that a connection cursor is active.
-        #Memory tables DON'T SUPPORT VARCHAR; thus, it has to be stored this other way.
-        if self.type == "character":
-            cursor = db.query("SELECT max(char_length("+self.field+")) FROM " + self.table)
-            length = cursor.fetchall()[0][0]
-            return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
-        if self.type == "integer":
-            return " " + self.field + " " + "INT"
-        if self.type == "decimal":
-            return " " + self.field + " " + "DECIMAL (9,4) "
+        #Memory tables DON'T SUPPORT VARCHAR; thus, it has to be stored this other way
+        if self.datatype!='etc':
+            if self.type == "character":
+                cursor = db.query("SELECT max(char_length("+self.field+")) FROM " + self.table)
+                length = cursor.fetchall()[0][0]
+                return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
+            if self.type == "integer":
+                return " " + self.field + " " + "INT"
+            if self.type == "decimal":
+                return " " + self.field + " " + "DECIMAL (9,4) "
+            else:
+                return None
         else:
             return None
 
@@ -110,6 +115,7 @@ class dataField():
             descriptions = dict()
             for row in cursor.fetchall():
                 code = row[0]
+                code = to_unicode(code)
                 sort_order.append(code)
                 descriptions[code] = dict()
                 #These three things all have slightly different meanings: the english name, the database code for that name, and the short display name to show. It would be worth allowing lookup files for these: for now, they are what they are and can be further improved by hand.
@@ -173,7 +179,7 @@ def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
         if not isinstance(obj, unicode):
             obj = unicode(obj, encoding)
-    if isinstance(obj,int):
+    if isinstance(obj,int) or isinstance(obj,float) or isinstance(obj,decimal.Decimal):
         obj=unicode(str(obj),encoding)
     return obj
 
@@ -260,6 +266,8 @@ def load_book_list():
     db.query("ALTER TABLE catalog ENABLE KEYS")
 
     #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
+
+    #This here stores the number of words in between catalog updates, so that the full word counts only have to be done once since they're time consuming.
     db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT, PRIMARY KEY (bookid), nwords INT);")
     db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
     db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
@@ -355,10 +363,12 @@ def create_memory_table_script(variables,run=True):
     commands.append("DROP TABLE IF EXISTS wordsheap;");
     commands.append("RENAME TABLE tmp TO wordsheap;");
     for variable in [variable for variable in variables if not variable.unique]:
-        commands.append("CREATE TABLE tmp (bookid MEDIUMINT, " + variable.fastSQL() + ", INDEX (bookid) ) ENGINE=MEMORY ;");
-        commands.append("INSERT into tmp SELECT * FROM " +  variable.field +  "Disk  ")
-        commands.append("DROP TABLE IF EXISTS " +  variable.field)
-        commands.append("RENAME TABLE tmp TO " + variable.field)
+        fast = variable.fastSQL()
+        if fast: #It might return none for some reason, in which case, we don't want any of this to happen.
+            commands.append("CREATE TABLE tmp (bookid MEDIUMINT, " + variable.fastSQL() + ", INDEX (bookid) ) ENGINE=MEMORY ;");
+            commands.append("INSERT into tmp SELECT * FROM " +  variable.field +  "Disk  ")
+            commands.append("DROP TABLE IF EXISTS " +  variable.field)
+            commands.append("RENAME TABLE tmp TO " + variable.field)
     SQLcreateCode = open("../createTables.SQL",'w')
     for line in commands:
         #Write them out so they can be put somewhere to run automatically on startup:
@@ -379,7 +389,7 @@ def jsonify_data(variables):
             ui_components.append(newdict)
     try:
         mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-        output['default_search']  = [{"search_limits":[{"word":["test"]}],"time_measure":mytime,"words_collation":"Case_Sensitive","counttype":"Occurrences_per_Million_Words","smoothingSpan":5}]
+        output['default_search']  = [{"search_limits":[{"word":["test"]}],"time_measure":mytime,"words_collation":"Case_Sensitive","counttype":"Occurrences_per_Million_Words","smoothingSpan":0}]
     except:
         print "Not enough info for a default search"
         raise

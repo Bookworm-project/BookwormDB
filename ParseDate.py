@@ -49,12 +49,12 @@ for data in md:
             for derive in to_derive:
                 if "aggregate" in derive:
                     if derive["resolution"] == 'day' and derive["aggregate"] == "year": line[field["field"] + "_day_year"] = content[2]
-                    elif derive["resoilution"] == 'month' and derive["aggregate"] == "year": line[field["field"] + "_month_year"] = content[1]
+                    elif derive["resolution"] == 'month' and derive["aggregate"] == "year": line[field["field"] + "_month_year"] = content[1]
                     else: continue
                 else:
                     if derive["resolution"] == 'year': line[field["field"] + "_year"] = content[0]
                     elif derive["resolution"] == 'month': line[field["field"] + "_month"] = (datetime.datetime.strptime('%02d'%int(content[1])+content[0], "%m%Y").date() - datetime.date(1,1,1)).days
-                    elif derive["resolution"] == 'month': line[field["field"] + "_day"] = (datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days
+                    elif derive["resolution"] == 'day': line[field["field"] + "_day"] = (datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days
                     else: continue
             line.pop(field["field"])
     f.write(json.dumps(line) + '\n')
