@@ -4,3 +4,4 @@
 *~
 *.tmp
 kyoto*
+.DS_Store
