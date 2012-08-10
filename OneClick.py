@@ -17,15 +17,17 @@ call(['python','ParseDate.py',dbname])
 execfile("CreateDatabase.py")
 
 "Writing metadata to new catalog file..."
-#write_metadata()
+write_metadata()
 
-execfile("ImportNewLibrary.py")
+#execfile("ImportNewLibrary.py")
 
-#Most of these commands are inside CreateNewDatabase.py
+#Most of these commands are inside CreateNewDatabase.py. For manual constructions or 
+#stop-and-start operations, it's very helpful to have them spread out like this.
+
 #load_word_list()
 #create_unigram_book_counts()
 #create_bigram_book_counts()
-#load_book_list()
-#create_memory_table_script(allVariables)
-#jsonify_data(allVariables)
-#create_API_settings(allVariables)
+load_book_list()
+create_memory_table_script(allVariables)
+jsonify_data(allVariables)
+create_API_settings(allVariables)
