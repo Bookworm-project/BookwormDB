@@ -47,17 +47,15 @@ for data in md:
         else:
             to_derive = field["derived"]
             for derive in to_derive:
-                l = derive.split("_")
-                if len(l) == 2:
-                    if l[0] == "year": line[field["field"] + "_year"] = content[0]
+                if "aggregate" in derive:
+                    if derive["resolution"] == 'day' and derive["aggregate"] == "year": line[field["field"] + "_day_year"] = content[2]
+                    elif derive["resoilution"] == 'month' and derive["aggregate"] == "year": line[field["field"] + "_month_year"] = content[1]
                     else: continue
-                elif len(l) == 3:
-                    if l[0] == "month":
-                        if l[1] == "round": line[field["field"] + "_month_round"] = (datetime.datetime.strptime('%02d'%int(content[1])+content[0], "%m%Y").date() - datetime.date(1,1,1)).days
-                        elif l[1] == "cycle": line[field["field"] + "_month_cycle"] = content[1]
-                    elif l[0] == "day":
-                        if l[1] == "round": line[field["field"] + "_day_round"] = (datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days
-                        elif l[1] == "cycle": line[field["field"] + "_day_cycle"] = content[2]
+                else:
+                    if derive["resolution"] == 'year': line[field["field"] + "_year"] = content[0]
+                    elif derive["resolution"] == 'month': line[field["field"] + "_month"] = (datetime.datetime.strptime('%02d'%int(content[1])+content[0], "%m%Y").date() - datetime.date(1,1,1)).days
+                    elif derive["resolution"] == 'month': line[field["field"] + "_day"] = (datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days
+                    else: continue
             line.pop(field["field"])
     f.write(json.dumps(line) + '\n')
 f.close()
