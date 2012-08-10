@@ -51,7 +51,7 @@ for data in md:
                 if len(l) == 2:
                     if l[0] == "year": line[field["field"] + "_year"] = content[0]
                     else: continue
-                else if len(l) == 3:
+                elif len(l) == 3:
                     if l[0] == "month":
                         if l[1] == "round": line[field["field"] + "_month_round"] = (datetime.datetime.strptime('%02d'%int(content[1])+content[0], "%m%Y").date() - datetime.date(1,1,1)).days
                         elif l[1] == "cycle": line[field["field"] + "_month_cycle"] = content[1]
