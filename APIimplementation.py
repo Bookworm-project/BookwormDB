@@ -36,7 +36,6 @@ class dbConnect():
 class userqueries():
     #This is a set of queries that are bound together; each element in search limits is iterated over, and we're done.
     def __init__(self,outside_dictionary = {"counttype":"Percentage_of_Books","search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
-        #coerce one-element dictionaries to an array.
         self.database = outside_dictionary.setdefault('database','presidio')
         prefs = general_prefs[self.database]
         self.prefs = prefs
@@ -44,6 +43,7 @@ class userqueries():
         self.words = prefs['fullword']
         if 'search_limits' not in outside_dictionary.keys():
             outside_dictionary['search_limits'] = [{}]
+        #coerce one-element dictionaries to an array.
         if isinstance(outside_dictionary['search_limits'],dict):
             #(allowing passing of just single dictionaries instead of arrays)
             outside_dictionary['search_limits'] = [outside_dictionary['search_limits']]
@@ -71,7 +71,7 @@ class userquery():
 
         #I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries: 
         #this makes the syntax cleaner on most queries,
-        #while still allowing some more complicated ones.
+        #while still allowing some long ones from the Bookworm website.
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
         self.defaults(outside_dictionary) #Take some defaults
@@ -169,12 +169,13 @@ class userquery():
         self.make_wordwheres()
 
     def create_catalog_table(self):
-        self.catalog = self.prefs['fastcat'] #'catalog' #Can be replaced with a more complicated query.
-
-        #Rather than just search for "LCSH", this should check query constraints against a list of tables, and join to them.
-        #So if you query with a limit on LCSH, it joins the table "LCSH" to catalog; and then that table has one column, ALSO
-        #called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
-
+        self.catalog = self.prefs['fastcat'] #'catalog' #Can be replaced with a more complicated query in the event of longer joins.
+        """
+        This should check query constraints against a list of tables, and join to them.
+        So if you query with a limit on LCSH, and LCSH is listed as being in a separate table,
+        it joins the table "LCSH" to catalog; and then that table has one column, ALSO
+        called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
+        """
         for limitation in self.prefs['separateDataTables']:
             #That re.sub thing is in here because sometimes I do queries that involve renaming.
             if limitation in [re.sub(" .*","",key) for key in self.limits.keys()] or limitation in [re.sub(" .*","",group) for group in self.groups]:
@@ -182,18 +183,23 @@ class userquery():
 
         #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth
         if 'hasword' in self.limits.keys():
-            #This is the sort of code I should have written more of: 
-            #it just generates a new API call to fill a small part of the code here:
-            #(in this case, it merges the 'catalog' entry with a select query on 
-            #the word in the 'haswords' field. Enough of this could really
-            #shrink the codebase, I suspect. But for some reason, these joins end up being too slow to run.
-            #I think that has to do with the temporary table being created; we need to figure out how
-            #to allow direct access to wordsheap here without having the table aliases for the different versions of wordsheap
-            #being used overlapping.
+            """
+            This is the sort of code I'm trying to move towards
+            it just generates a new API call to fill a small part of the code here:
+            (in this case, it merges the 'catalog' entry with a select query on 
+            the word in the 'haswords' field. Enough of this could really
+            shrink the codebase, I suspect. But for some reason, these joins end up being too slow to
+            I used to think that has to do with the temporary table being created; we need to figure out how
+            to allow direct access to wordsheap here without having the table aliases for the different versions of wordsheap
+            being used overlapping.
+            It may also be because it keeps moving back and forth between the two aliases for 'main', which is going to produce hundreds of disk reads instead of the 10 or so we
+            currently have.
+            """
+
             if self.limits['hasword'] == []:
                 del self.limits['hasword']
                 return
-            import copy
+
             #deepcopy lets us get a real copy of the dictionary 
             #that can be changed without affecting the old one.
             mydict = copy.deepcopy(self.outside_dictionary)
@@ -261,28 +267,6 @@ class userquery():
         if len(wordlimits.keys()) > 0:
             self.wordswhere = where_from_hash(wordlimits)
 
-
-#    def return_wordstableOld(self, words = ['polka dot'], pos=1):
-#        #This returns an SQL sequence suitable for querying or, probably, joining, that gives a words table only as long as the words that are
-#        #listed in the query; it works with different word fields
-#        #The pos value specifies a number to go after the table names, so that we can have more than one table in the join. But those numbers
-#        #have to be assigned elsewhere, so overlap is a danger if programmed poorly.
-#        self.lookupname = "lookup" + str(pos)
-#        self.wordsname  = "words" + str(pos)
-#        if len(words) > 0:
-#            self.wordwhere = where_from_hash({self.lookupname + ".casesens":words})
-#            self.wordstable = """
-#            %(wordsheap)s as %(wordsname)s JOIN 
-#            %(wordsheap)s AS %(lookupname)s 
-#            ON ( %(wordsname)s.%(word_field)s=%(lookupname)s.%(word_field)s 
-#            AND  %(wordwhere)s   )  """ % self.__dict__ 
-#        else:
-#            #We want to have some words returned even if _none_ are the query so that they can be selected. Having all the joins doesn't allow that,
-#            #because in certain cases (merging by stems, eg) it would have multiple rows returned for a single word.
-#            self.wordstable = """
-#            %(wordsheap)s as %(wordsname)s """ % self.__dict__
-#        return self.wordstable
-
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
         #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
@@ -299,7 +283,7 @@ class userquery():
 
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
-        elif self.max_word_length == 1 or re.search("word",self.selections):
+        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections):
             self.maintable = 'master_bookcounts'
             self.main = '''
                 JOIN
@@ -309,13 +293,40 @@ class userquery():
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
-        #Have _no_ words table if no words searched for or grouped by; instead just use nwords. This 
-        #isn't strictly necessary, but means the API can be used for the slug-filling queries, and some others.
         else:
+            """
+            Have _no_ words table if no words searched for or grouped by; instead just use nwords. This 
+            means that we can use the same basic functions both to build the counts for word searches and 
+            for metadata searches, which is valuable because there is a metadata-only search built in to every single ratio
+            query. (To get the denominator values).
+            """
             self.main = " "
-            self.operation = self.catoperation[self.counttype] #Why did I do this?    
+            self.operation = self.catoperation[self.counttype]
+            """
+            This, above is super important: the operation used is relative to the counttype, and changes to use 'catoperation' instead of 'bookoperation'
+            That's the place that the denominator queries avoid having to do a table scan on full bookcounts that would take hours, and instead takes
+            milliseconds.
+            """
             self.wordstables = " "
-            self.wordswhere  = " TRUE " #Just a dummy thing. Shouldn't take any time, right?
+            self.wordswhere  = " TRUE " #Just a dummy thing to make the SQL writing easier. Shouldn't take any time.
+
+    def set_operations(self,querytype='ratio'):
+        """
+        This is the code that will allow multiple values to be selected.
+        It's not working yet.
+        Here are the old keys; then a new set
+        """
+        self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
+        self.bookoperation['TextsPercent'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextsPercent"
+        self.bookoperation['TextCount'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
+        self.bookoperation['WordCount'] = "sum(main.count) as WordCount"
+        self.bookoperation['WordsPerMillion'] = "sum(main.count) as WordsPerMillion"
+        """
+        The values here will be chosen in build_wordstables; that's what decides if it uses the 'bookoperation' or 'catoperation' dictionary to build out.
+        """
+        self.operation = self.bookoperation[self.counttype]
+
+
 
     def counts_query(self,countname='count'):
         self.countname=countname
@@ -395,14 +406,14 @@ class userquery():
             temp_counts = 0
         return [temp_counts,temp_words]    
 
-    def return_n_books(self,force=False):
+    def return_n_books(self,force=False): #deprecated
         if (not hasattr(self,'nbooks')) or force:
             query = "SELECT count(*) from " + self.catalog + " WHERE " + self.catwhere
             silent = self.cursor.execute(query)
             self.counts = int(self.cursor.fetchall()[0][0])
         return self.counts
 
-    def return_n_words(self,force=False):
+    def return_n_words(self,force=False): #deprecated
         if (not hasattr(self,'nwords')) or force:
             query = "SELECT sum(nwords) from " + self.catalog + " WHERE " + self.catwhere
             silent = self.cursor.execute(query)
