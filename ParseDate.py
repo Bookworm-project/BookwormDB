@@ -5,6 +5,10 @@ import sys
 
 PROJECT = sys.argv[1]
 
+def ensure_dir(f):
+    d = os.path.dirname(f)
+    if not os.path.exists(d):
+        os.makedirs(d)
 
 
 f = open("../metadata/field_descriptions.json", "r")
@@ -13,7 +17,7 @@ f.close()
 
 fields_to_derive = []
 
-
+ensure_dir("metadataParsers/" + PROJECT + '/' + PROJECT + ".json")
 f = open("metadataParsers/" + PROJECT + '/' + PROJECT + ".json", "w")
 
 output = []
