@@ -26,12 +26,15 @@ except:
     raise
 	
 class DB:
-    def __init__(self,dbname):
+    def __init__(self, dbname):
         self.dbname = dbname
         self.conn = None
 
     def connect(self):
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = self.dbname)
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = 'arxiv')
+        cursor = self.conn.cursor()
+        cursor.execute("CREATE DATABASE IF NOT EXISTS "+self.dbname)
+        cursor.execute("USE "+self.dbname)
         cursor = self.conn.cursor()
         #Don't use native query attribute here to avoid infinite loops
         cursor.execute("SET NAMES 'utf8'")

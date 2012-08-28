@@ -6,7 +6,7 @@ import re
 import subprocess
 from subprocess import call
 
-def WordsTableCreate(dbname,maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
+def WordsTableCreate(maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
 #20 million words should be about 2 gigabyte of memory, which is plenty on the servers we use: flush out every time we hit that limit.
 
     wordcounts = dict()
@@ -15,7 +15,6 @@ def WordsTableCreate(dbname,maxDictionaryLength=2000000,maxMemoryStorage = 20000
     logfile = open("log.log",'w')
     #I call this 'database' rather than 'wordlist' because it could be a database, so we might as well think of it as one.
     database = open("../texts/wordlist/raw.txt",'w')
-    db = DB()
     
     for file in os.listdir('../texts/textids'):
         for line in open('../texts/textids/' + file,'r'):
@@ -92,7 +91,7 @@ def WordsTableCreate(dbname,maxDictionaryLength=2000000,maxMemoryStorage = 20000
         i = 1
         oldFile = open("../texts/wordlist/wordlist.txt")
         for line in oldFile:
-            line = unicode.encode('utf-8')
+            line = line.encode('utf-8')
             line = line.split('\t')
             wid = int(line[0])
             word = line[1]
@@ -115,7 +114,7 @@ def WordsTableCreate(dbname,maxDictionaryLength=2000000,maxMemoryStorage = 20000
     nextIDtoAssign = max(oldids)+1
     counts = list()
     for line in newlist:
-        line = unicode.encode('utf-8')
+        line = line.encode('utf-8')
         line = line.split(" ")
         word = line[0]
         count = line[1]
@@ -129,15 +128,15 @@ def WordsTableCreate(dbname,maxDictionaryLength=2000000,maxMemoryStorage = 20000
         if i > maxDictionaryLength:
             return
 
-    output = open("../texts/wordlist/newwordlist.txt")
+    output = open("../texts/wordlist/newwordlist.txt", "w")
 
     for count in counts:
         output.write(count) #Should just carry over the newlines from earlier.
 
     #Don't overwrite the new file until the old one is complete
-    call(["mv ../texts/wordlist/newwordlist.txt ../texts/wordlist/wordlist.txt"])
+    call(["mv", "../texts/wordlist/newwordlist.txt", "../texts/wordlist/wordlist.txt"])
             
 
     #call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 
-WordsTableCreate(maxDictionary=1000000,maxMemoryStorageStorage = 20000000)
+WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000)
