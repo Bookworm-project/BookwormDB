@@ -15,7 +15,7 @@ import copy
 #of tables with two columns one of which is 'bookid', maybe, or something like that.
 #(Or to add it as error handling when a query failed; only then check for missing files.
 
-general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"}}
+general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"ChronAm","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["subjects"],"read_url_head":"http://www.arxiv.org/abs/"}}
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect():
@@ -402,7 +402,6 @@ class userquery():
         return countsQuery
     
     def ratio_query(self):
-        finalcountcommands = {"Occurrences_per_Million_Words":"IFNULL(count,0)*1000000/total","Raw_Counts":"IFNULL(count,0)","Percentage_of_Books":"IFNULL(count,0)*100/total","Number_of_Books":"IFNULL(count,0)"}
         #if True: #In the case that we're not using a superset of words; this can be changed later
         #    supersetGroups = [group for group in self.groups if not re.match('word',group)]
         #    self.finalgroupings = self.groupings
@@ -685,7 +684,7 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = "):
                 #The or doesn't get populated any farther down.
         elif isinstance(values,dict):
             #Certain function operators can use MySQL terms. These are the only cases that a dict can be passed as a limitations
-            operations = {"$gt":">","$lt":"<","$grep":" REGEXP ","$gte":">=","$lte":"<=","$eq":"="}
+            operations = {"$gt":">","$ne":"!=","$lt":"<","$grep":" REGEXP ","$gte":">=","$lte":"<=","$eq":"="}
             for operation in values.keys():
                 whereterm.append(where_from_hash({key:values[operation]},comp=operations[operation],joiner=joiner))
         elif isinstance(values,list):
