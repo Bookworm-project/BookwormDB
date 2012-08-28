@@ -6,6 +6,7 @@ import cgi
 import re
 import numpy #used for smoothing.
 import copy
+import decimal
 
 #These are here so we can support multiple databases with different naming schemes from a single API. A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
 #that's so memory tables can be used in certain cases for fast, hashed matching, but longer form data (like book titles)
@@ -553,17 +554,19 @@ class userquery():
             return{'values':mydict}
 
     def arrayNest(self,array,returnt):
-        #A recursive function to transform a list into a nested array
+        #A recursive function to transform a list into a nested array that can be dumped as json
+        key = array[0]
+        key = to_unicode(key)
         if len(array)==2:
             try:
-                returnt[array[0]] = float(array[1])
+                returnt[key] = float(array[1])
             except:
-                returnt[array[0]] = array[1]
+                returnt[key] = array[1]
         else:
             try:
-                returnt[array[0]] = self.arrayNest(array[1:len(array)],returnt[array[0]])
+                returnt[key] = self.arrayNest(array[1:len(array)],returnt[array[0]])
             except KeyError:
-                returnt[array[0]] = self.arrayNest(array[1:len(array)],dict())
+                returnt[key] = self.arrayNest(array[1:len(array)],dict())
         return returnt
 
     def return_json(self,query='ratio_query'):
