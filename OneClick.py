@@ -11,6 +11,7 @@ from subprocess import call
 dbname = sys.argv[1]
 
 print "Parsing the dates to a native format"
+<<<<<<< HEAD
 #call(['python','ParseDate.py',dbname])
 
 
@@ -23,6 +24,21 @@ execfile("CreateDatabase.py")
 execfile("ImportNewLibrary.py")
 
 #Most of these commands are inside CreateNewDatabase.py
+=======
+call(['python','ParseDate.py',dbname])
+
+"Loading necessary scripts..."
+execfile("CreateDatabase.py")
+
+"Writing metadata to new catalog file..."
+write_metadata()
+
+execfile("ImportNewLibrary.py")
+
+#Most of these commands are inside CreateNewDatabase.py. For manual constructions or 
+#stop-and-start operations, it's very helpful to have them spread out like this.
+
+>>>>>>> 668ce7c61b9e00d31677fc92fd6c4b27feea60d7
 load_word_list()
 create_unigram_book_counts()
 create_bigram_book_counts()

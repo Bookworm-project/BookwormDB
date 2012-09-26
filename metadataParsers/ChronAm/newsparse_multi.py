@@ -5,9 +5,11 @@ PATH = "../../../texts/raw/"
 metadatapath = "../../../metadata/rdf/"
 
 def exec_commands(cmds):
+
     ''' Exec commands in parallel in multiple process 
     (as much as we have CPU)
     '''
+
     if not cmds: return # empty list
 
     def done(p):
@@ -17,7 +19,7 @@ def exec_commands(cmds):
     def fail():
         sys.exit(1)
 
-    max_task = 12
+    max_task = 24
     processes = []
     while True:
         while cmds and len(processes) < max_task:
@@ -34,7 +36,7 @@ def exec_commands(cmds):
         if not processes and not cmds:
             break
         else:
-            time.sleep(1)
+            time.sleep(.1)
 
 # open the newspapers file
 newspaper_file = open('newspapers.rdf', 'r')

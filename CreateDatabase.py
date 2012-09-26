@@ -7,6 +7,7 @@ import re
 import sys
 import json
 import os
+import decimal
 txtdir = "../"
 
 #First off: what are we using? Pull a dbname from command line input.
@@ -20,14 +21,26 @@ try:
         variablefile = open("metadataParsers/" + dbname + "/" + dbname + ".json",'r')
     except:
         sys.exit("you must have a json file for your database located in metadataParsers: see the README in presidio/metadata")
-    variables = json.loads(''.join(variablefile.readlines()))
+    variables = json.loads(variablefile.read())
 except:
     raise
 	
 class DB:
-    conn = None
+    def __init__(self, dbname):
+        self.dbname = dbname
+        self.conn = None
+
     def connect(self):
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = dbname)
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = 'arxiv')
+        cursor = self.conn.cursor()
+        cursor.execute("CREATE DATABASE IF NOT EXISTS "+self.dbname)
+        cursor.execute("USE "+self.dbname)
+        cursor = self.conn.cursor()
+        #Don't use native query attribute here to avoid infinite loops
+        cursor.execute("SET NAMES 'utf8'")
+        cursor.execute("SET CHARACTER SET 'utf8'")
+        cursor.execute("SET storage_engine=MYISAM")
+        cursor.execute("USE " + self.dbname)
 
     def query(self, sql):
         try:
@@ -38,6 +51,8 @@ class DB:
             cursor = self.conn.cursor()
             cursor.execute(sql)
         return cursor
+
+db = DB(dbname)
 
 #Then define a class that supports a data field from a json definition.
 #We'll use this to spit out appropriate sql code and JSON objects where needed.
@@ -56,19 +71,24 @@ class dataField():
 
     def slowSQL(self):
         #This returns something like """author VARCHAR(255)"""
-        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)"}
+        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)","decimal":"DECIMAL (9,4)"}
         createstring = " " + self.field + " " + mysqltypes[self.type]
         return createstring
 
     def fastSQL(self):
         #This creates code to go in a memory table: it assumes that the disk tables are already there, and that a connection cursor is active.
-        #Memory tables DON'T SUPPORT VARCHAR; thus, it has to be stored this other way.
-        if self.type == "character":
-            cursor = db.query("SELECT max(char_length("+self.field+")) FROM " + self.table)
-            length = cursor.fetchall()[0][0]
-            return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
-        if self.type == "integer":
-            return " " + self.field + " " + "INT"
+        #Memory tables DON'T SUPPORT VARCHAR; thus, it has to be stored this other way
+        if self.datatype!='etc':
+            if self.type == "character":
+                cursor = db.query("SELECT max(char_length("+self.field+")) FROM " + self.table)
+                length = cursor.fetchall()[0][0]
+                return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
+            if self.type == "integer":
+                return " " + self.field + " " + "INT"
+            if self.type == "decimal":
+                return " " + self.field + " " + "DECIMAL (9,4) "
+            else:
+                return None
         else:
             return None
 
@@ -98,6 +118,7 @@ class dataField():
             descriptions = dict()
             for row in cursor.fetchall():
                 code = row[0]
+                code = to_unicode(code)
                 sort_order.append(code)
                 descriptions[code] = dict()
                 #These three things all have slightly different meanings: the english name, the database code for that name, and the short display name to show. It would be worth allowing lookup files for these: for now, they are what they are and can be further improved by hand.
@@ -126,7 +147,6 @@ class textids(dict):
         except:
             raise
         filelists = os.listdir("../texts/textids")
-
         numbers = [0]
         for filelist in filelists:
             reading = open("../texts/textids/" + filelist)
@@ -162,7 +182,7 @@ def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
         if not isinstance(obj, unicode):
             obj = unicode(obj, encoding)
-    if isinstance(obj,int):
+    if isinstance(obj,int) or isinstance(obj,float) or isinstance(obj,decimal.Decimal):
         obj=unicode(str(obj),encoding)
     return obj
 
@@ -213,11 +233,6 @@ def write_metadata(limit = float("inf")):
 variables = [dataField(variable) for variable in variables]
 #This must be run as a MySQL user with create_table privileges
 
-db = DB()
-db.query("SET NAMES 'utf8'")
-db.query("SET CHARACTER SET 'utf8'")
-db.query("SET storage_engine=MYISAM")
-db.query("USE " + dbname)
 
 def create_database():
     try:
@@ -252,8 +267,15 @@ def load_book_list():
     print loadcode
     db.query(loadcode)
     db.query("ALTER TABLE catalog ENABLE KEYS")
+
     #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
-    db.query("UPDATE catalog SET nwords = (SELECT sum(count) FROM master_bookcounts WHERE master_bookcounts.bookid = catalog.bookid) WHERE nwords is null;")
+
+    #This here stores the number of words in between catalog updates, so that the full word counts only have to be done once since they're time consuming.
+    db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT, PRIMARY KEY (bookid), nwords INT);")
+    db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+    db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
+    db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+
     #And then make the ones that are distinct:
     alones = [variable for variable in variables if not variable.unique]
     for dfield in alones:
@@ -294,8 +316,8 @@ def create_unigram_book_counts():
     db.query("""DROP TABLE IF EXISTS master_bookcounts""")
     print "Making a SQL table to hold the unigram counts"
     db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
-        bookid MEDIUMINT NOT NULL, INDEX(bookid,wordid,count),
-        wordid MEDIUMINT NOT NULL, INDEX(wordid,bookid,count),    
+        bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
+        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),    
         count MEDIUMINT UNSIGNED NOT NULL);""")
     db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
     print "loading data using LOAD DATA LOCAL INFILE"
@@ -305,7 +327,7 @@ def create_unigram_book_counts():
             db.query("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]+";")
         except:
             pass
-    db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
+    #db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
 
 def create_bigram_book_counts():
     print "Making a SQL table to hold the bigram counts"
@@ -344,10 +366,12 @@ def create_memory_table_script(variables,run=True):
     commands.append("DROP TABLE IF EXISTS wordsheap;");
     commands.append("RENAME TABLE tmp TO wordsheap;");
     for variable in [variable for variable in variables if not variable.unique]:
-        commands.append("CREATE TABLE tmp (bookid MEDIUMINT, " + variable.fastSQL() + ", PRIMARY KEY (bookid," + variable.field + ")) ENGINE=MEMORY ;");
-        commands.append("INSERT into tmp SELECT * FROM " +  variable.field +  "Disk  ")
-        commands.append("DROP TABLE IF EXISTS " +  variable.field)
-        commands.append("RENAME TABLE tmp TO " + variable.field)
+        fast = variable.fastSQL()
+        if fast: #It might return none for some reason, in which case, we don't want any of this to happen.
+            commands.append("CREATE TABLE tmp (bookid MEDIUMINT, " + variable.fastSQL() + ", INDEX (bookid) ) ENGINE=MEMORY ;");
+            commands.append("INSERT into tmp SELECT * FROM " +  variable.field +  "Disk  ")
+            commands.append("DROP TABLE IF EXISTS " +  variable.field)
+            commands.append("RENAME TABLE tmp TO " + variable.field)
     SQLcreateCode = open("../createTables.SQL",'w')
     for line in commands:
         #Write them out so they can be put somewhere to run automatically on startup:
@@ -368,7 +392,7 @@ def jsonify_data(variables):
             ui_components.append(newdict)
     try:
         mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-        output['default_search']  = [{"search_limits":[{"word":["test"]}],"time_measure":mytime,"words_collation":"Case_Sensitive","counttype":"Occurrences_per_Million_Words","smoothingSpan":5}]
+        output['default_search']  = [{"search_limits":[{"word":["test"]}],"time_measure":mytime,"words_collation":"Case_Sensitive","counttype":"Occurrences_per_Million_Words","smoothingSpan":0}]
     except:
         print "Not enough info for a default search"
         raise
@@ -385,4 +409,20 @@ def create_API_settings(variables):
     addCode = json.dumps({"HOST":"10.102.15.45","database":dbname,"fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":[variable.field for variable in variables if not (variable.unique or variable.type=="etc") ],"read_url_head":"arxiv.culturomics.org" })
     print addCode
     db.query("INSERT INTO API_settings VALUES ('" + addCode + "');")
+
+def update_Porter_stemming(): #We use stems occasionally.                                                                                                                                                                                   
+    print "Updating stems from Porter algorithm..."
+    from nltk import PorterStemmer
+    stemmer = PorterStemmer()
+    cursor = db.query("""SELECT word FROM words""")
+    words = cursor.fetchall()
+    for local in words:
+        word = ''.join(local)
+        #Apostrophes have the save stem as the word, if they're included                                                                                                                                                                            word = re.sub("'s","",word)
+        if re.match("^[A-Za-z]+$",word):
+            query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
+            z = cursor.execute(query)
+
+
+
 
