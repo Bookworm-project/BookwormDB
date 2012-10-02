@@ -37,11 +37,11 @@ for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unig
 
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
 print "Cleaning the texts"
-sh(['python','master.py','clean'])
+#sh(['python','master.py','clean'])
 print "Creating 1 gram counts"
-sh(['python','master.py','unigrams'])
+#sh(['python','master.py','unigrams'])
 print "Creating 2gram counts"
-sh(['python','master.py','bigrams'])
+#sh(['python','master.py','bigrams'])
 #We could add 3grams, and so forth, here.
 
 print "Would be creating 3gram counts..."
