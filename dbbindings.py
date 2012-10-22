@@ -43,7 +43,7 @@ if len(form) > 0: #(Use CGI input if it's there:)
         privileges = "basic"
 
 
-    if privileges == "minimaL":
+    if privileges == "minimal":
         if len (data['groupings']) > 1:
             print "Too many groupings: please request an API key to complete this operation"
         for group in data['groupings']:
@@ -60,13 +60,15 @@ else: #(Use command line input otherwise--this shouldn't be necessary anymore ex
   except:
       raise
 
-#print p.method
-if method!='return_tsv' and method!='return_json':
+#This following would be better as a straight switch.
+
+if method!='return_tsv' and method!='return_json' and method!='search_results':
     result = p.execute()
+    #This 'RESULT' bit NEEDS to go, but legacy code uses it heavily.
     print '===RESULT==='
     print json.dumps(result)
 
-if method=='return_json':
+if method=='return_json' or method=='search_results':
     result = p.execute()[0]
     print json.dumps(result)
 

@@ -87,7 +87,9 @@ class userquery():
         self.search_limits = outside_dictionary.setdefault('search_limits',[{"word":["polka dot"]}])
 
         self.words_collation = outside_dictionary.setdefault('words_collation',"Case_Insensitive")
+
         lookups = {"Case_Insensitive":'word',"case_insensitive":"word","Case_Sensitive":"casesens","Correct_Medial_s":'ffix',"All_Words_with_Same_Stem":"stem","Flagged":'wflag'}
+
         self.word_field = lookups[self.words_collation]
 
         self.groups = []
@@ -97,11 +99,14 @@ class userquery():
             groups = [outside_dictionary['time_measure']]
 
         if groups == []:
+            #Set an arbitrary column name if nothing else is set.
             groups = ["bookid is not null as In_Library"]
+
         if (len (groups) > 1):
             pass
             #self.groups = credentialCheckandClean(self.groups)
-            #Define some sort of limitations here.
+            #Define some sort of limitations here, if not done in dbbindings.py
+
         for group in groups:
             group = group
             if group=="unigram" or group=="word":
@@ -183,19 +188,14 @@ class userquery():
             if limitation in [re.sub(" .*","",key) for key in self.limits.keys()] or limitation in [re.sub(" .*","",group) for group in self.groups]:
                 self.catalog = self.catalog + """ JOIN """ + limitation + """ USING (bookid)"""
 
-        #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth
+        #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth. 
         if 'hasword' in self.limits.keys():
             """
             This is the sort of code I'm trying to move towards
             it just generates a new API call to fill a small part of the code here:
             (in this case, it merges the 'catalog' entry with a select query on 
             the word in the 'haswords' field. Enough of this could really
-            shrink the codebase, I suspect. But for some reason, these joins end up being too slow to
-            I used to think that has to do with the temporary table being created; we need to figure out how
-            to allow direct access to wordsheap here without having the table aliases for the different versions of wordsheap
-            being used overlapping.
-            It may also be because it keeps moving back and forth between the two aliases for 'main', which is going to produce hundreds of disk reads instead of the 10 or so we
-            currently have.
+            shrink the codebase, I suspect. It should be possible in MySQL 6.0, from what I've read, where subqueried tables will have indexes written for them by the query optimizer.
             """
 
             if self.limits['hasword'] == []:
@@ -247,13 +247,13 @@ class userquery():
                 array = phrase.split(" ")
                 n=1
                 for word in array:
-                    locallimits['words'+str(n) + "." + self.word_field] = word
+                    selectString =  "(SELECT " + self.word_field + " FROM wordsheap WHERE casesens='" + word + "')"
+                    locallimits['words'+str(n) + "." + self.word_field] = selectString
                     self.max_word_length = max(self.max_word_length,n)
                     n = n+1
-                limits.append(where_from_hash(locallimits))
+                limits.append(where_from_hash(locallimits,quotesep=""))
                 #XXX for backward compatability
                 self.words_searched = phrase
-            #del self.limits['word']
             self.wordswhere = '(' + ' OR '.join(limits) + ')'
 
         wordlimits = dict()
@@ -269,22 +269,27 @@ class userquery():
         if len(wordlimits.keys()) > 0:
             self.wordswhere = where_from_hash(wordlimits)
 
+
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
         #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
         if (self.max_word_length == 2 or re.search("words2",self.selections)):
+
             self.maintable = 'master_bigrams'
+
             self.main = '''
                  JOIN
                  master_bigrams as main
                  ON ('''+ self.prefs['fastcat'] +'''.bookid=main.bookid)
                  '''
+
             self.wordstables =  """
             JOIN %(wordsheap)s as words1 ON (main.word1 = words1.wordid) 
             JOIN %(wordsheap)s as words2 ON (main.word2 = words2.wordid) """ % self.__dict__
 
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
+
         elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections):
             self.maintable = 'master_bookcounts'
             self.main = '''
@@ -295,6 +300,7 @@ class userquery():
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
+
         else:
             """
             Have _no_ words table if no words searched for or grouped by; instead just use nwords. This 
@@ -313,8 +319,9 @@ class userquery():
             self.wordswhere  = " TRUE " #Just a dummy thing to make the SQL writing easier. Shouldn't take any time.
 
     def set_operations(self):
+
         """
-        This is the code that will allow multiple values to be selected.
+        This is the code that allows multiple values to be selected.
         """
 
         backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion","Raw_Counts":"WordCount","Percentage_of_Books":"TextPercent","Number_of_Books":"TextCount"}
@@ -367,6 +374,7 @@ class userquery():
         """
         The values here will be chosen in build_wordstables; that's what decides if it uses the 'bookoperation' or 'catoperation' dictionary to build out.
         """
+
         self.finaloperations = list()
         self.bookoperations = set()
         self.catoperations = set()
@@ -375,9 +383,8 @@ class userquery():
             self.catoperations.add(self.catoperation[summaryStat])
             self.bookoperations.add(self.bookoperation[summaryStat])
             self.finaloperations.append(self.finaloperation[summaryStat])
-        self.catoperation
 
-
+        #self.catoperation
 
     def counts_query(self):
         self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
@@ -442,10 +449,12 @@ class userquery():
         GROUP BY %(groupings)s;""" % self.__dict__
         return query        
 
+
     def return_slug_data(self,force=False):
         #Rather than understand this error, I'm just returning 0 if it fails.
         #Probably that's the right thing to do, though it may cause trouble later.
         #It's just a punishment for not later using a decent API call with "Raw_Counts" to extract these counts out, and relying on this ugly method.
+        #Please, citizens of the future, NEVER USE THIS METHOD.
         try:
             temp_words = self.return_n_words(force = True)
             temp_counts = self.return_n_books(force = True)
@@ -525,16 +534,21 @@ class userquery():
         pass
 
     def return_books(self):
-        #This preps up the display elements for a search.
-        #All this needs to be rewritten.
+        #This preps up the display elements for a search: it returns an array with a single string for each book, sorted in the best possible way
         silent = self.cursor.execute(self.bibliography_query())
         returnarray = []
         for line in self.cursor.fetchall():
             returnarray.append(line[0])
         if not returnarray:
+            #why would someone request a search with no locations? Turns out (usually) because the smoothing tricked them.
             returnarray.append("No results for this particular point: try again without smoothing")
         newerarray = self.custom_SearchString_additions(returnarray)
         return json.dumps(newerarray)
+
+    def search_results(self):
+        #This is an alias that is handled slightly differently in APIimplementation (no "RESULTS" bit in front). Once
+        #that legacy code is cleared out, they can be one and the same.
+        return json.loads(self.return_books())
 
     def getActualSearchedWords(self):
         if len(self.wordswhere) > 7:
@@ -667,7 +681,7 @@ def to_unicode(obj, encoding='utf-8'):
         obj = unicode(str(obj),encoding)
     return obj
 
-def where_from_hash(myhash,joiner=" AND ",comp = " = "):
+def where_from_hash(myhash,joiner=" AND ",comp = " = ",quotesep=None):
     whereterm = []
     #The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
     #For more complicated bits, it gets all recursive until the bits are in terms of list.
@@ -693,10 +707,11 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = "):
                 for entry in values:
                     whereterm.append(where_from_hash(entry))
             else:
-                if isinstance(values[0],basestring):
-                    quotesep="'"
-                else:
-                    quotesep = ""
+                if quotesep is None:
+                    if isinstance(values[0],basestring):
+                        quotesep="'"
+                    else:
+                        quotesep = ""
                 #Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 #Obviously that's no great loss, but there might be something I'm missing that would be.
                 whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+str(value)+quotesep+") " for value in values])+ ") ")
