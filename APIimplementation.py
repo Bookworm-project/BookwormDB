@@ -6,7 +6,8 @@ import cgi
 import re
 import numpy #used for smoothing.
 import copy
-
+import decimal
+"""
 #These are here so we can support multiple databases with different naming schemes from a single API. A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
 #that's so memory tables can be used in certain cases for fast, hashed matching, but longer form data (like book titles)
 #can be stored on disk. Different queries use different types of calls.
@@ -14,8 +15,9 @@ import copy
 #although the latter would be more elegant. The way to do that would be a database call
 #of tables with two columns one of which is 'bookid', maybe, or something like that.
 #(Or to add it as error handling when a query failed; only then check for missing files.
+"""
 
-general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"ChronAm","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["subjects"],"read_url_head":"http://www.arxiv.org/abs/"}}
+general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"ChronAm","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["subjects"],"read_url_head":"http://www.arxiv.org/abs/"},"ngrams":{"fastcat": "fastcat", "HOST": "10.102.15.45", "separateDataTables": [], "fastword": "wordsheap", "database": "ngrams", "read_url_head": "arxiv.culturomics.org", "fullcat": "catalog", "fullword": "words", "read_default_file": "/etc/mysql/my.cnf"}}
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect():
@@ -469,7 +471,7 @@ class userquery():
         FROM 
             ( %(mainquery)s 
             ) as numerator
-            RIGHT JOIN 
+            RIGHT OUTER JOIN 
              ( %(supersetquery)s ) as denominator
              %(totalMergeTerms)s
         GROUP BY %(groupings)s;""" % self.__dict__
@@ -642,6 +644,8 @@ class userquery():
 
     def arrayNest(self,array,returnt,endLength=1):
         #A recursive function to transform a list into a nested array
+        key = array[0]
+        key = to_unicode(key)
         if len(array)==endLength+1:
             #This is the condition where we have the last two, which is where we no longer need to nest anymore:
             #it's just the last value[key] = value
@@ -651,12 +655,12 @@ class userquery():
                     value[i] = float(value[i])
                 except:
                     pass
-            returnt[to_unicode(array[0])] = value
+            returnt[key] = value
         else:
             try:
-                returnt[to_unicode(array[0])] = self.arrayNest(array[1:len(array)],returnt[to_unicode(array[0])],endLength=endLength)
+                returnt[key] = self.arrayNest(array[1:len(array)],returnt[array[0]],endLength=endLength)
             except KeyError:
-                returnt[to_unicode(array[0])] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
+                returnt[key] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
         return returnt
 
     def return_json(self,query='ratio_query'):
@@ -745,7 +749,7 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = ",quotesep=None):
                         quotesep = ""
                 #Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 #Obviously that's no great loss, but there might be something I'm missing that would be.
-                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+str(value)+quotesep+") " for value in values])+ ") ")
+                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+to_unicode(value)+quotesep+") " for value in values])+ ") ")
     return "(" + joiner.join(whereterm) + ")"
     #This works pretty well, except that it requires very specific sorts of terms going in, I think.
 
