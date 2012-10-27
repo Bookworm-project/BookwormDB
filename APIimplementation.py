@@ -7,7 +7,7 @@ import re
 import numpy #used for smoothing.
 import copy
 import decimal
-
+"""
 #These are here so we can support multiple databases with different naming schemes from a single API. A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
 #that's so memory tables can be used in certain cases for fast, hashed matching, but longer form data (like book titles)
 #can be stored on disk. Different queries use different types of calls.
@@ -15,8 +15,9 @@ import decimal
 #although the latter would be more elegant. The way to do that would be a database call
 #of tables with two columns one of which is 'bookid', maybe, or something like that.
 #(Or to add it as error handling when a query failed; only then check for missing files.
+"""
 
-general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"ChronAm","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["subjects"],"read_url_head":"http://www.arxiv.org/abs/"}}
+general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"ChronAm","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["subjects"],"read_url_head":"http://www.arxiv.org/abs/"},"ngrams":{"fastcat": "fastcat", "HOST": "10.102.15.45", "separateDataTables": [], "fastword": "wordsheap", "database": "ngrams", "read_url_head": "arxiv.culturomics.org", "fullcat": "catalog", "fullword": "words", "read_default_file": "/etc/mysql/my.cnf"}}
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect():
@@ -36,7 +37,7 @@ class dbConnect():
 
 class userqueries():
     #This is a set of queries that are bound together; each element in search limits is iterated over, and we're done.
-    def __init__(self,outside_dictionary = {"counttype":"Percentage_of_Books","search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
+    def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
         self.database = outside_dictionary.setdefault('database','presidio')
         prefs = general_prefs[self.database]
         self.prefs = prefs
@@ -61,7 +62,7 @@ class userqueries():
         return self.returnval
 
 class userquery():
-    def __init__(self,outside_dictionary = {"counttype":"Percentage_of_Books","search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}}):
+    def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}}):
         #Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         self.outside_dictionary = outside_dictionary
         self.prefs = general_prefs[outside_dictionary.setdefault('database','presidio')]
@@ -144,8 +145,9 @@ class userquery():
         self.compare_dictionary['groups'] = comparegroups
         self.time_limits = outside_dictionary.setdefault('time_limits',[0,10000000])
         self.time_measure = outside_dictionary.setdefault('time_measure','year')
-        self.counttype = outside_dictionary.setdefault('counttype',"Occurrences_per_Million_Words")
-
+        self.counttype = outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
+        if isinstance(self.counttype,basestring):
+            self.counttype = [self.counttype]
         self.index  = outside_dictionary.setdefault('index',0)
         #Ordinarily, the input should be an an array of groups that will both select and group by.
         #The joins may be screwed up by certain names that exist in multiple tables, so there's an option to do something like 
@@ -165,6 +167,7 @@ class userquery():
         for key in self.limits.keys():
             if self.limits[key] == []:
                 del self.limits[key]
+        self.set_operations()
         self.create_catalog_table()
         self.make_catwhere()
         self.make_wordwheres()
@@ -302,7 +305,7 @@ class userquery():
             query. (To get the denominator values).
             """
             self.main = " "
-            self.operation = self.catoperation[self.counttype]
+            self.operation = ','.join(self.catoperations)
             """
             This, above is super important: the operation used is relative to the counttype, and changes to use 'catoperation' instead of 'bookoperation'
             That's the place that the denominator queries avoid having to do a table scan on full bookcounts that would take hours, and instead takes
@@ -311,34 +314,84 @@ class userquery():
             self.wordstables = " "
             self.wordswhere  = " TRUE " #Just a dummy thing to make the SQL writing easier. Shouldn't take any time.
 
-    def set_operations(self,querytype='ratio'):
+    def set_operations(self):
         """
         This is the code that will allow multiple values to be selected.
-        It's not working yet.
-        Here are the old keys; then a new set
         """
-        self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
-        self.bookoperation['TextsPercent'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextsPercent"
+
+        backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion","Raw_Counts":"WordCount","Percentage_of_Books":"TextPercent","Number_of_Books":"TextCount"}
+            
+        for oldKey in backCompatability.keys():
+            self.counttype = [re.sub(oldKey,backCompatability[oldKey],entry) for entry in self.counttype]
+            
+        self.bookoperation = {}
+        self.catoperation = {}
+        self.finaloperation = {}
+
+        #Text statistics
+        self.bookoperation['TextPercent'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
+        self.bookoperation['TextRatio'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
         self.bookoperation['TextCount'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
+        #Word Statistics
         self.bookoperation['WordCount'] = "sum(main.count) as WordCount"
-        self.bookoperation['WordsPerMillion'] = "sum(main.count) as WordsPerMillion"
+        self.bookoperation['WordsPerMillion'] = "sum(main.count) as WordCount"
+        self.bookoperation['WordsRatio'] = "sum(main.count) as WordCount"
+        """
+        +Total Numbers for comparisons/significance assessments
+        This is a little tricky. The total words is EITHER the denominator (as in a query against words per Million) or the numerator+denominator (if you're comparing 
+        Pittsburg and Pittsburgh, say, and want to know the total number of uses of the lemma. For now, "TotalWords" means the former and "SumWords" the latter,
+        On the theory that 'TotalWords' is more intuitive and only I (Ben) will be using SumWords all that much.
+        """
+        self.bookoperation['TotalWords'] = self.bookoperation['WordsPerMillion']
+        self.bookoperation['SumWords'] = self.bookoperation['WordsPerMillion']
+        self.bookoperation['TotalTexts'] = self.bookoperation['TextCount']
+        self.bookoperation['SumTexts'] = self.bookoperation['TextCount']
+
+        for stattype in self.bookoperation.keys():
+            if re.search("Word",stattype):
+                self.catoperation[stattype] = "sum(nwords) as WordCount"
+            if re.search("Text",stattype):
+                self.catoperation[stattype] = "count(nwords) as TextCount"
+
+        self.finaloperation['TextPercent'] = "IFNULL(numerator.TextCount,0)/IFNULL(denominator.TextCount,0)*100 as TextPercent"
+        self.finaloperation['TextRatio'] = "IFNULL(numerator.TextRatio,0)/IFNULL(denominator.TextCount,0) as TextRatio"
+        self.finaloperation['TextCount'] = "IFNULL(numerator.TextCount,0) as TextCount"
+
+        self.finaloperation['WordsPerMillion'] = "IFNULL(numerator.WordCount,0)*100000000/IFNULL(denominator.WordCount,0)/100 as WordsPerMillion"
+        self.finaloperation['WordsRatio'] = "IFNULL(numerator.WordCount,0)/IFNULL(denominator.WordCount,0) as WordsRatio"
+        self.finaloperation['WordCount'] = "IFNULL(numerator.WordCount,0) as WordCount"
+        
+        self.finaloperation['TotalWords'] = "IFNULL(denominator.WordCount,0) as TotalWords"
+        self.finaloperation['SumWords']   = "IFNULL(denominator.WordCount,0) + IFNULL(numerator.WordCount,0) as SumWords"
+        self.finaloperation['TotalTexts'] = "IFNULL(denominator.TextCount,0) as TotalTexts"
+        self.finaloperation['SumTexts'] = "IFNULL(denominator.TextCount,0) + IFNULL(numerator.TextCount,0) as SumTexts"
+
         """
         The values here will be chosen in build_wordstables; that's what decides if it uses the 'bookoperation' or 'catoperation' dictionary to build out.
         """
-        self.operation = self.bookoperation[self.counttype]
+        self.finaloperations = list()
+        self.bookoperations = set()
+        self.catoperations = set()
+
+        for summaryStat in self.counttype:
+            self.catoperations.add(self.catoperation[summaryStat])
+            self.bookoperations.add(self.bookoperation[summaryStat])
+            self.finaloperations.append(self.finaloperation[summaryStat])
+        self.catoperation
 
 
 
-    def counts_query(self,countname='count'):
-        self.countname=countname
+    def counts_query(self):
         self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
         self.catoperation = {"Occurrences_per_Million_Words":"sum(nwords)","Raw_Counts":"sum(nwords)","Percentage_of_Books":"count(nwords)","Number_of_Books":"count(nwords)"}        
-        self.operation = self.bookoperation[self.counttype]
+
+        self.operation = ','.join(self.bookoperations)
+
         self.build_wordstables()
         countsQuery = """
             SELECT
                 %(selections)s,
-                %(operation)s as %(countname)s
+                %(operation)s
             FROM 
                 %(catalog)s
                 %(main)s
@@ -351,8 +404,6 @@ class userquery():
         return countsQuery
     
     def ratio_query(self):
-        finalcountcommands = {"Occurrences_per_Million_Words":"IFNULL(count,0)*1000000000/total/1000","Raw_Counts":"IFNULL(count,0)","Percentage_of_Books":"IFNULL(count,0)*100/total","Number_of_Books":"IFNULL(count,0)"}
-        self.countcommand = finalcountcommands[self.counttype]
         #if True: #In the case that we're not using a superset of words; this can be changed later
         #    supersetGroups = [group for group in self.groups if not re.match('word',group)]
         #    self.finalgroupings = self.groupings
@@ -361,7 +412,7 @@ class userquery():
         #            del self.limits[key]
         
         self.denominator =  userquery(outside_dictionary = self.compare_dictionary)
-        self.supersetquery = self.denominator.counts_query(countname='total')
+        self.supersetquery = self.denominator.counts_query()
 
         if re.search("In_Library",self.denominator.selections):
             self.selections = self.selections + ", fastcat.bookid is not null as In_Library"
@@ -369,28 +420,26 @@ class userquery():
         #See above: In_Library is a dummy variable so that there's always something to join on.            
         self.mainquery    = self.counts_query()
         
+        self.countcommand = ','.join(self.finaloperations)
 
         """
         We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most 
         cases is the search_limits without the keys, see above.
         We then get the counts_query results out of that result.
         """
-        
 
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
-
-
         self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.groups])
 
         query = """
         SELECT
             %(totalselections)s,
-            %(countcommand)s as value
+            %(countcommand)s
         FROM 
             ( %(mainquery)s 
-            ) as tmp 
-            RIGHT JOIN 
-             ( %(supersetquery)s ) as totaller
+            ) as numerator
+            RIGHT OUTER JOIN 
+             ( %(supersetquery)s ) as denominator
              %(totalMergeTerms)s
         GROUP BY %(groupings)s;""" % self.__dict__
         return query        
@@ -553,37 +602,36 @@ class userquery():
         except:
             return{'values':mydict}
 
-    def arrayNest(self,array,returnt):
-        #A recursive function to transform a list into a nested array that can be dumped as json
+    def arrayNest(self,array,returnt,endLength=1):
+        #A recursive function to transform a list into a nested array
         key = array[0]
         key = to_unicode(key)
-        if len(array)==2:
-            try:
-                returnt[key] = float(array[1])
-            except:
-                returnt[key] = array[1]
+        if len(array)==endLength+1:
+            value = list(array[1:])
+            for i in range(len(value)):
+                try:
+                    value[i] = float(value[i])
+                except:
+                    pass
+            returnt[key] = value
         else:
             try:
-                returnt[key] = self.arrayNest(array[1:len(array)],returnt[array[0]])
+                returnt[key] = self.arrayNest(array[1:len(array)],returnt[array[0]],endLength=endLength)
             except KeyError:
-                returnt[key] = self.arrayNest(array[1:len(array)],dict())
+                returnt[key] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
         return returnt
 
     def return_json(self,query='ratio_query'):
-        if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
-            query="counts_query"
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
         names = [to_unicode(item[0]) for item in self.cursor.description]
         returnt = dict()
         lines = self.cursor.fetchall()
         for line in lines:
-            returnt = self.arrayNest(line,returnt)
+            returnt = self.arrayNest(line,returnt,endLength = len(self.counttype))
         return returnt
 
     def return_tsv(self,query = "ratio_query"):
-        if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
-            query="counts_query"
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
         results = ["\t".join([to_unicode(item[0]) for item in self.cursor.description])]
@@ -655,7 +703,7 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = "):
                     quotesep = ""
                 #Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 #Obviously that's no great loss, but there might be something I'm missing that would be.
-                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+str(value)+quotesep+") " for value in values])+ ") ")
+                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+to_unicode(value)+quotesep+") " for value in values])+ ") ")
     return "(" + joiner.join(whereterm) + ")"
     #This works pretty well, except that it requires very specific sorts of terms going in, I think.
 
