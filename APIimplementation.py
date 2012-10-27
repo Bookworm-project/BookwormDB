@@ -183,10 +183,36 @@ class userquery():
         it joins the table "LCSH" to catalog; and then that table has one column, ALSO
         called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
         """
+        
+
+
         for limitation in self.prefs['separateDataTables']:
             #That re.sub thing is in here because sometimes I do queries that involve renaming.
             if limitation in [re.sub(" .*","",key) for key in self.limits.keys()] or limitation in [re.sub(" .*","",group) for group in self.groups]:
                 self.catalog = self.catalog + """ JOIN """ + limitation + """ USING (bookid)"""
+                
+        """
+        Here it just pulls every variable and where to look for it. 
+        """
+        
+        tableToLookIn = {}
+        #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
+        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='presidio' ORDER BY ENGINE DESC,TABLE_NAME;");
+        columnNames = self.cursor.fetchall()
+
+        for databaseColumn in columnNames:
+            tableToLookIn[databaseColumn[2]] = databaseColumn[1]
+
+        self.relevantTables = set()
+
+        for columnInQuery in [re.sub(" .*","",key) for key in self.limits.keys()] + [re.sub(" .*","",group) for group in self.groups]:
+            if not re.search('\.',columnInQuery): #Lets me keep a little bit of SQL sauce for my own queries
+                self.relevantTables.add(tableToLookIn[columnInQuery])
+            
+        self.catalog = "fastcat"
+        for table in self.relevantTables:
+            if table!="fastcat" and table!="words" and table!="wordsheap":
+                self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
         #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth. 
         if 'hasword' in self.limits.keys():
@@ -387,8 +413,8 @@ class userquery():
         #self.catoperation
 
     def counts_query(self):
-        self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
-        self.catoperation = {"Occurrences_per_Million_Words":"sum(nwords)","Raw_Counts":"sum(nwords)","Percentage_of_Books":"count(nwords)","Number_of_Books":"count(nwords)"}        
+        #self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
+        #self.catoperation = {"Occurrences_per_Million_Words":"sum(nwords)","Raw_Counts":"sum(nwords)","Percentage_of_Books":"count(nwords)","Number_of_Books":"count(nwords)"}        
 
         self.operation = ','.join(self.bookoperations)
 
@@ -502,7 +528,7 @@ class userquery():
         self.ordertype = "sum(main.count*10000/nwords)"
         try:
             if self.outside_dictionary['ordertype'] == "random":
-                if self.counttype=="Raw_Counts" or self.counttype=="Number_of_Books":
+                if self.counttype==["Raw_Counts"] or self.counttype==["Number_of_Books"] or self.counttype==['WordCount'] or self.counttype==['BookCount']:
                     self.ordertype = "RAND()"
                 else:
                     self.ordertype = "LOG(1-RAND())/sum(main.count)"
@@ -617,18 +643,20 @@ class userquery():
     def arrayNest(self,array,returnt,endLength=1):
         #A recursive function to transform a list into a nested array
         if len(array)==endLength+1:
+            #This is the condition where we have the last two, which is where we no longer need to nest anymore:
+            #it's just the last value[key] = value
             value = list(array[1:])
             for i in range(len(value)):
                 try:
                     value[i] = float(value[i])
                 except:
                     pass
-            returnt[array[0]] = value
+            returnt[to_unicode(array[0])] = value
         else:
             try:
-                returnt[array[0]] = self.arrayNest(array[1:len(array)],returnt[array[0]],endLength=endLength)
+                returnt[to_unicode(array[0])] = self.arrayNest(array[1:len(array)],returnt[to_unicode(array[0])],endLength=endLength)
             except KeyError:
-                returnt[array[0]] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
+                returnt[to_unicode(array[0])] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
         return returnt
 
     def return_json(self,query='ratio_query'):
@@ -642,6 +670,9 @@ class userquery():
         return returnt
 
     def return_tsv(self,query = "ratio_query"):
+        if self.outside_dictionary['counttype']=="Raw_Counts" or self.outside_dictionary['counttype']==["Raw_Counts"]:
+            query="counts_query"
+            #This allows much speedier access to counts data if you're willing not to know about all the zeroes.
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
         results = ["\t".join([to_unicode(item[0]) for item in self.cursor.description])]
