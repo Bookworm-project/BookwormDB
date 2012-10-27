@@ -199,7 +199,7 @@ class userquery():
         
         tableToLookIn = {}
         #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
-        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='presidio' ORDER BY ENGINE DESC,TABLE_NAME;");
+        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='" + self.outside_dictionary['database']+ "' ORDER BY ENGINE DESC,TABLE_NAME;");
         columnNames = self.cursor.fetchall()
 
         for databaseColumn in columnNames:
@@ -209,8 +209,12 @@ class userquery():
 
         for columnInQuery in [re.sub(" .*","",key) for key in self.limits.keys()] + [re.sub(" .*","",group) for group in self.groups]:
             if not re.search('\.',columnInQuery): #Lets me keep a little bit of SQL sauce for my own queries
-                self.relevantTables.add(tableToLookIn[columnInQuery])
-            
+                try:
+                    self.relevantTables.add(tableToLookIn[columnInQuery])
+                except KeyError:
+                    pass
+                    #Could warn as well, but this helps back-compatability.
+
         self.catalog = "fastcat"
         for table in self.relevantTables:
             if table!="fastcat" and table!="words" and table!="wordsheap":
