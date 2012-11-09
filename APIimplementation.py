@@ -199,7 +199,7 @@ class userquery():
         
         tableToLookIn = {}
         #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
-        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='presidio' ORDER BY ENGINE DESC,TABLE_NAME;");
+        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='" + self.outside_dictionary['database'] + "' ORDER BY ENGINE DESC,TABLE_NAME;");
         columnNames = self.cursor.fetchall()
 
         for databaseColumn in columnNames:
@@ -658,7 +658,7 @@ class userquery():
             returnt[key] = value
         else:
             try:
-                returnt[key] = self.arrayNest(array[1:len(array)],returnt[array[0]],endLength=endLength)
+                returnt[key] = self.arrayNest(array[1:len(array)],returnt[key],endLength=endLength)
             except KeyError:
                 returnt[key] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
         return returnt
