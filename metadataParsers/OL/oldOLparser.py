@@ -4,16 +4,11 @@ import json
 import re
 import copy
 import codecs
-execfile("../parsingClasses.py")
 
-
-#input    = "../../Downloads/Catinfo/ocaidbooks.txt"
+input    = "../../Downloads/Catinfo/ocaidbooks.txt"
 #Our unique identifier
-#input = "../../../Downloads/Catinfo/ocaidbooks.txt"
-editions = "../../../Downloads/Catinfo/ol_dump_editions_latest.txt"
-
-#Not necessary, but to make this faster I grep out only the files with 'ocaid' in them
-editions = "../../../Downloads/Catinfo/editions.txt"
+input = "../../../Downloads/Catinfo/ocaidbooks.txt"
+editions = "../../../Downloads/Catinfo/ocaidbooks.txt"
 works = "../../../Downloads/Catinfo/ol_dump_works_latest.txt"
 authors = "../../../Downloads/Catinfo/ol_dump_authors_latest.txt"
 
@@ -23,7 +18,7 @@ multiVars  = ["lc_classifications","oclc_numbers","lccn","publish_places","publi
 hashVars   = ["languages","works","authors"]
 derivedVars = ["lc0","lc1","lc2","year","author_birth","author_death","author","author_age"]
 
-author_vars = ["name","birth_date","death_date"]
+author_vars = ["birth_date","name","death_date"]
 work_vars = ["subject_places","subject_people","subjects"]
 
 catalog = open("../../../metadata/jsoncatalog.txt",'w')
@@ -47,7 +42,6 @@ class OLline(dict):
 print "Loading author Data..."
 
 outsidedata = dict()
-
 for line in open(authors):
     entry = OLline(line)
     if entry.broken:
@@ -80,7 +74,6 @@ for line in open(works):
                 outsidedata[entry['key']][variable] = assignment
         except KeyError:
             pass
-
 print "Work Data Loaded"
 entries = []
 
@@ -90,27 +83,39 @@ entries = []
 BOOKWORM FUNCTION
 **********************
 """
+def lcPull(string):
+    lcclass = string.encode("ascii",'replace')
+    mymatch = re.match(r"^(?P<lc1>[A-Z]+) ?(?P<lc2>\d+)", lcclass)
+    if mymatch:
+        returnt = {'lc0':lcclass[0],'lc1':mymatch.group('lc1'),'lc2':mymatch.group('lc2')}
+        return returnt
+    else:
+        return(dict())
 
-"""
-This could be a lot better
-"""
+def extract_year(string):
+    years = re.findall("\d\d\d\d",string)
+    if(years):
+        return years[0]
+    else:
+        return "NULL"
+
+def genderize(author):
+    pass
+
+i=1
 
 for line in open(editions):
     entry = OLline(line)
-
     if entry.broken:
         continue
-
     output = dict()
     localhash = {"multi":{},"single":{}}
         #Don't keep all the html junk about the type of key
-
     for singleVar in singleVars:
         try:
             output[singleVar] = entry[singleVar].encode("utf-8")
         except:
             pass
-
     for multiVar in multiVars:
         try:
             output[multiVar] = entry[multiVar]
@@ -143,7 +148,7 @@ for line in open(editions):
         pass
 
     try:
-        output['year'] = date(output['publish_date']).extract_year()
+        output['year'] = extract_year(output['publish_date'])
     except KeyError:
         pass
 
@@ -153,7 +158,7 @@ for line in open(editions):
         pass
 
     try:
-        output['author_birth'] = date(output['birth_date']).extract_year()
+        output['author_birth'] = extract_year(output['birth_date'])
         output['author_age']   = int(output['year']) - int(output['author_birth'])
     except:
         pass
