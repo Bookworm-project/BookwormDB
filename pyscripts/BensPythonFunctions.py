@@ -361,7 +361,7 @@ def fix_place_metadata():
         print "\t" + code
         cursor.execute("UPDATE open_editions set country = '" + codes[code] + "' WHERE publish_country = '" + code + "' and country is null")
     World_Cities = {"Oxford":"UK", "London":"UK", "Paris":"France","Leipzig":"Germany","Berlin":"Germany", "Tokyo":"Japan","Edinburgh":"UK","Lisboa":"Portugal","Bruxelles":"Belgium", "Madrid":"Spain","Wien":"Austria","Milano":"Italy","Budapest":"Hungary","Stuttgart":"Germany","Buenos Aires":"Argentina","Firenze":"Italy","Lipsiae":"Germany"}
-    print "Fixing word Cities"
+    print "Fixing world Cities"
     for city in World_Cities.keys():
         print "\t" + city
         versions = ["_" + city,city,city+"%","_"+city+"%"]

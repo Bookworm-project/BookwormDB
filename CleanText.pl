@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 
+my @z = <>;
 #This is a perl script that accepts text from STDIN and tokenizes it in a human readable format that serves as a good interchange for serious data parsing. It is optimized for use with Internet Archive books, but may have problems with them. It attempts to follow the rules for tokenizing laid out in the Michel-Aiden supplemental materials in science, using whitespace as a delimiter between words; in addition, it attempts to use English language punctuation rules to identify the ends of sentences and indicates those using a newline character. --Ben Schmidt
 
 #It's in perl because Python versions were murderously slow.
@@ -13,7 +14,7 @@ my $use_goog_switch = 0;
 #Whether to ignore html files (which are often "File not Found" pages from webcrawling)
 my $strip_html = 0;
 my $skip_mostly_uppercase=0;
-my @z = <>;
+
 
 ##Google files start with boilerplate about the book being scanned by google: this figures out how to ignore that.
 my $googswitch = 0;
@@ -45,6 +46,9 @@ if ($strip_html) {
 }
 #Why?
 print " ";
+
+#Keep track of how long it is: break at newlines if more than 64,000 characters, since awk can't handle more than 32,000 columns
+my $currentlength=0;
 
 foreach my $line (@z) {
     $linenumber++;
@@ -89,9 +93,26 @@ foreach my $line (@z) {
 
 	$line =~ s/  +/ /g; #Replace multiple spaces with a single space
 	$line =~ s/ ?\f ?/\n/g; #put newlines at the end of sentences, and strip surrounding spaces
+
+	if ($line =~ m/\n([^\n])*$/) {
+	    $currentlength = length($1);
+	} else {
+	    $currentlength += length($line);
+	}
+
+	if ($currentlength>64000) {
+	    #the awk component fails if this is too long.
+	    #Just break at the top of the line if so.
+	    $line= "\n" . $line;
+	    $currentlength = length($line);
+	    if ($currentlength > 64000) {
+		#breaks it every 32,000 characters (which may split a word or two) until it's down to size.
+		$line =~ s/([^\n]{1,32766})/$1\n/gs;
+	    }
+	}
 	print "$line";
-	
     }
     #the words "google.com" comes at the end of the Google Intro page; this catches it even when it's poorly ocr'ed.
     if ($line =~ m/[gq]oo[gq][li1]e\W*com/gi) {$googswitch = 1;}# $switchedat = $linenumber; print "Switching:\t"}
+
 }
