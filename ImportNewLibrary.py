@@ -36,28 +36,58 @@ for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unig
     if not os.path.exists("../" + directory):
         sh(['mkdir', '../' + directory])
 
+def CopyDirectoryStructuresFromRawDirectory()
+    print "Copying directory Structures from primary folder to later ones..."
+    sh(["rsync", "-a --include '*/' --exclude '*'","../texts/raw/", "../texts/cleaned"])
+    #Copy the later ones from cleaned to save time since "cleaned" will be empty, while "raw" will be full.
+    for directory in ["unigrams","bigrams","encoded/unigrams","encoded/bigrams"]:
+        sh(["rsync", "-a --include '*/' --exclude '*'","../texts/cleaned/", "../texts/" + directory])
+
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
-print "Cleaning the texts"
-sh(['python','master.py','clean'])
-print "Creating 1 gram counts"
-sh(['python','master.py','unigrams'])
-print "Creating 2gram counts"
-sh(['python','master.py','bigrams'])
-#We could add 3grams, and so forth, here.
 
-print "Would be creating 3gram counts..."
+def CleanTexts():
+    print "Cleaning the texts"
+    sh(['python','master.py','clean'])
+
+def MakeUnigramCounts():
+    print "Creating 1 gram counts"
+    sh(['python','master.py','unigrams'])
+
+def MakeBigramCounts():
+    print "Creating 2gram counts"
+    sh(['python','master.py','bigrams'])
+    #We could add 3grams, and so forth, here.
+
+def MakeTrigramCounts():
+    print "Would be creating 3gram counts..."
+
+
 #Just kidding, this isn't implemented
-print "Creating a master wordlist"
-
-#The code in WordsTableCreate.py is the one that could be heavily optimized, and might be worth it. It also needs to be changed to allow updating.
-sh(['python','WordsTableCreate.py'])
-
-from WordsTableCreate import WordsTableCreate
-WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
 #These tend to be the most time-intensive scripts, since they involve a lot of dictionary lookups
-print "Creating 1grams encodings"
-sh(['python','master.py','encode1'])
 
-print "Creating 2grams encodings"
-sh(['python','master.py','encode2'])
+def EncodeUnigrams():
+    print "Creating 1grams encodings"
+    sh(['python','master.py','encode1'])
+
+def EncodeBigrams():
+    print "Creating 2grams encodings"
+    sh(['python','master.py','encode2'])
+    
+if __name__=="__main__":
+    CopyDirectoryStructuresFromRawDirectory()
+
+    CleanTexts()
+    MakeUnigramCounts()
+    MakeBigramCounts()
+    MakeTrigramCounts()
+
+    print "Creating a master wordlist"
+    #The code in WordsTableCreate.py is the one that could be heavily optimized, and might be worth it.
+    #Old version: sh(['python','WordsTableCreate.py'])
+    from WordsTableCreate import WordsTableCreate
+    #These values shouldn't be hard-coded in, probably:
+    WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
+
+    EncodeUnigrams()
+    EncodeBigrams()
