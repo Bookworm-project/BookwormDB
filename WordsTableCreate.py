@@ -153,4 +153,5 @@ def WordsTableCreate(maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
     call(["mv", "../texts/wordlist/newwordlist.txt", "../texts/wordlist/wordlist.txt"])
     #call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 
-WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
+if __name__ == "__main__":
+    WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
