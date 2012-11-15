@@ -26,7 +26,8 @@ The easiest form of parallelization at the moment is just to shift around the
 number of files in each location at /texts/textfiles. This allows the use of multiple processors.
 Adding more locations each with separate bookid files would allow easy multi-machine parallelization as well.
 
-Currently this whole series takes a couple days on a large (8-core) machine with a million article-length documents.
+Currently this whole series takes a couple days on a large (8-core) machine with a million article-length documents and remote storage of files.
+Disk access seems to be a major bottleneck, as does poor parallelization.
 
 """
 
@@ -50,8 +51,9 @@ print "Creating a master wordlist"
 
 #The code in WordsTableCreate.py is the one that could be heavily optimized, and might be worth it. It also needs to be changed to allow updating.
 sh(['python','WordsTableCreate.py'])
-#We could add an option to this to specify the size of the dictionary used. Currently hardcoded in there. 
-#On very large dictionaries, this may crash for lack of memory on machines with insufficient RAM; the script is an obvious candidate for map-reduce or something.
+
+from WordsTableCreate import WordsTableCreate
+WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
 #These tend to be the most time-intensive scripts, since they involve a lot of dictionary lookups
 print "Creating 1grams encodings"
