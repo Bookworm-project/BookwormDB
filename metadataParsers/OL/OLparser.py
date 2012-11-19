@@ -4,6 +4,13 @@ import json
 import re
 import copy
 import codecs
+import sys
+
+sys.path.append("..")
+
+from parsingClasses import *
+
+
 execfile("../parsingClasses.py")
 
 
@@ -48,6 +55,7 @@ print "Loading author Data..."
 
 outsidedata = dict()
 
+"""
 for line in open(authors):
     entry = OLline(line)
     if entry.broken:
@@ -82,18 +90,10 @@ for line in open(works):
             pass
 
 print "Work Data Loaded"
+"""
 entries = []
 
-
-"""
-**********************
-BOOKWORM FUNCTION
-**********************
-"""
-
-"""
-This could be a lot better
-"""
+i=0 #counter for status updates
 
 for line in open(editions):
     entry = OLline(line)
@@ -113,7 +113,7 @@ for line in open(editions):
 
     for multiVar in multiVars:
         try:
-            output[multiVar] = entry[multiVar]
+            output[multiVar] = entry[multiVar].encode("utf-8")
         except:
             pass
 
@@ -123,6 +123,29 @@ for line in open(editions):
             tmpresults.append(lochash['key'])
         output[hashVar] = tmpresults
 
+    try:
+        internetArchiveID = ocaid(output['ocaid'])
+        output['filename'] = re.sub(".txt","",internetArchiveID.fileLocation())
+    except:
+        #if it doesn't have an ocaid field, give up and move to the next one.
+        continue
+
+    try:
+        output['publish'] = date(output['publish_date']).extract_year()
+    except KeyError:
+        pass
+        
+    try:
+        output['editionid'] = entry['key'].encode("utf-8")
+        titlestring = "<em>" + output.get('title',"[No Title]") + "</em>"
+        authorstring = output.get('author','[No author]')
+        publishstring = "(" + str(output.get('year','undated')) + ")"
+        output['searchstring'] = authorstring + ", " + titlestring + " " + publishstring + ' <a href="http://openlibrary.org' + output['editionid'] + '">more info</a> <a href="' + internetArchiveID.readerLocation() + '">read</a>'
+    except:
+        print output.keys()
+        raise
+
+    """
     for var in author_vars:
         try:
             output[var] = outsidedata[output['authors'][0]][var]
@@ -134,16 +157,11 @@ for line in open(editions):
             output[var] = outsidedata[output['works'][0]][var]
         except KeyError:
             pass
-
+            """
     try:
-        lcsubs = lcPull(entry['lc_classifications'][0])
+        lcsubs = LCClass(entry['lc_classifications'][0]).split()
         for key in lcsubs.keys():
             output[key] = lcsubs[key]
-    except KeyError:
-        pass
-
-    try:
-        output['year'] = date(output['publish_date']).extract_year()
     except KeyError:
         pass
 
@@ -152,22 +170,25 @@ for line in open(editions):
     except KeyError:
         pass
 
-    try:
-        output['author_birth'] = date(output['birth_date']).extract_year()
-        output['author_age']   = int(output['year']) - int(output['author_birth'])
-    except:
-        pass
-
+#    try:
+# #       output['author_birth'] = date(output['birth_date']).extract_year()
+#  #      output['author_age']   = int(output['year']) - int(output['author_birth'])
+#    except:
+#        pass
 
     entries.append(output)
     #Periodically write out the results
-    if len(entries)>1000:
+    if len(entries)>=1000:
         for individual in entries:
-            catalog.write(json.dumps(individual) + "\n")
+            try:
+                catalog.write(json.dumps(individual) + "\n")
+            except UnicodeDecodeError:
+                print "Unicode Error on "
+                print individual
+
         print str(i*1000) + "\r"
         i = i+1
         entries = []
-
                  
 for individual in entries:
     catalog.write(json.dumps(individual) + "\n")
