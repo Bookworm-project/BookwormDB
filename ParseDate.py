@@ -12,7 +12,6 @@ def ensure_dir(f):
     if not os.path.exists(d):
         os.makedirs(d)
 
-
 f = open("../metadata/field_descriptions.json", "r")
 fields = json.loads(f.read())
 f.close()
@@ -34,9 +33,9 @@ for field in fields_to_derive:
     for derive in field["derived"]:
         if "aggregate" in derive: output.append({"field":'_'.join([field["field"], derive["resolution"], derive["aggregate"]]), "datatype":"time", "type":"integer", "unique":True})
         else: output.append({"field":'_'.join([field["field"], derive["resolution"]]), "datatype":"time", "type":"integer", "unique":True})
+
 f.write(json.dumps(output))
 f.close()
-
 
 f = open("../metadata/jsoncatalog.txt", "r")
 md = f.readlines()
@@ -48,7 +47,14 @@ f = open("../metadata/jsoncatalog_derived.txt", "w")
 for data in md:
     line = json.loads(data)
     for field in fields_to_derive:
-        content = line[field["field"]].split('-')
+        try:
+            content = line[field["field"]].split('-')
+        except KeyError:
+            continue
+        except AttributeError:
+            #Happens if it's an integer,which is a forgiveable way to enter a year:
+            content = [str(line[field['field']])]
+            
         if len(content) == 0: continue
         else:
             to_derive = field["derived"]
@@ -64,5 +70,6 @@ for data in md:
                     else: continue
             line.pop(field["field"])
     f.write(json.dumps(line) + '\n')
+
 f.close()
     

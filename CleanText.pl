@@ -8,13 +8,20 @@ my @z = <>;
 #It's in perl because Python versions were murderously slow.
 
 #Here are some options that may be customized with values that evaulate true or false:
-#Whether to strip Google Book scan language (also removes books legitimately about Google):
-my $use_goog_switch = 0;
+#Whether to strip Google Book scan language (also removes texts legitimately about Google):
+
+#All these options should be set to zero before pushing to the main branch.
+
+my $use_goog_switch = 1;
 
 #Whether to ignore html files (which are often "File not Found" pages from webcrawling)
-my $strip_html = 0;
-my $skip_mostly_uppercase=0;
+my $strip_html = 1;
+my $skip_mostly_uppercase=1;
 
+
+###################
+### End options ###
+###################
 
 ##Google files start with boilerplate about the book being scanned by google: this figures out how to ignore that.
 my $googswitch = 0;
@@ -27,6 +34,7 @@ my $linenumber = 0;
 my $checkrange = 0;
 
 if ($use_goog_switch) {
+    #It checks
     $checkrange=75
 }
 
@@ -94,7 +102,8 @@ foreach my $line (@z) {
 	$line =~ s/  +/ /g; #Replace multiple spaces with a single space
 	$line =~ s/ ?\f ?/\n/g; #put newlines at the end of sentences, and strip surrounding spaces
 
-	if ($line =~ m/\n([^\n])*$/) {
+	if ($line =~ m/(\n[^\n]*)$/) {
+	    #Plus one for the newline
 	    $currentlength = length($1);
 	} else {
 	    $currentlength += length($line);
