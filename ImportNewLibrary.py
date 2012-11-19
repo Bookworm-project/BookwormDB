@@ -23,7 +23,7 @@ Example creation of one such text file, run from ../texts/raw: (this would run b
 ls *.txt | awk -F '.txt' '{count++; print count "\t" $1;}' > ../textids/cat0001.txt
 
 The easiest form of parallelization at the moment is just to shift around the 
-number of files in each location at /texts/textfiles. This allows the use of multiple processors.
+number of files in each location at ../texts/textfiles. This allows the use of multiple processors.
 Adding more locations each with separate bookid files would allow easy multi-machine parallelization as well.
 
 Currently this whole series takes a couple days on a large (8-core) machine with a million article-length documents and remote storage of files.
@@ -36,12 +36,11 @@ for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unig
     if not os.path.exists("../" + directory):
         sh(['mkdir', '../' + directory])
 
-def CopyDirectoryStructuresFromRawDirectory()
+def CopyDirectoryStructuresFromRawDirectory():
+    #Internal python solutions for this are not as fast or as clean as simply using rsync in the shell.
+    #That's what the code below does. Downside: it requires rsync.
     print "Copying directory Structures from primary folder to later ones..."
-    sh(["rsync", "-a --include '*/' --exclude '*'","../texts/raw/", "../texts/cleaned"])
-    #Copy the later ones from cleaned to save time since "cleaned" will be empty, while "raw" will be full.
-    for directory in ["unigrams","bigrams","encoded/unigrams","encoded/bigrams"]:
-        sh(["rsync", "-a --include '*/' --exclude '*'","../texts/cleaned/", "../texts/" + directory])
+    sh(["sh","./copyDirectoryStructures.sh"])
 
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
 
@@ -61,7 +60,6 @@ def MakeBigramCounts():
 def MakeTrigramCounts():
     print "Would be creating 3gram counts..."
 
-
 #Just kidding, this isn't implemented
 
 #These tend to be the most time-intensive scripts, since they involve a lot of dictionary lookups
@@ -74,9 +72,10 @@ def EncodeBigrams():
     print "Creating 2grams encodings"
     sh(['python','master.py','encode2'])
     
-if __name__=="__main__":
+if (__name__=="__main__"):
+    #This won't get run much, I imagine.
+    #remember that the textid have to be in place _before_ these scripts are run.
     CopyDirectoryStructuresFromRawDirectory()
-
     CleanTexts()
     MakeUnigramCounts()
     MakeBigramCounts()

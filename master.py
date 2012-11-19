@@ -76,12 +76,7 @@ class book:
         self.start = "../texts/unigrams/" + self.coreloc
         self.destination = "../texts/encoded/unigrams/" + self.coreloc
         self.execute = self.encode
-    def upload(self):
-        #Yeah, why not do this here?
-        db.query("SELECT count(*) FROM master_bookcounts JOIN fastcat USING (bookid)")
-        cursor.fetchall()
-        #if it hasn't already been added:
-        db.query("LOAD DATA INFILE")
+
     def encode(self):
         #This works for any number of ngrams as an input file.
         self.wordids = self.auxdata
@@ -128,6 +123,7 @@ class book:
     def ngrams(self,n):
         #This generalizes writing an awk script to pull out gram counts
         #The join loop here prints a string like '$(i+0) " " $(i+1) " " $(i+2)' that gets the words in position i to i+2 plus two as a group for the thing to use.
+        #At some point 'unigrams' and 'bigrams' should be deleted as methods, and only this should be used.
         self.start_operator = "cat"
         self.start = "../texts/cleaned/" + self.coreloc
         self.function = """awk '{ for(i=1; i<NF-""" +str(n-1)+ """; i++)
@@ -137,6 +133,7 @@ class book:
                                   for(i in count){print i, count[i]}}'"""
         self.destination = "../texts/bigrams/" + self.coreloc
         self.execute     = self.shell_execute
+
     def clean(self):
         self.start_operator = "cat"
         self.start = "../texts/raw/" + self.coreloc
