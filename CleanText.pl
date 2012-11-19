@@ -12,11 +12,11 @@ my @z = <>;
 
 #All these options should be set to zero before pushing to the main branch.
 
-my $use_goog_switch = 1;
+my $use_goog_switch = 0;
 
 #Whether to ignore html files (which are often "File not Found" pages from webcrawling)
-my $strip_html = 1;
-my $skip_mostly_uppercase=1;
+my $strip_html = 0;
+my $skip_mostly_uppercase=0;
 
 
 ###################
