@@ -8,10 +8,12 @@ import numpy #used for smoothing.
 import copy
 import decimal
 """
-#These are here so we can support multiple databases with different naming schemes from a single API. A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
+#These are here so we can support multiple databases with different naming schemes from a single API.
+#A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
 #that's so memory tables can be used in certain cases for fast, hashed matching, but longer form data (like book titles)
 #can be stored on disk. Different queries use different types of calls.
-#Also, certain metadata fields are stored separately from the main catalog table; I list them manually here to avoid a database call to find out what they are,
+#Also, certain metadata fields are stored separately from the main catalog table;
+#I list them manually here to avoid a database call to find out what they are,
 #although the latter would be more elegant. The way to do that would be a database call
 #of tables with two columns one of which is 'bookid', maybe, or something like that.
 #(Or to add it as error handling when a query failed; only then check for missing files.
