@@ -38,8 +38,6 @@ MakeTrigramCounts() #Doesn't do nothing yet.
 print "Creating a master wordlist" #These values shouldn't be hard-coded in, probably:
 WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
-
-
 EncodeUnigrams()
 EncodeBigrams()
 
