@@ -8,7 +8,7 @@ from subprocess import call
 import codecs
 from codecs import open as codecopen
 
-def WordsTableCreate(maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
+def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
 #20 million words should be about 2 gigabyte of memory, which is plenty on the servers we use: flush out every time we hit that limit.
 
     wordcounts = dict()
@@ -24,7 +24,7 @@ def WordsTableCreate(maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
             filename = line.split('\t')[1]
             filename = re.sub('\n','',filename)
             try:
-                print filename + "dict of " + str(len(wordcounts))
+                print "counting unigrams in " + filename + " and adding to memory wordlist of length " + str(len(wordcounts))
                 reading = codecopen('../texts/unigrams/'+filename+'.txt',encoding="UTF-8")
                 readnum = readnum+1
                 logfile.write(str(readnum) + " " + filename)
@@ -46,11 +46,10 @@ def WordsTableCreate(maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
                      #Now we need to delete the words that appear below a cutoff that we find dynamically:
             except UnicodeDecodeError:
                 #These just happen, and after a certain point I'm sick of tracking down exactly why to preserve some bizzaro character
-                #(It's not accents we're losing, it's stranger birds)
+                #(It's not accents we're losing, it's stranger birds; I think characters outside of the Unicode alphabet entirely, or something like that.)
                 pass
             except:
-                print wordEntry
-                raise
+                pass
             #print "Error on WordsTableCreate: could not find file " + filename + " (...moving on to next file...)"
             if len(wordcounts) > maxMemoryStorage:
                 print "exporting to disk at file number " + str(filenum)
@@ -153,4 +152,5 @@ def WordsTableCreate(maxDictionaryLength=2000000,maxMemoryStorage = 20000000):
     call(["mv", "../texts/wordlist/newwordlist.txt", "../texts/wordlist/wordlist.txt"])
     #call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
 
-WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
+if __name__ == "__main__":
+    WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)

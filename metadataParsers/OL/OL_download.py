@@ -26,7 +26,6 @@ def exec_commands(cmds):
     while True:
         while cmds and len(processes) < max_task:
             task = cmds.pop()
-            #print list2cmdline(task)
             processes.append(Popen(task, stdout=PIPE))
         for p in processes:
             if done(p):
@@ -43,6 +42,7 @@ def exec_commands(cmds):
 max_task = 20
 cmds = []
 
+
 for line in filelist:
     array = json.loads(line)
     try:
@@ -51,18 +51,23 @@ for line in filelist:
         continue
     #if the file exists, we don't need to download it.
     try:
-        open("../../../texts/raw/" + id.fileLocation())
-        print ocaid + "already exists"
+        foundIt = open("../../../texts/raw/" + id.fileLocation())
+        print id.fileLocation() + " already exists"
+
     except:
         try:
-            os.makedirs(id.homeDirectory())
+            os.makedirs("../../../texts/raw/" + id.homeDirectory())
         except OSError:
             #Usually the directory should be there.
             pass
+        except UnicodeEncodeError:
+            #This one shouldn't be happening, but does.
+            continue
 
         cmds.append(['curl','-L', '-o', "../../../texts/raw/" + id.fileLocation() , id.onlineLocation()])
-        print "Adding " + id.raw() + " to stack"
-    if len(cmds) >= 10000:
+        print "Adding " + id.string + " to stack"
+
+    if len(cmds) >= 1000:
         #This is slightly inefficient, but not so bad--the 10,000 commands are processed, 12 at a time, until they're all done:
         #Then it clears the list, and moves on again to building it up.
         exec_commands(cmds)
