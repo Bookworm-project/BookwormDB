@@ -16,12 +16,13 @@ dbname = sys.argv[1]
 dbuser = sys.argv[2]
 dbpassword = sys.argv[3]
 
-Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
-
-
 print "Parsing the dates to a native format"
 #This should be brought into the modular fold.
 call(['python','ParseDate.py',dbname])
+
+Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+
+
 
 "Writing metadata to new catalog file..."
 
