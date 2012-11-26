@@ -9,6 +9,7 @@ from subprocess import call
 from CreateDatabase import *
 from ImportNewLibrary import *
 from WordsTableCreate import WordsTableCreate
+from tokenizeAndEncodeFiles import bookidlist
 
 #First off: what are we using? Pull a dbname from command line input.                                                                 
 #As well as the username and password. 
@@ -39,9 +40,11 @@ print "Creating a master wordlist" #These values shouldn't be hard-coded in, pro
 WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
 
-
-EncodeUnigrams()
-EncodeBigrams()
+bookidList = bookidlist()
+bookidList.encodeUnigrams()
+bookidList.encodeBigrams()
+#EncodeUnigrams()
+#EncodeBigrams()
 
 
 """
