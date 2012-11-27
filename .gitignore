@@ -2,6 +2,7 @@
 *.log
 *.png
 *~
+*#
 *.tmp
 kyoto*
 .DS_Store
