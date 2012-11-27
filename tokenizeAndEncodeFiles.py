@@ -8,9 +8,6 @@ import re
 """
 I want to use multiprocessing to actually spawn real child processes: this is going to replace
 master.py to do that.
-
-For now, only the encoding methods are implemented, because those are where the slowdowns appeared
-the most extreme.
 """
 
 
@@ -40,27 +37,89 @@ class bookidlist:
     def encode(self,mode):
         #mode is 'unigrams' or 'bigrams'
         self.args = [['perl','encodeText.pl',mode] + booklist for booklist in self.booklists]
-        
-    def prepArgList(self,method,length=None):
-        getattr(self,method)(length)
-        
+
+    def tokenize(self,mode):
+        if mode=='trigrams':
+            n=3
+        if mode=='bigrams':
+            n=2
+        if mode=='unigrams':
+            n=1
+        else:
+            print "must specify mode of 'unigrams' or 'bigrams'" 
+            raise
+        for bookid in self.bookids:
+            bookinstance = book(bookid)
+            bookinstance.ngrams(n)
+            self.args.append(bookinstance.generateArgument())
+        self.execute(inShell=True)
+
+    def clean(self):
+        for bookid in self.bookids:
+            bookinstance = book(bookid)
+            bookinstance.clean()
+            self.args.append(bookinstance.generateArgument())
+        self.execute(inShell=True)
+
     def encodeUnigrams(self):
-        self.prepArgList('encode','unigrams')
+        self.encode('unigrams')
         self.execute()
 
     def encodeBigrams(self):
-        self.prepArgList('encode','bigrams')
+        self.encode('bigrams')
         self.execute()
         
-    def execute(self):
+    def execute(self,inShell=False)
         pool = multiprocessing.Pool(processes=self.processors)
-        pool.map(subprocess.call,self.args)
+        pool.map(subprocess.call,self.args,shell=inShell)
+
+
+class book:
+    #This class takes a bookid. The first call is the method to prep (encode2,onegrams, etc); it creates an attribute self.execute() which can then be called to write the next file in the chain.
+    #Ideally these could be linked together more flexibly than they are here to do multiple operations on a book at once in memory.
+    #The different operations are cast in terms of pipes, because the basic stemming and tokenizing scripts are written mostly in perl and awk, not python
+    #They are easy enough to call from the command line. 
+    def __init__(self,bookid):
+        self.bookid = bookid
+        self.coreloc = bookid + ".txt"
+        
+    def ngrams(self,n):
+        #This generalizes writing an awk script to pull out gram counts
+        #The join loop here prints a string like '$(i+0) " " $(i+1) " " $(i+2)' that gets the words in position i to i+2 plus two as a group for the thing to use. 
+        #At some point 'unigrams' and 'bigrams' should be deleted as methods, and only this should be used.
+        self.start_operator = "cat"
+        self.start = "../texts/cleaned/" + self.coreloc
+        self.function = """awk '{ for(i=1; i<NF-""" +str(n-1)+ """; i++)                                                                                   
+                 {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,n)]) + """]++}                                                              
+                 }                                                                                                     
+                 END{          
+                 for(i in count){print i, count[i]}}'"""
+        self.destination = "../texts/bigrams/" + self.coreloc
+        self.execute   = self.shell_execute
+                 
+    def clean(self):
+        self.start_operator = "cat"
+        self.start = "../texts/raw/" + self.coreloc
+        self.function = "perl CleanText.pl"
+        self.destination = "../texts/cleaned/" + self.coreloc
+        self.execute = self.shell_execute
+
+    def generateArgument(self):
+        if os.path.exists(self.destination):
+            print "No cleaning. "+self.destination+" already exists."
+            return
+        if not os.path.exists(self.start):
+            print "No cleaning. "+self.start+" does not exist."
+            return
+        if os.path.getsize(self.start) < 10:
+            print "No cleaning. "+self.start+" is too small."
+            return
+        print "working on " + self.bookid
+        shell_operators = [self.start_operator,self.start,"|",self.function,">",self.destination]
+        return(shell_operators)
+
 
 if __name__ == '__main__':
     bookids = bookidlist()
-    bookids.prepArgList('encode','unigrams')
-    bookids.execute()
-    bookids.prepArgList('encode','bigrams')
-    bookids.execute()
-
-
+    bookids.encodeUnigrams()
+    bookids.encodeBigrams()

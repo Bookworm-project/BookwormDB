@@ -19,7 +19,6 @@ dbpassword = sys.argv[3]
 
 Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
 
-
 print "Parsing the dates to a native format"
 #This should be brought into the modular fold.
 call(['python','ParseDate.py',dbname])
@@ -31,26 +30,24 @@ write_metadata(Bookworm.variables)
 #These are imported with ImportNewLibrary
 CopyDirectoryStructuresFromRawDirectory()
 
-CleanTexts()
-MakeUnigramCounts()
-MakeBigramCounts()
-MakeTrigramCounts() #Doesn't do nothing yet.
+bookidList = bookidlist()
+
+bookidList.clean()
+bookidList.tokenize('unigrams')
+bookidList.tokenize('bigrams')
+#bookidList.tokenize('trigrams')
 
 print "Creating a master wordlist" #These values shouldn't be hard-coded in, probably:
 WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
-
-bookidList = bookidlist()
 bookidList.encodeUnigrams()
 bookidList.encodeBigrams()
-#EncodeUnigrams()
-#EncodeBigrams()
 
 
 """
 Most of these commands are inside CreateNewDatabase.py. For manual constructions or 
 stop-and-start operations, it's very helpful to have them spread out like this.
-The class initialization should be quick, but does create a database if it's not there.
+The class initialization should be quick, but--fair warning--does create a database if it's not there.
 """
 
 Bookworm.load_word_list()
