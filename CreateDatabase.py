@@ -275,7 +275,8 @@ class BookwormSQLDatabase:
         print "loading data into catalog using LOAD DATA LOCAL INFILE..."
         loadcode = """LOAD DATA LOCAL INFILE '../metadata/catalog.txt' 
                    INTO TABLE catalog
-                   (bookid,filename,""" + ','.join([field.field for field in self.variables if field.unique]) + """) """
+                   (bookid,filename,""" + ','.join([field.field for field in self.variables if field.unique]) + """) 
+                   FIELDS ESCAPED BY ''"""
         print loadcode
         db.query(loadcode)
         print "enabling keys on catalog"
@@ -300,7 +301,8 @@ class BookwormSQLDatabase:
             """ +dfield.slowSQL(withIndex=True) + """
             );""")
             db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
-            loadcode = """LOAD DATA LOCAL INFILE '../metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk;"""
+            loadcode = """LOAD DATA LOCAL INFILE '../metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk
+                   FIELDS ESCAPED BY '';"""
             db.query(loadcode)
             cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
             print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
