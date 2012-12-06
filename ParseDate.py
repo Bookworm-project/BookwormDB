@@ -3,7 +3,14 @@ import datetime
 import time
 import sys
 import os
+import re
 
+"""A
+As well as parsing dates into cyclical forms, this also does a little basic 
+string substitution to remove some disallowed characters (\t,\n) from user-supplied metadata.
+
+
+"""
 
 PROJECT = sys.argv[1]
 
@@ -69,7 +76,11 @@ for data in md:
                     elif derive["resolution"] == 'day': line[field["field"] + "_day"] = (datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days
                     else: continue
             line.pop(field["field"])
-    f.write(json.dumps(line) + '\n')
+    dumped = json.dumps(line)
+    #absolutely no tabs or newlines are allowed in the json: this takes them out.
+    #This doesn't do precisely the right thing if they're trying to write a literal sequence with multiple escapes.
+    dumped = re.sub(r"\\[tn]",r"",dumped);
+    f.write(dumped + '\n')
 
 f.close()
     
