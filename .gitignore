@@ -5,3 +5,4 @@
 *.tmp
 kyoto*
 .DS_Store
+*.pyc

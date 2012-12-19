@@ -2,11 +2,13 @@
 import subprocess
 import sys
 import time
+import json
 from subprocess import Popen,list2cmdline,PIPE
+execfile("../parsingClasses.py")
 
 #This file downloads a list of ocaids, in parallel.
 
-filelist = open("../../Downloads/Catinfo/cleaned/catalog.txt")
+filelist = open("../../../metadata/jsoncatalog.txt")
 
 def exec_commands(cmds):
     ''' Exec commands in parallel in multiple process                                   
@@ -24,7 +26,6 @@ def exec_commands(cmds):
     while True:
         while cmds and len(processes) < max_task:
             task = cmds.pop()
-            #print list2cmdline(task)
             processes.append(Popen(task, stdout=PIPE))
         for p in processes:
             if done(p):
@@ -38,18 +39,35 @@ def exec_commands(cmds):
         else:
             time.sleep(0.05)
 
-max_task = 12
+max_task = 20
 cmds = []
 
+
 for line in filelist:
-    ocaid = line.split("\t")[1]
-    print ocaid
+    array = json.loads(line)
+    try:
+        id = ocaid(array['ocaid'])
+    except:
+        continue
     #if the file exists, we don't need to download it.
     try:
-        open("../../raw/" + ocaid + ".txt")
+        foundIt = open("../../../texts/raw/" + id.fileLocation())
+        print id.fileLocation() + " already exists"
+
     except:
-        cmds.append(['curl','-L', '-o', "../../raw/" + ocaid + ".txt", "http://archive.org/download/" + ocaid + "/" + ocaid + "_djvu.txt"])
-    if len(cmds) >= 10000:
+        try:
+            os.makedirs("../../../texts/raw/" + id.homeDirectory())
+        except OSError:
+            #Usually the directory should be there.
+            pass
+        except UnicodeEncodeError:
+            #This one shouldn't be happening, but does.
+            continue
+
+        cmds.append(['curl','-L', '-o', "../../../texts/raw/" + id.fileLocation() , id.onlineLocation()])
+        print "Adding " + id.string + " to stack"
+
+    if len(cmds) >= 1000:
         #This is slightly inefficient, but not so bad--the 10,000 commands are processed, 12 at a time, until they're all done:
         #Then it clears the list, and moves on again to building it up.
         exec_commands(cmds)
@@ -57,6 +75,4 @@ for line in filelist:
 
 #And once at the end, since less than a thousand will be there...
 exec_commands(cmds)
-
-
 
