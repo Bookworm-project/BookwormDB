@@ -26,7 +26,7 @@ call(['python','ParseDate.py',dbname])
 "Writing metadata to new catalog file..."
 
 write_metadata(Bookworm.variables)
-
+"""
 #These are imported with ImportNewLibrary
 CopyDirectoryStructuresFromRawDirectory()
 
@@ -43,16 +43,16 @@ WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 bookidList.encodeUnigrams()
 bookidList.encodeBigrams()
 
-
+"""
 """
 Most of these commands are inside CreateNewDatabase.py. For manual constructions or 
 stop-and-start operations, it's very helpful to have them spread out like this.
 The class initialization should be quick, but--fair warning--does create a database if it's not there.
 """
 
-Bookworm.load_word_list()
-Bookworm.create_unigram_book_counts()
-Bookworm.create_bigram_book_counts()
+#Bookworm.load_word_list()
+#Bookworm.create_unigram_book_counts()
+#Bookworm.create_bigram_book_counts()
 Bookworm.load_book_list()
 Bookworm.create_memory_table_script()
 Bookworm.jsonify_data()
