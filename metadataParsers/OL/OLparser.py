@@ -7,9 +7,10 @@ import codecs
 import sys
 
 sys.path.append("..")
+sys.path.append("../includes/nameparser-0.2.3")
 
 from parsingClasses import *
-
+from nameparser
 
 execfile("../parsingClasses.py")
 

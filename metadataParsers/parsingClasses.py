@@ -2,7 +2,7 @@
 
 import re
 import os
-
+import decimal
 """
 These are classes that define types of strings we might want to use with Bookworm objects.
 For all of them, there are various different formats that the data might come in:
@@ -11,6 +11,15 @@ Where possible, we can use other applications for this (as, example, in the date
 Some aspects (like to pull the gender for a name) are pretty original, although it's something
 to build them out.
 """
+
+def to_unicode(obj, encoding='utf-8'):
+    if isinstance(obj, basestring):
+        if not isinstance(obj, unicode):
+            obj = unicode(obj, encoding)
+    if isinstance(obj,int) or isinstance(obj,float) or isinstance(obj,decimal.Decimal):
+        obj=unicode(str(obj),encoding)
+    return obj
+
 
 class ocaid():
     #An id from the Internet Archive.
@@ -33,10 +42,6 @@ class ocaid():
     def onlineLocation(self):
         return "http://archive.org/download/" + self.string + "/" + self.string + "_djvu.txt"
 
-    def string(self):
-        #Probably not necessary, but just for constancy of methods
-        return(self.string)
-
     def readerLocation(self):
         return("http://archive.org/stream/" + self.string)
 
@@ -55,7 +60,6 @@ class LCClass():
             return returnt
         else:
             return(dict())
-
 
 """
 This could do better at extracting months, etc, when they are available.
@@ -82,20 +86,5 @@ class date():
                 return years[0]
         return "NULL"
 
-#name inherits from string, but lets you pull first or last names off.
-
-class name():
-  def __init__(self,string):
-    self.string = string
-
-  def split(self):
-      if re.search(",",self.string):
-          self.string
-  def firstName(self):
-    pass
-  def lastName(self):
-    pass
-  def genderize(self):
-    first = self.firstName()
-    pass
+#name is imported from the parsenames package
 
