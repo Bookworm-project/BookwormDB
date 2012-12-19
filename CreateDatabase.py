@@ -30,6 +30,11 @@ class DB:
         cursor.execute("USE " + self.dbname)
 
     def query(self, sql):
+        """
+        Billy defined a separate query method here so that the common case of a connection being
+        timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
+        the connection and starts up nicely again.
+        """
         try:
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -46,7 +51,6 @@ class dataField:
     The 'definition' here means the user-generated array (submitted in json but 
     parsed out before this) described in the Bookworm interface.
     This knows whether it's unique, whether it should treat itself as a date, and so forth.
-    Looking at this again, I think it might actually lose all the dict attributes. But that's OK.
     """
     def __init__(self,definition,dbToPutIn):
         for key in definition.keys():
@@ -79,7 +83,7 @@ class dataField:
         if self.datatype!='etc':
             if self.type == "character":
                 cursor = self.dbToPutIn.query("SELECT max(char_length("+self.field+")) FROM " + self.table)
-                length = max([1,cursor.fetchall()[0][0]]) #in case it's null
+                length = max([1,cursor.fetchall()[0][0]]) #in case it's null, we don't want an error on VARCHAR(0) for later.
                 return " " + self.field + " " + "VARCHAR(" + str(int(length)) + ")"
             if self.type == "integer":
                 return " " + self.field + " " + "INT"
@@ -91,7 +95,11 @@ class dataField:
             return None
 
     def jsonDict(self):
+        """
         #This builds a JSON dictionary that can be loaded into outside bookworm in the "options.json" file.
+        It's probably a bad design decision, but we can live with it: in the medium-term, all this info
+        should just be loaded directly from the database somehow.
+        """
         mydict = dict()
         #It gets confusingly named: "type" is the key for real name ("time", "categorical" in the json), but also the mysql key ('character','integer') here. That would require renaming code in a couple places.
         mydict['type'] = self.datatype
@@ -126,6 +134,51 @@ class dataField:
             mydict["categorical"] = {"descriptions":descriptions,"sort_order":sort_order}
         return mydict
 
+    def BuildIdTable(self):
+
+        """
+        This builds an integer crosswalk ID table with a field that stores categorical
+        information in the fewest number of bytes. This is important because it can take
+        significant amounts of time to group across categories if they are large: 
+        for example, with 4 million newspaper articles, on one server a GROUP BY with 
+        a 12-byte VARCHAR field takes 5.5 seconds, but a GROUP BY with a 3-byte MEDIUMINT
+        field takes 2.2 seconds. That sort of query is included in every single bookworm 
+        search, so it's necessary to optimize. Plus, it means we can save space on memory storage
+        in important ways as well.
+        """
+
+        #First, figure out how long the ID table has to be and make that into a datatype.
+        #Joins and groups are slower the larger the field grouping on, so this is worth optimizing.
+        cursor = self.dbToPutIn.query(self,"SELECT count(DISTINCT "+ self.field + ") FROM " + self.table)
+        self.nCategories = cursor.fetchall()[0][0]
+        self.intType = "INT UNSIGNED"
+        if (self.nCategories <= 16777215): self.intType="MEDIUMINT UNSIGNED"
+        if (self.nCategories <= 65535): self.intType = "SMALLINT UNSIGNED"
+        if (self.nCategories <= 255): self.intType = "TINYINT UNSIGNED"
+        print "Building an integer crosswalk table for " + self.field
+        return("""CREATE TABLE %(field)s__id (
+                  %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
+                  %(field)s VARCHAR (2047), %(field)s__count MEDIUMINT));
+                  INSERT INTO %(field)s__id (%(field)s,%(field)s__count)
+                  SELECT %(field)s,count(*) as count FROM %(table)s GROUP BY %(field)s""" % self.__dict__)
+
+class variableSet:
+    """
+
+    """
+    def __init__(self,jsonDefinition,anchorField):
+        self.variables = [dataField(item) for item in jsonDefinition]
+        self.anchor = "bookid"
+        """
+        Any set of variables could be 'anchored' to any datafield that ultimately
+        checks back into 'bookid' (which is the reserved term that we use for the lowest
+        level of indexing--it can be a book, a newspaper page, a journal article, whatever).
+        If anchor is something other than bookid, there will be a set of relational joins 
+        set up to bring it back to bookid in the end.
+        """
+
+    def uniques(self):
+        return([variable for variable in self.variables if variable.unique])
 
 
 class textids(dict):
@@ -274,9 +327,10 @@ class BookwormSQLDatabase:
         db.query("ALTER TABLE catalog DISABLE KEYS")
         print "loading data into catalog using LOAD DATA LOCAL INFILE..."
         loadcode = """LOAD DATA LOCAL INFILE '../metadata/catalog.txt' 
-                   INTO TABLE catalog
+                   INTO TABLE catalog FIELDS ESCAPED BY ''
                    (bookid,filename,""" + ','.join([field.field for field in self.variables if field.unique]) + """) 
-                   FIELDS ESCAPED BY ''"""
+                   
+                   """
         print loadcode
         db.query(loadcode)
         print "enabling keys on catalog"
@@ -451,7 +505,3 @@ class BookwormSQLDatabase:
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
                 z = cursor.execute(query)
-
-
-
-
