@@ -19,7 +19,7 @@ import decimal
 #(Or to add it as error handling when a query failed; only then check for missing files.
 """
 
-general_prefs = {"presidio":{"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"},"arxiv":{"HOST":"10.102.15.45","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"},"jstor":{"HOST":"10.102.15.45","database":"jstor","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["discipline"],"read_url_head":"http://www.arxiv.org/abs/"}, "politweets":{"HOST":"chaucer.fas.harvard.edu","database":"politweets","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"LOC":{"HOST":"10.102.15.45","database":"LOC","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":[],"read_url_head":"http://www.arxiv.org/abs/"},"ChronAm":{"HOST":"10.102.15.45","database":"ChronAm","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["subjects"],"read_url_head":"http://www.arxiv.org/abs/"},"ngrams":{"fastcat": "fastcat", "HOST": "10.102.15.45", "separateDataTables": [], "fastword": "wordsheap", "database": "ngrams", "read_url_head": "arxiv.culturomics.org", "fullcat": "catalog", "fullword": "words", "read_default_file": "/etc/mysql/my.cnf"}}
+execfile('knownHosts.py')
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect():
@@ -371,6 +371,7 @@ class userquery():
         self.bookoperation['TextPercent'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
         self.bookoperation['TextRatio'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
         self.bookoperation['TextCount'] = "count(DISTINCT " + self.prefs['fastcat'] + ".bookid) as TextCount"
+
         #Word Statistics
         self.bookoperation['WordCount'] = "sum(main.count) as WordCount"
         self.bookoperation['WordsPerMillion'] = "sum(main.count) as WordCount"
