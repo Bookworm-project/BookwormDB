@@ -69,7 +69,7 @@ class bookidlist:
         self.encode('bigrams')
         self.execute()
         
-    def execute(self,inShell=False)
+    def execute(self,inShell=False):
         pool = multiprocessing.Pool(processes=self.processors)
         pool.map(subprocess.call,self.args,shell=inShell)
 
