@@ -26,6 +26,7 @@ class dbConnect():
     #This is a read-only account
     def __init__(self,prefs = general_prefs['presidio']):
         import MySQLdb
+        self.dbname = prefs['database']
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
         self.cursor = self.db.cursor()
 
@@ -39,6 +40,9 @@ class dbConnect():
 
 class userqueries():
     #This is a set of queries that are bound together; each element in search limits is iterated over, and we're done.
+    #currently used for various different groups sent in a bundle (multiple lines on a Bookworm chart).
+    #A sufficiently sophisticated 'group by' search might make this unnecessary.
+
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
         self.database = outside_dictionary.setdefault('database','presidio')
         prefs = general_prefs[self.database]
@@ -53,10 +57,12 @@ class userqueries():
             outside_dictionary['search_limits'] = [outside_dictionary['search_limits']]
         self.returnval = []
         self.queryInstances = []
+        db = dbConnect(prefs)
+        databaseScheme = databaseSchema(db)
         for limits in outside_dictionary['search_limits']:
             mylimits = outside_dictionary
             mylimits['search_limits'] = limits
-            localQuery = userquery(mylimits)
+            localQuery = userquery(mylimits,db=db,databaseScheme=databaseScheme)
             self.queryInstances.append(localQuery)
             self.returnval.append(localQuery.execute())
 
@@ -64,11 +70,17 @@ class userqueries():
         return self.returnval
 
 class userquery():
-    def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}}):
+    def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
         #Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         self.outside_dictionary = outside_dictionary
         self.prefs = general_prefs[outside_dictionary.setdefault('database','presidio')]
-        self.db = dbConnect(self.prefs)
+        self.db = db
+        if db is None:
+            self.db = dbConnect(self.prefs)
+        self.databaseScheme = databaseScheme
+        if databaseScheme is None:
+            self.databaseScheme = databaseSchema(self.db)
+
         self.cursor = self.db.cursor
         self.wordsheap = self.prefs['fastword']
         self.words = self.prefs['fullword']
@@ -76,6 +88,7 @@ class userquery():
         #I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries: 
         #this makes the syntax cleaner on most queries,
         #while still allowing some long ones from the Bookworm website.
+
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
         self.defaults(outside_dictionary) #Take some defaults
@@ -89,21 +102,24 @@ class userquery():
 
         #Set up a dictionary for the denominator of any fraction if it doesn't already exist:
         self.search_limits = outside_dictionary.setdefault('search_limits',[{"word":["polka dot"]}])
-
         self.words_collation = outside_dictionary.setdefault('words_collation',"Case_Insensitive")
 
-        lookups = {"Case_Insensitive":'word',"case_insensitive":"word","Case_Sensitive":"casesens","Correct_Medial_s":'ffix',"All_Words_with_Same_Stem":"stem","Flagged":'wflag'}
-
+        lookups = {"Case_Insensitive":'word','lowercase':'lowercase','casesens':'casesens',"case_insensitive":"word","Case_Sensitive":"casesens","All_Words_with_Same_Stem":"stem","Flagged":'wflag','stem':'stem'}
         self.word_field = lookups[self.words_collation]
+            
+        self.time_limits = outside_dictionary.setdefault('time_limits',[0,10000000])
+        self.time_measure = outside_dictionary.setdefault('time_measure','year')
 
         self.groups = []
+        self.outerGroups = [] #Only used on the final join.
+        self.finalMergeTables=[]
         try:
             groups = outside_dictionary['groups']
         except:
             groups = [outside_dictionary['time_measure']]
 
         if groups == []:
-            #Set an arbitrary column name if nothing else is set.
+            #Set an arbitrary column name that will always be true if nothing else is set.
             groups = ["bookid is not null as In_Library"]
 
         if (len (groups) > 1):
@@ -116,56 +132,65 @@ class userquery():
             if group=="unigram" or group=="word":
                 group = "words1." + self.word_field + " as unigram"
             if group=="bigram":
-                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram"
-            self.groups.append(group)
+                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
+            self.outerGroups.append(group)
+            try:
+                #Search on the ID field, no the basic field.
+                self.groups.append(self.databaseScheme.idFields[group])
+                self.finalMergeTables.append(self.databaseScheme.tableToLookIn[group])
+            except KeyError:
+                self.groups.append(group)
 
         self.selections = ",".join(self.groups)
         self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
 
+        """
+        Define the comparison set if a comparison is being done.
+        """
 
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
         if 'compare_limits' in self.outside_dictionary.keys():
             self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
             del outside_dictionary['compare_limits']
         else: #if nothing specified, we compare the word to the corpus.
+            """
             for key in ['word','word1','word2','word3','word4','word5','unigram','bigram']:
                 try:
                     del self.compare_dictionary['search_limits'][key]
                 except:
                     pass
+            """
             for key in self.outside_dictionary['search_limits'].keys():
-                if re.search('words?\d',key):
-                    try:
-                        del self.compare_dictionary['search_limits'][key]
-                    except:
-                        pass
+                if re.search('words?\d',key) or re.search('gram$',key) or re.match(r'word',key):
+                    del self.compare_dictionary['search_limits'][key]
 
         comparegroups = []
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
+
         try:
-            compareGroups = self.compare_dictionary['groups']
+            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]
         except:
-            compareGroups = [self.compare_dictionary['time_measure']]
-        for group in compareGroups:
-            if not re.match("words",group) and not re.match("[u]?[bn]igram",group):
-                comparegroups.append(group)
-        self.compare_dictionary['groups'] = comparegroups
-        self.time_limits = outside_dictionary.setdefault('time_limits',[0,10000000])
-        self.time_measure = outside_dictionary.setdefault('time_measure','year')
+            self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
+
         self.counttype = outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
+
         if isinstance(self.counttype,basestring):
             self.counttype = [self.counttype]
+
+        #index is deprecated
         self.index  = outside_dictionary.setdefault('index',0)
+        """
         #Ordinarily, the input should be an an array of groups that will both select and group by.
         #The joins may be screwed up by certain names that exist in multiple tables, so there's an option to do something like 
         #SELECT catalog.bookid as myid, because WHERE clauses on myid will work but GROUP BY clauses on catalog.bookid may not 
         #after a sufficiently large number of subqueries.
         #This smoothing code really ought to go somewhere else, since it doesn't quite fit into the whole API mentality and is 
-        #more about the webpage.
+        #more about the webpage. It is only included here as a stopgap: NO FURTHER APPLICATIONS USING IT SHOULD BE BUILT.
+        """
+
         self.smoothingType = outside_dictionary.setdefault('smoothingType',"triangle")
         self.smoothingSpan = outside_dictionary.setdefault('smoothingSpan',3)
         self.method = outside_dictionary.setdefault('method',"Nothing")
-        self.tablename = outside_dictionary.setdefault('tablename','master'+"_bookcounts as bookcounts")
 
     def derive_variables(self):
         #These are locally useful, and depend on the variables
@@ -181,14 +206,13 @@ class userquery():
 
     def create_catalog_table(self):
         self.catalog = self.prefs['fastcat'] #'catalog' #Can be replaced with a more complicated query in the event of longer joins.
+
         """
         This should check query constraints against a list of tables, and join to them.
         So if you query with a limit on LCSH, and LCSH is listed as being in a separate table,
         it joins the table "LCSH" to catalog; and then that table has one column, ALSO
         called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
         """
-        
-
 
         for limitation in self.prefs['separateDataTables']:
             #That re.sub thing is in here because sometimes I do queries that involve renaming.
@@ -198,24 +222,18 @@ class userquery():
         """
         Here it just pulls every variable and where to look for it. 
         """
-        
-        tableToLookIn = {}
-        #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
-        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='" + self.outside_dictionary['database']+ "' ORDER BY ENGINE DESC,TABLE_NAME;");
-        columnNames = self.cursor.fetchall()
 
-        for databaseColumn in columnNames:
-            tableToLookIn[databaseColumn[2]] = databaseColumn[1]
 
         self.relevantTables = set()
-
+        databaseScheme = self.databaseScheme
         for columnInQuery in [re.sub(" .*","",key) for key in self.limits.keys()] + [re.sub(" .*","",group) for group in self.groups]:
             if not re.search('\.',columnInQuery): #Lets me keep a little bit of SQL sauce for my own queries
                 try:
-                    self.relevantTables.add(tableToLookIn[columnInQuery])
+                    self.relevantTables.add(databaseScheme.tableToLookIn[columnInQuery])
+                    self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[databaseScheme.anchorFields[columnInQuery]]])
                 except KeyError:
                     pass
-                    #Could warn as well, but this helps back-compatability.
+                    #Could raise as well--shouldn't be errors--but this helps back-compatability.
 
         self.catalog = "fastcat"
         for table in self.relevantTables:
@@ -229,7 +247,8 @@ class userquery():
             it just generates a new API call to fill a small part of the code here:
             (in this case, it merges the 'catalog' entry with a select query on 
             the word in the 'haswords' field. Enough of this could really
-            shrink the codebase, I suspect. It should be possible in MySQL 6.0, from what I've read, where subqueried tables will have indexes written for them by the query optimizer.
+            shrink the codebase, I suspect. It should be possible in MySQL 6.0, from what I've read, where 
+            subqueried tables will have indexes written for them by the query optimizer.
             """
 
             if self.limits['hasword'] == []:
@@ -242,12 +261,12 @@ class userquery():
             mydict['search_limits'] = copy.deepcopy(self.limits)
             mydict['search_limits']['word'] = copy.deepcopy(mydict['search_limits']['hasword'])
             del mydict['search_limits']['hasword']
-            tempquery = userquery(mydict)
+            tempquery = userquery(mydict,databaseScheme=self.databaseScheme)
             bookids = ''
             bookids = tempquery.counts_query()
 
             #If this is ever going to work, 'catalog' here should be some call to self.prefs['fastcat']
-            bookids = re.sub("(?s).*catalog[^\.]?[^\.\n]*\n","\n",bookids)
+            bookids = re.sub("(?s).*" + self.prefs['fastcat'] + "[^\.]?[^\.\n]*\n","\n",bookids)
             bookids = re.sub("(?s)WHERE.*","\n",bookids)
             bookids = re.sub("(words|lookup)([0-9])","has\\1\\2",bookids)
             bookids = re.sub("main","hasTable",bookids)
@@ -279,12 +298,16 @@ class userquery():
             for phrase in self.limits['word']:
                 locallimits = dict()
                 array = phrase.split(" ")
-                n=1
+                n=0
                 for word in array:
-                    selectString =  "(SELECT " + self.word_field + " FROM wordsheap WHERE casesens='" + word + "')"
-                    locallimits['words'+str(n) + "." + self.word_field] = selectString
-                    self.max_word_length = max(self.max_word_length,n)
                     n = n+1
+                    selectString =  "(SELECT " + self.word_field + " FROM wordsheap WHERE casesens='" + word + "')"
+                    try:
+                        locallimits['words'+str(n) + "." + self.word_field] += [selectString]
+                    except KeyError:
+                        locallimits['words'+str(n) + "." + self.word_field] = [selectString]
+                    self.max_word_length = max(self.max_word_length,n)
+
                 limits.append(where_from_hash(locallimits,quotesep=""))
                 #XXX for backward compatability
                 self.words_searched = phrase
@@ -330,7 +353,6 @@ class userquery():
                 JOIN
                  master_bookcounts as main
                  ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
-            self.tablename = 'master_bookcounts'
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
@@ -350,7 +372,8 @@ class userquery():
             milliseconds.
             """
             self.wordstables = " "
-            self.wordswhere  = " TRUE " #Just a dummy thing to make the SQL writing easier. Shouldn't take any time.
+            self.wordswhere  = " TRUE "
+            #Just a dummy thing to make the SQL writing easier. Shouldn't take any time. Will usually be extended with actual conditions.
 
     def set_operations(self):
 
@@ -444,14 +467,8 @@ class userquery():
         return countsQuery
     
     def ratio_query(self):
-        #if True: #In the case that we're not using a superset of words; this can be changed later
-        #    supersetGroups = [group for group in self.groups if not re.match('word',group)]
-        #    self.finalgroupings = self.groupings
-        #    for key in self.limits.keys():
-        #        if re.match('word',key):
-        #            del self.limits[key]
-        
-        self.denominator =  userquery(outside_dictionary = self.compare_dictionary)
+
+        self.denominator =  userquery(outside_dictionary = self.compare_dictionary,db=self.db,databaseScheme=self.databaseScheme)
         self.supersetquery = self.denominator.counts_query()
 
         if re.search("In_Library",self.denominator.selections):
@@ -469,7 +486,11 @@ class userquery():
         """
 
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
-        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.groups])
+        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups])
+
+        self.joinSuffix = ""
+        if len(self.finalMergeTables) > 0:
+            self.joinSuffix = " NATURAL JOIN " + " NATURAL JOIN ".join(self.finalMergeTables)
 
         query = """
         SELECT
@@ -478,9 +499,10 @@ class userquery():
         FROM 
             ( %(mainquery)s 
             ) as numerator
-            RIGHT OUTER JOIN 
-             ( %(supersetquery)s ) as denominator
-             %(totalMergeTerms)s
+        RIGHT OUTER JOIN 
+            ( %(supersetquery)s ) as denominator
+            %(totalMergeTerms)s
+        %(joinSuffix)s
         GROUP BY %(groupings)s;""" % self.__dict__
         return query        
 
@@ -512,25 +534,6 @@ class userquery():
             self.nwords = int(self.cursor.fetchall()[0][0])
         return self.nwords   
 
-    def ranked_query(self,percentile_to_return = 99,addwhere = ""):
-        #NOT CURRENTLY IN USE ANYWHERE--DELETE???
-        ##This returns a list of bookids in order by how well they match the sort terms.
-        ## Using an IDF term will give better search results for case-sensitive searches, but is currently disabled
-        ##
-        self.LIMIT = int((100-percentile_to_return) * self.return_n_books()/100)
-        countQuery = """
-         SELECT
-         bookid,
-         sum(main.count*1000/nwords%(idfterm)s) as score
-         FROM %(catalog)s LEFT JOIN %(tablename)s
-         USING (bookid)
-         WHERE %(catwhere)s AND %(wordswhere)s
-         GROUP BY bookid
- 	 ORDER BY score DESC
-         LIMIT %(LIMIT)s
-         """ % self.__dict__
-        return countQuery
-    
     def bibliography_query(self,limit = "100"):
         #I'd like to redo this at some point so it could work as an API call.
         self.limit = limit
@@ -540,6 +543,8 @@ class userquery():
                 if self.counttype==["Raw_Counts"] or self.counttype==["Number_of_Books"] or self.counttype==['WordCount'] or self.counttype==['BookCount']:
                     self.ordertype = "RAND()"
                 else:
+                    #This is a based on an attempt to match various different distributions I found on the web somewhere to give
+                    #weighted results based on the counts. It's not perfect, but might be good enough.
                     self.ordertype = "LOG(1-RAND())/sum(main.count)"
         except KeyError:
             pass
@@ -597,13 +602,13 @@ class userquery():
 
     def custom_SearchString_additions(self,returnarray):
         db = self.outside_dictionary['database']
-        if db in ('jstor','presidio','ChronAm','LOC'):
+        if db in ('jstor','presidio','ChronAm','LOC','OL'):
             self.getActualSearchedWords()
             if db=='jstor':
                 joiner = "&searchText="
                 preface = "?Search=yes&searchText="
                 urlRegEx = "http://www.jstor.org/stable/\d+"
-            if db=='presidio':
+            if db=='presidio' or db=='OL':
                 joiner = "+"
                 preface =  "#page/1/mode/2up/search/"
                 urlRegEx = 'http://archive.org/stream/[^"# ><]*'
@@ -613,11 +618,14 @@ class userquery():
                 urlRegEx = 'http://chroniclingamerica.loc.gov[^\"><]*/seq-\d+'
             newarray = []
             for string in returnarray:
-                base = re.findall(urlRegEx,string)[0]
-                newcore = ' <a href = "' +  base  + preface + joiner.join(self.actualWords) + '"> search inside </a>'
-                string = re.sub("^<td>","",string)
-                string = re.sub("</td>$","",string)
-                string = string+newcore
+                try:
+                    base = re.findall(urlRegEx,string)[0]
+                    newcore = ' <a href = "' +  base  + preface + joiner.join(self.actualWords) + '"> search inside </a>'
+                    string = re.sub("^<td>","",string)
+                    string = re.sub("</td>$","",string)
+                    string = string+newcore
+                except IndexError:
+                    pass
                 newarray.append(string)
         #Arxiv is messier, requiring a whole different URL interface: http://search.arxiv.org:8081/paper.jsp?r=1204.3352&qs=network
         else:
@@ -684,6 +692,7 @@ class userquery():
         if self.outside_dictionary['counttype']=="Raw_Counts" or self.outside_dictionary['counttype']==["Raw_Counts"]:
             query="counts_query"
             #This allows much speedier access to counts data if you're willing not to know about all the zeroes.
+            #Will not work as well once the id_fields are in use.
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
         results = ["\t".join([to_unicode(item[0]) for item in self.cursor.description])]
@@ -707,6 +716,44 @@ class userquery():
             pass
         else:
             return getattr(self,self.method)()
+
+
+class databaseSchema:
+    """
+    This class stores information about the database setup that is used to optimize query creation query
+    and so that queries know what tables to include.
+    It's broken off like this because it might be usefully wrapped around some of the backend features,
+    and (more notably) because it shouldn't be run multiple times in a single query, as happens now.
+    """
+    def __init__(self,db=dbConnect()):
+        self.db = db
+        self.cursor=db.cursor
+        #has of what table each variable is in
+        self.tableToLookIn = {}
+        #hash of what the root variable for each search term is (eg, 'author_birth' might be crosswalked to 'authorid' in the main catalog.) 
+        self.anchorFields = {}
+        #idFields: a hash showing internal identifications codes that dramatically speed up query time, but which shouldn't be exposed.
+        #So you can run a search for "state," say, and the database will group on a 50-element integer code instead of a VARCHAR that
+        #has to be long enough to support "Massachusetts" and "North Carolina."
+        #A couple are hard-coded in, but most are derived by looking for fields that end in the suffix "__id" later.
+        self.idFields = {"classification":"lc1","BenSubject":"lc1"}
+
+        #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
+        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY DESC;" % self.db.__dict__);
+        columnNames = self.cursor.fetchall()
+
+        parent = 'bookid'
+        previous = None
+        for databaseColumn in columnNames:
+            if previous != databaseColumn[2]:
+                if databaseColumn[3]=='PRI':
+                    parent = databaseColumn[1]
+                else:
+                    parent = 'bookid'
+            self.anchorFields[databaseColumn[2]]  = parent
+            self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
+            if re.search('__id$',databaseColumn[2]):
+                self.idFields[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
 
 
     #############
