@@ -25,7 +25,7 @@ execfile('knownHosts.py')
 
 class dbConnect():
     #This is a read-only account
-    def __init__(self,prefs = general_prefs['arxiv']):
+    def __init__(self,prefs):
         import MySQLdb
         self.dbname = prefs['database']
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
@@ -740,7 +740,7 @@ class databaseSchema:
     It's closely related to some of the classes around variables and variableSets in the Bookworm Creation scripts,
     but is kept separate for now: that allows a bit more flexibility, but is probaby a Bad Thing in the long run.
     """
-    def __init__(self,db=dbConnect()):
+    def __init__(self,db):
         self.db = db
         self.cursor=db.cursor
         #has of what table each variable is in
