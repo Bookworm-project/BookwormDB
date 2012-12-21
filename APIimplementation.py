@@ -112,7 +112,7 @@ class userquery():
         self.time_measure = outside_dictionary.setdefault('time_measure','year')
 
         self.groups = set()
-        self.outerGroups = set() #[] #Only used on the final join.
+        self.outerGroups = [] #[] #Only used on the final join; directionality matters, unlike for the other ones.
         self.finalMergeTables=set()
         try:
             groups = outside_dictionary['groups']
@@ -134,7 +134,7 @@ class userquery():
                 group = "words1." + self.word_field + " as unigram"
             if group=="bigram":
                 group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
-            self.outerGroups.add(group)
+            self.outerGroups.append(group)
             try:
                 #Search on the ID field, not the basic field.
                 self.groups.add(self.databaseScheme.idFields[group])
@@ -754,10 +754,8 @@ class databaseSchema:
 
         if self.db.dbname=="presidio":
             self.idFields = {"classification":"lc1","lat":"pointid","lng":"pointid"}
-
-        if self.db.dbname=="ChronAm":
+        elif self.db.dbname=="ChronAm":
             self.idFields = {"lat":"papercode","lng":"papercode","state":"papercode","region":"papercode"}
-            
         else:
             self.idFields = dict()
             
