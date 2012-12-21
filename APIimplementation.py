@@ -7,6 +7,7 @@ import re
 import numpy #used for smoothing.
 import copy
 import decimal
+
 """
 #These are here so we can support multiple databases with different naming schemes from a single API.
 #A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
@@ -110,9 +111,9 @@ class userquery():
         self.time_limits = outside_dictionary.setdefault('time_limits',[0,10000000])
         self.time_measure = outside_dictionary.setdefault('time_measure','year')
 
-        self.groups = []
-        self.outerGroups = [] #Only used on the final join.
-        self.finalMergeTables=[]
+        self.groups = set()
+        self.outerGroups = set() #[] #Only used on the final join.
+        self.finalMergeTables=set()
         try:
             groups = outside_dictionary['groups']
         except:
@@ -133,16 +134,31 @@ class userquery():
                 group = "words1." + self.word_field + " as unigram"
             if group=="bigram":
                 group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
-            self.outerGroups.append(group)
+            self.outerGroups.add(group)
             try:
-                #Search on the ID field, no the basic field.
-                self.groups.append(self.databaseScheme.idFields[group])
-                self.finalMergeTables.append(self.databaseScheme.tableToLookIn[group])
+                #Search on the ID field, not the basic field.
+                self.groups.add(self.databaseScheme.idFields[group])
+                table = self.databaseScheme.tableToLookIn[group]
+                joinfield = self.databaseScheme.idFields[group]
+                self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+                
             except KeyError:
-                self.groups.append(group)
+                self.groups.add(group)
+
+        """
+        There are the selections which can include table refs, and the groupings, which may not:
+        and the final suffix to enable fast lookup
+        """
 
         self.selections = ",".join(self.groups)
         self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
+
+        self.joinSuffix = "" + " ".join(self.finalMergeTables)
+#        if len(self.finalMergeTables) > 0:
+#           self.joinSuffix = " NATURAL JOIN " + " NATURAL JOIN ".join(self.finalMergeTables)
+
+
+
 
         """
         Define the comparison set if a comparison is being done.
@@ -488,10 +504,6 @@ class userquery():
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
         self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups])
 
-        self.joinSuffix = ""
-        if len(self.finalMergeTables) > 0:
-            self.joinSuffix = " NATURAL JOIN " + " NATURAL JOIN ".join(self.finalMergeTables)
-
         query = """
         SELECT
             %(totalselections)s,
@@ -723,7 +735,10 @@ class databaseSchema:
     This class stores information about the database setup that is used to optimize query creation query
     and so that queries know what tables to include.
     It's broken off like this because it might be usefully wrapped around some of the backend features,
-    and (more notably) because it shouldn't be run multiple times in a single query, as happens now.
+    because it shouldn't be run multiple times in a single query (that spawns two instances of itself), as was happening before.
+
+    It's closely related to some of the classes around variables and variableSets in the Bookworm Creation scripts,
+    but is kept separate for now: that allows a bit more flexibility, but is probaby a Bad Thing in the long run.
     """
     def __init__(self,db=dbConnect()):
         self.db = db
@@ -736,9 +751,15 @@ class databaseSchema:
         #So you can run a search for "state," say, and the database will group on a 50-element integer code instead of a VARCHAR that
         #has to be long enough to support "Massachusetts" and "North Carolina."
         #A couple are hard-coded in, but most are derived by looking for fields that end in the suffix "__id" later.
-        self.idFields = {"classification":"lc1","BenSubject":"lc1"}
+
+        if self.db.dbname=="presidio":
+            self.idFields = {"classification":"lc1","lat":"pointid","lng":"pointid"}
+
+        if self.db.dbname=="ChronAm":
+            self.idFields = {"lat":"papercode","lng":"papercode","state":"papercode","region":"papercode"}
 
         #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
+
         self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY DESC;" % self.db.__dict__);
         columnNames = self.cursor.fetchall()
 
@@ -751,7 +772,8 @@ class databaseSchema:
                 else:
                     parent = 'bookid'
             self.anchorFields[databaseColumn[2]]  = parent
-            self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
+            if databaseColumn[3]!='PRI': #if it's a primary key, this isn't the right place to find it.
+                self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
             if re.search('__id$',databaseColumn[2]):
                 self.idFields[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
 
