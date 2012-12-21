@@ -757,7 +757,10 @@ class databaseSchema:
 
         if self.db.dbname=="ChronAm":
             self.idFields = {"lat":"papercode","lng":"papercode","state":"papercode","region":"papercode"}
-
+            
+        else:
+            self.idFields = dict()
+            
         #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
 
         self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY DESC;" % self.db.__dict__);
