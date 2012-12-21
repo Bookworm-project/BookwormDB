@@ -24,7 +24,7 @@ execfile('knownHosts.py')
 
 class dbConnect():
     #This is a read-only account
-    def __init__(self,prefs = general_prefs['presidio']):
+    def __init__(self,prefs = general_prefs['arxiv']):
         import MySQLdb
         self.dbname = prefs['database']
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
