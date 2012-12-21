@@ -45,7 +45,7 @@ class userqueries():
     #A sufficiently sophisticated 'group by' search might make this unnecessary.
 
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
-        self.database = outside_dictionary.setdefault('database','presidio')
+        self.database = outside_dictionary.setdefault('database','arxiv')
         prefs = general_prefs[self.database]
         self.prefs = prefs
         self.wordsheap = prefs['fastword']
