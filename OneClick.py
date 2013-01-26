@@ -21,9 +21,9 @@ Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
 
 print "Parsing the dates to a native format"
 #This should be brought into the modular fold.
-call(['python','ParseDate.py',dbname])
+#call(['python','ParseDate.py',dbname])
 
-"Writing metadata to new catalog file..."
+print "Writing metadata to new catalog file..."
 
 write_metadata(Bookworm.variables)
 """
