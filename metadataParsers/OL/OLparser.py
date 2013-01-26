@@ -10,7 +10,7 @@ sys.path.append("..")
 sys.path.append("../includes/nameparser-0.2.3")
 
 from parsingClasses import *
-from nameparser
+from nameparser import *
 
 execfile("../parsingClasses.py")
 
@@ -51,8 +51,6 @@ class OLline(dict):
             self.etype = re.sub(".*/","",entry['type']['key'])
         except:
             pass
-
-print "Loading author Data..."
 
 outsidedata = dict()
 
@@ -114,8 +112,8 @@ for line in open(editions):
 
     for multiVar in multiVars:
         try:
-            output[multiVar] = entry[multiVar].encode("utf-8")
-        except:
+            output[multiVar] = [string.encode('utf-8') for string in entry[multiVar]]
+        except KeyError:
             pass
 
     for hashVar in hashVars:
@@ -146,19 +144,6 @@ for line in open(editions):
         print output.keys()
         raise
 
-    """
-    for var in author_vars:
-        try:
-            output[var] = outsidedata[output['authors'][0]][var]
-        except KeyError:
-            pass
-
-    for var in work_vars:
-        try:
-            output[var] = outsidedata[output['works'][0]][var]
-        except KeyError:
-            pass
-            """
     try:
         lcsubs = LCClass(entry['lc_classifications'][0]).split()
         for key in lcsubs.keys():
@@ -170,12 +155,6 @@ for line in open(editions):
         output['author'] = output['name']
     except KeyError:
         pass
-
-#    try:
-# #       output['author_birth'] = date(output['birth_date']).extract_year()
-#  #      output['author_age']   = int(output['year']) - int(output['author_birth'])
-#    except:
-#        pass
 
     entries.append(output)
     #Periodically write out the results
