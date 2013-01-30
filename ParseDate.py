@@ -5,19 +5,10 @@ import sys
 import os
 import re
 
-"""A
+"""
 As well as parsing dates into cyclical forms, this also does a little basic 
 string substitution to remove some disallowed characters (\t,\n) from user-supplied metadata.
-
-
 """
-
-PROJECT = sys.argv[1]
-
-def ensure_dir(f):
-    d = os.path.dirname(f)
-    if not os.path.exists(d):
-        os.makedirs(d)
 
 f = open("../metadata/field_descriptions.json", "r")
 fields = json.loads(f.read())
@@ -25,8 +16,7 @@ f.close()
 
 fields_to_derive = []
 
-ensure_dir("metadataParsers/" + PROJECT + '/' + PROJECT + ".json")
-f = open("metadataParsers/" + PROJECT + '/' + PROJECT + ".json", "w")
+derivedFile = open("../metadata/field_descriptions_derived.json",'w')
 
 output = []
 
@@ -41,17 +31,18 @@ for field in fields_to_derive:
         if "aggregate" in derive: output.append({"field":'_'.join([field["field"], derive["resolution"], derive["aggregate"]]), "datatype":"time", "type":"integer", "unique":True})
         else: output.append({"field":'_'.join([field["field"], derive["resolution"]]), "datatype":"time", "type":"integer", "unique":True})
 
-f.write(json.dumps(output))
-f.close()
+derivedFile.write(json.dumps(output))
+derivedFile.close()
 
-f = open("../metadata/jsoncatalog.txt", "r")
-md = f.readlines()
-f.close()
+#f = 
+#md = f.readlines()
+#f.close()
 
 order = ["year", "month", "week", "day"]
 
 f = open("../metadata/jsoncatalog_derived.txt", "w")
-for data in md:
+
+for data in open("../metadata/jsoncatalog.txt", "r"):
     line = json.loads(data)
     for field in fields_to_derive:
         try:

@@ -244,7 +244,7 @@ def splitMySQLcode(string):
     MySQL code can only be executed one command at a time, and fails if it has any empty slots
     """
     output = []
-    queries = line.split(';')
+    queries = string.split(';')
     for query in queries:
         if re.search(r"\w",query):
             output.append(query + ';' + "\n")
@@ -382,9 +382,9 @@ class BookwormSQLDatabase:
         self.dbuser = dbuser
         self.dbpassword = dbpassword
         try:
-            variablefile = open("metadataParsers/" + dbname + "/" + dbname + ".json",'r')
+            variablefile = open("../metadata/field_descriptions_derived.json",'r')
         except:
-            sys.exit("you must have a json file for your database located in metadataParsers: see the README in presidio/metadata")
+            raise
         self.db = DB(dbname)
         variables = json.loads(variablefile.read())
         self.variables = [dataField(variable,self.db) for variable in variables]
@@ -466,7 +466,7 @@ class BookwormSQLDatabase:
         for dfield in needingLookups:
             print "Building a lookup table for " + dfield.field
             #First make the id table
-            for query in splitMySQLcode(dfield.builIdTable()):
+            for query in splitMySQLcode(dfield.buildIdTable()):
                 dfield.dbToPutIn.query(query)
 
     def load_word_list(self):
