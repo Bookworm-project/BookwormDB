@@ -29,7 +29,8 @@ print "Writing metadata to new catalog file..."
 write_metadata(Bookworm.variables)
 
 #These are imported with ImportNewLibrary
-CopyDirectoryStructuresFromRawDirectory()
+#Some sort of check here might make things a little faster on subsequent builds.
+#CopyDirectoryStructuresFromRawDirectory()
 
 bookidList = bookidlist()
 

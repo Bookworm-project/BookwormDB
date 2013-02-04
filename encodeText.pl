@@ -51,11 +51,10 @@ for my $file(@filesToParse) {
 		    my $wordcode = $wordid{$word};
 		    push(@return,$wordcode);
 		}
-		    unless (undef~~@return || '' ~~ @return) {
-			print OUTPUT join("\t",@return) . "\t" . $count;
-		    } 
+		unless (undef~~@return || '' ~~ @return) {
+		    print OUTPUT join("\t",@return) . "\t" . $count;
+		} 
 	    }
 	} else {print "$input does not exist, skipping\n"}
-    } else { print "$output already exists, skipping\n";  }
+    } else { print "$output already exists, skipping\n";}
 }
-	
