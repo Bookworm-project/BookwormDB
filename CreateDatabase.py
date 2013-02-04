@@ -168,10 +168,12 @@ class dataField:
         if (self.datatype=="time"):
             mydict['unit'] = self.field
             #default to the full min and max date ranges
-            cursor = self.dbToPutIn.query("SELECT MIN(" + self.field + "), MAX(" + self.field + ") FROM catalog")
+            #times may not be zero or negative
+            cursor = self.dbToPutIn.query("SELECT MIN(" + self.field + "), MAX(" + self.field + ") FROM catalog WHERE " + self.field + " > 0 ")
             results = cursor.fetchall()[0]
             mydict['range'] = [results[0],results[1]]
             mydict['initial'] = [results[0],results[1]]
+    
         if (self.datatype=="categorical"):
             mydict['dbfield'] = self.field + "__id"
             #Find all the variables used more than 100 times from the database, and build them into something json-usable.
@@ -184,11 +186,16 @@ class dataField:
                 code = to_unicode(code)
                 sort_order.append(code)
                 descriptions[code] = dict()
-                #These three things all have slightly different meanings: the english name, the database code for that name, and the short display name to show. It would be worth allowing lookup files for these: for now, they are what they are and can be further improved by hand.
+                """
+                These three things all have slightly different meanings:
+                the english name, the database code for that name, and the short display name to show.
+                It would be worth allowing lookup files for these: for now, they are what they are and can be further improved by hand.
+                """
                 descriptions[code]["dbcode"] = code
                 descriptions[code]["name"] = name
                 descriptions[code]["shortname"] = name
             mydict["categorical"] = {"descriptions":descriptions,"sort_order":sort_order}
+
         return mydict
 
     def setIntType(self):
@@ -422,7 +429,12 @@ class BookwormSQLDatabase:
         db.query("""DROP TABLE IF EXISTS catalog""")
         createcode = """CREATE TABLE IF NOT EXISTS catalog (
             """ + ",\n".join(mysqlfields) + ");"
-        db.query(createcode)
+        try:
+            db.query(createcode)
+        except:
+            print "error executing " + createcode
+            raise
+
         #Never have keys before a LOAD DATA INFILE
         db.query("ALTER TABLE catalog DISABLE KEYS")
         print "loading data into catalog using LOAD DATA LOCAL INFILE..."
