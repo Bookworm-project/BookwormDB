@@ -5,7 +5,7 @@ use warnings;
 my @z = <>;
 #This is a perl script that accepts text from STDIN and tokenizes it in a human readable format that serves as a good interchange for serious data parsing. It is optimized for use with Internet Archive books, but may have problems with them. It attempts to follow the rules for tokenizing laid out in the Michel-Aiden supplemental materials in science, using whitespace as a delimiter between words; in addition, it attempts to use English language punctuation rules to identify the ends of sentences and indicates those using a newline character. --Ben Schmidt
 
-#It's in perl because Python versions were murderously slow.
+#It's in perl because Python versions were murderously slow, and control flow is too hard in awk.
 
 #Here are some options that may be customized with values that evaulate true or false:
 #Whether to strip Google Book scan language (also removes texts legitimately about Google):
@@ -93,6 +93,7 @@ foreach my $line (@z) {
 	}
 	$line =~ s/([ \f!\?@%^*\(\)\[\]\-=\{\}\|\\:;<>,\/~`"#\+])/ $1 /g; #Surround punctuators with spaces`
 	$line =~ s/'([^s])/ ' $1/gi; #single quotes aren't word separators when part of possessive,but otherwise are
+	$line =~ s/'([^s])/ ' $1/gi; #Need to do it twice for some reason.
 	$line =~ s/\$([^\d])/ \$ $1/gi; #dollar signs aren't separators when preceding numerals.
 	$line =~ s/([^\d])\.([^\d])/$1 \. $2/gi; #Periods aren't separators when part of decimal numbers.
 	$line =~ s/\.$/ \./gi;# (Make sure to space out periods at end of line
@@ -116,11 +117,12 @@ foreach my $line (@z) {
 	    $currentlength = length($line);
 	    if ($currentlength > 64000) {
 		#breaks it every 32,000 characters (which may split a word or two) until it's down to size.
-		$line =~ s/([^\n]{1,32766})/$1\n/gs;
+		$line =~ s/([^\n]{1,32764})/$1\n/gs;
 	    }
 	}
 	print "$line";
     }
+
     #the words "google.com" comes at the end of the Google Intro page; this catches it even when it's poorly ocr'ed.
     if ($line =~ m/[gq]oo[gq][li1]e\W*com/gi) {$googswitch = 1;}# $switchedat = $linenumber; print "Switching:\t"}
 

@@ -8,3 +8,5 @@ kyoto*
 .DS_Store
 *.pyc
 *.RData
+HistoryDiss
+HistoryDiss/*
