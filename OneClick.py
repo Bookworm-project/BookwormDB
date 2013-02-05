@@ -30,7 +30,7 @@ write_metadata(Bookworm.variables)
 
 #These are imported with ImportNewLibrary
 #Some sort of check here might make things a little faster on subsequent builds.
-#CopyDirectoryStructuresFromRawDirectory()
+CopyDirectoryStructuresFromRawDirectory()
 
 bookidList = bookidlist()
 
