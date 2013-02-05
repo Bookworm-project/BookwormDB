@@ -1,0 +1,15 @@
+MySQL configuration is going to vary by system. But one needs special my.cnf files or else Bookworm will take forever to sort, will not be able ot store its items in memory, and so forth. This folder stores some example MySQL files you might want to use.
+
+
+
+adminMy.cnf MUST GO IN THE LOCATION ~/.my.cnf. If you already have a file there with the username and password for a user who has received the following privileges:
+``` {sql}
+GRANT ALL ON *.* to 'administrator'@'%' IDENTIFIED BY 'administratorsPassword' WITH GRANT OPTION
+```
+
+Then it isn't necessary.
+
+the file "UbuntuMy.cnf" must go in /etc/mysql/my.cnf
+the file "CentOSMy.cnf" must go in /etc/my.cnf _AND_ you must create the folder /etc/mysql/ with a symlink from /etc/mysql/my.cnf to /etc/my.cnf so that the code can find it.
+
+You can't currently set up a Bookworm server on a computer to which you aren't an administrator.
