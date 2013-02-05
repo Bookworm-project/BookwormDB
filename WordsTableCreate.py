@@ -24,7 +24,8 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
             filename = line.split('\t')[1]
             filename = re.sub('\n','',filename)
             try:
-                print "counting unigrams in " + filename + " and adding to memory wordlist of length " + str(len(wordcounts))
+                if filenum/1000 == round(filenum/1000):
+                    print "counting unigrams in " + filename + " (no. " +str(filenum)+") and adding to memory wordlist of length " + str(len(wordcounts))
                 reading = codecopen('../texts/unigrams/'+filename+'.txt',encoding="UTF-8")
                 readnum = readnum+1
                 logfile.write(str(readnum) + " " + filename)
