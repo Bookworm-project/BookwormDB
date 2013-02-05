@@ -341,8 +341,12 @@ def write_metadata(variables,limit = float("inf")):
             entry = re.sub("\\n"," ",entry)
             entry = json.loads(entry)
         except:
+            print "WARNING: json parsing failed for this JSON:"
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             print entry
-            raise
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            continue
+            #raise
         #We always lead with the bookid and the filename. Unicode characters in filenames may cause problems.
         filename = to_unicode(entry['filename'])
         try:
