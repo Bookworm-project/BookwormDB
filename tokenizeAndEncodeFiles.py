@@ -111,7 +111,7 @@ class book:
         #At some point 'unigrams' and 'bigrams' should be deleted as methods, and only this should be used.
         self.start_operator = "cat"
         self.start = "../texts/cleaned/" + self.coreloc
-        self.function = """awk '{ for(i=1; i<NF-""" +str(n-1)+ """; i++)                    
+        self.function = """awk '{ for(i=1; i<=NF-""" +str(n-1)+ """; i++)                    
                  {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,n)]) + """]++}
                  }
                  END{          
