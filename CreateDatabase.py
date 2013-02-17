@@ -341,7 +341,7 @@ def write_metadata(variables,limit = float("inf")):
             entry = re.sub("\\n"," ",entry)
             entry = json.loads(entry)
         except:
-            print "WARNING: json parsing failed for this JSON:"
+            print "WARNING: json parsing failed for this catalog entry:"
             print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             print entry
             print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
