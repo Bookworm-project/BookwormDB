@@ -45,8 +45,12 @@ class userqueries():
     #A sufficiently sophisticated 'group by' search might make this unnecessary.
 
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
-        self.database = outside_dictionary.setdefault('database','arxiv')
-        prefs = general_prefs[self.database]
+        try:
+            self.database = outside_dictionary.setdefault('database','arxiv')
+            prefs = general_prefs[self.database]
+        except KeyError: #If it's not in the option, use some default preferences and search on localhost. This will work in most cases here on out.
+            prefs = general_prefs['default']
+            prefs['database'] = self.database
         self.prefs = prefs
         self.wordsheap = prefs['fastword']
         self.words = prefs['fullword']
@@ -73,15 +77,20 @@ class userqueries():
 class userquery():
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
         #Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
+        try:
+            self.prefs = general_prefs[outside_dictionary['database']]
+        except KeyError:
+            #If it's not in the option, use some default preferences and search on localhost. This will work in most cases here on out.
+            self.prefs = general_prefs['default']
+            self.prefs['database'] = outside_dictionary['database']
         self.outside_dictionary = outside_dictionary
-        self.prefs = general_prefs[outside_dictionary.setdefault('database','presidio')]
+        #self.prefs = general_prefs[outside_dictionary.setdefault('database','presidio')]
         self.db = db
         if db is None:
             self.db = dbConnect(self.prefs)
         self.databaseScheme = databaseScheme
         if databaseScheme is None:
             self.databaseScheme = databaseSchema(self.db)
-
         self.cursor = self.db.cursor
         self.wordsheap = self.prefs['fastword']
         self.words = self.prefs['fullword']
@@ -92,6 +101,7 @@ class userquery():
 
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
+
         self.defaults(outside_dictionary) #Take some defaults
         self.derive_variables() #Derive some useful variables that the query will use.
         
@@ -164,29 +174,9 @@ class userquery():
         Define the comparison set if a comparison is being done.
         """
 
-        self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
-        if 'compare_limits' in self.outside_dictionary.keys():
-            self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
-            del outside_dictionary['compare_limits']
-        else: #if nothing specified, we compare the word to the corpus.
-            """
-            for key in ['word','word1','word2','word3','word4','word5','unigram','bigram']:
-                try:
-                    del self.compare_dictionary['search_limits'][key]
-                except:
-                    pass
-            """
-            for key in self.outside_dictionary['search_limits'].keys():
-                if re.search('words?\d',key) or re.search('gram$',key) or re.match(r'word',key):
-                    del self.compare_dictionary['search_limits'][key]
+        self.determineOutsideDictionary()
 
-        comparegroups = []
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
-
-        try:
-            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]
-        except:
-            self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
 
         self.counttype = outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
 
@@ -207,6 +197,44 @@ class userquery():
         self.smoothingType = outside_dictionary.setdefault('smoothingType',"triangle")
         self.smoothingSpan = outside_dictionary.setdefault('smoothingSpan',3)
         self.method = outside_dictionary.setdefault('method',"Nothing")
+
+    def determineOutsideDictionary(self):
+        self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
+        if 'compare_limits' in self.outside_dictionary.keys():
+            self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
+            del outside_dictionary['compare_limits']
+        elif sum([bool(re.search(r'\*',string)) for string in self.outside_dictionary['search_limits'].keys()]) > 0:
+            #If any keys have stars at the end, drop them from the compare set
+            for key in self.outside_dictionary['search_limits'].keys():
+                if re.search(r'\*',key):
+                    #rename the main one to not have a star
+                    self.outside_dictionary['search_limits'][re.sub(r'\*','',key)] = self.outside_dictionary['search_limits'][key]
+                    #drop it from the compare_limits and delete the version in the search_limits with a star
+                    del self.outside_dictionary['search_limits'][key]
+                    del self.compare_dictionary['search_limits'][key]
+        else: #if nothing specified, we compare the word to the corpus.
+            deleted = False
+            for key in self.outside_dictionary['search_limits'].keys():
+                if re.search('words?\d',key) or re.search('gram$',key) or re.match(r'word',key):
+                    del self.compare_dictionary['search_limits'][key]
+                    deleted = True
+            if not deleted:
+                #If there are no words keys, just delete the first key of any type.
+                #Sort order can't be assumed, but this is a useful failure mechanism of last resort. Maybe.
+                try:
+                    del self.compare_dictionary['search_limits'][self.outside_dictionary['search_limits'].keys()[0]]
+                except:
+                    pass
+        """
+        The grouping behavior here is not desirable, but I'm not quite sure how yet.
+        """
+        try:
+            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]
+        except:
+            self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
+        
+        self.counttype = self.outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
+
 
     def derive_variables(self):
         #These are locally useful, and depend on the variables
@@ -394,7 +422,7 @@ class userquery():
     def set_operations(self):
 
         """
-        This is the code that allows multiple values to be selected.
+        This is the code that allows multiple values to be selected. It is definitely not as tight as it could be. Sorry.
         """
 
         backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion","Raw_Counts":"WordCount","Percentage_of_Books":"TextPercent","Number_of_Books":"TextCount"}
@@ -484,22 +512,22 @@ class userquery():
     
     def ratio_query(self):
 
+        """
+        We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most 
+        cases is the search_limits without the keys, see above; it can also be specially defined using asterisks as a shorthand to identify other fields to drop.
+        We then get the counts_query results out of that result.
+        """
+
         self.denominator =  userquery(outside_dictionary = self.compare_dictionary,db=self.db,databaseScheme=self.databaseScheme)
         self.supersetquery = self.denominator.counts_query()
 
         if re.search("In_Library",self.denominator.selections):
             self.selections = self.selections + ", fastcat.bookid is not null as In_Library"
-
         #See above: In_Library is a dummy variable so that there's always something to join on.            
+
         self.mainquery    = self.counts_query()
         
         self.countcommand = ','.join(self.finaloperations)
-
-        """
-        We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most 
-        cases is the search_limits without the keys, see above.
-        We then get the counts_query results out of that result.
-        """
 
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
         self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups])
@@ -556,7 +584,8 @@ class userquery():
                     self.ordertype = "RAND()"
                 else:
                     #This is a based on an attempt to match various different distributions I found on the web somewhere to give
-                    #weighted results based on the counts. It's not perfect, but might be good enough.
+                    #weighted results based on the counts. It's not perfect, but might be good enough. Actually doing a weighted random search is not easy without 
+                    #massive memory usage inside sql.
                     self.ordertype = "LOG(1-RAND())/sum(main.count)"
         except KeyError:
             pass
@@ -613,6 +642,9 @@ class userquery():
             self.actualWords = ["tasty","mistake","happened","here"]
 
     def custom_SearchString_additions(self,returnarray):
+        """
+        It's nice to highlight the words searched for. This will be on partner web sites, so requires custom code for different databases
+        """
         db = self.outside_dictionary['database']
         if db in ('jstor','presidio','ChronAm','LOC','OL'):
             self.getActualSearchedWords()
@@ -671,6 +703,7 @@ class userquery():
 
     def arrayNest(self,array,returnt,endLength=1):
         #A recursive function to transform a list into a nested array
+        #Used here to return compact json via the API.
         key = array[0]
         key = to_unicode(key)
         if len(array)==endLength+1:
@@ -775,7 +808,7 @@ class databaseSchema:
             self.anchorFields[databaseColumn[2]]  = parent
             if databaseColumn[3]!='PRI': #if it's a primary key, this isn't the right place to find it.
                 self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
-            if re.search('__id$',databaseColumn[2]):
+            if re.search('__id\*?$',databaseColumn[2]):
                 self.idFields[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
 
 
@@ -905,10 +938,8 @@ try:
     command = str(sys.argv[1])
     command = json.loads(command)
 #Got to go before we let anything else happen.
-    print command
     p = userqueries(command)
     result = p.execute()
     print json.dumps(result)
 except:
     pass
-
