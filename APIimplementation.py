@@ -201,8 +201,8 @@ class userquery():
     def determineOutsideDictionary(self):
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
         if 'compare_limits' in self.outside_dictionary.keys():
-            self.compare_dictionary['search_limits'] = outside_dictionary['compare_limits']
-            del outside_dictionary['compare_limits']
+            self.compare_dictionary['search_limits'] = self.outside_dictionary['compare_limits']
+            del self.outside_dictionary['compare_limits']
         elif sum([bool(re.search(r'\*',string)) for string in self.outside_dictionary['search_limits'].keys()]) > 0:
             #If any keys have stars at the end, drop them from the compare set
             for key in self.outside_dictionary['search_limits'].keys():
@@ -443,6 +443,8 @@ class userquery():
         self.bookoperation['WordCount'] = "sum(main.count) as WordCount"
         self.bookoperation['WordsPerMillion'] = "sum(main.count) as WordCount"
         self.bookoperation['WordsRatio'] = "sum(main.count) as WordCount"
+
+        
         """
         +Total Numbers for comparisons/significance assessments
         This is a little tricky. The total words is EITHER the denominator (as in a query against words per Million) or the numerator+denominator (if you're comparing 
@@ -461,7 +463,7 @@ class userquery():
                 self.catoperation[stattype] = "count(nwords) as TextCount"
 
         self.finaloperation['TextPercent'] = "IFNULL(numerator.TextCount,0)/IFNULL(denominator.TextCount,0)*100 as TextPercent"
-        self.finaloperation['TextRatio'] = "IFNULL(numerator.TextRatio,0)/IFNULL(denominator.TextCount,0) as TextRatio"
+        self.finaloperation['TextRatio'] = "IFNULL(numerator.TextCount,0)/IFNULL(denominator.TextCount,0) as TextRatio"
         self.finaloperation['TextCount'] = "IFNULL(numerator.TextCount,0) as TextCount"
 
         self.finaloperation['WordsPerMillion'] = "IFNULL(numerator.WordCount,0)*100000000/IFNULL(denominator.WordCount,0)/100 as WordsPerMillion"
@@ -486,8 +488,6 @@ class userquery():
             self.bookoperations.add(self.bookoperation[summaryStat])
             self.finaloperations.append(self.finaloperation[summaryStat])
 
-        #self.catoperation
-
     def counts_query(self):
         #self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
         #self.catoperation = {"Occurrences_per_Million_Words":"sum(nwords)","Raw_Counts":"sum(nwords)","Percentage_of_Books":"count(nwords)","Number_of_Books":"count(nwords)"}        
@@ -511,7 +511,6 @@ class userquery():
         return countsQuery
     
     def ratio_query(self):
-
         """
         We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most 
         cases is the search_limits without the keys, see above; it can also be specially defined using asterisks as a shorthand to identify other fields to drop.
@@ -544,6 +543,20 @@ class userquery():
             %(totalMergeTerms)s
         %(joinSuffix)s
         GROUP BY %(groupings)s;""" % self.__dict__
+
+
+        #There are dramatic speed improvement to not returning 0 results when not needed in a merge query.
+        if len(set(["TextCount","WordCount"]).intersection(set(self.counttype)))==len(self.counttype):
+            query = """
+        SELECT
+            %(totalselections)s,
+            %(countcommand)s
+        FROM 
+            ( %(mainquery)s 
+            ) as numerator
+        %(joinSuffix)s
+        GROUP BY %(groupings)s;""" % self.__dict__
+        
         return query        
 
 
@@ -678,6 +691,9 @@ class userquery():
 
     def return_query_values(self,query = "ratio_query"):
         #The API returns a dictionary with years pointing to values.
+        """
+        DEPRECATED: use 'return_json' or 'return_tsv' instead
+        """
         values = []
         querytext = getattr(self,query)()
         silent = self.cursor.execute(querytext)
