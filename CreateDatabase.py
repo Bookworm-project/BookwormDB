@@ -369,8 +369,12 @@ def write_metadata(variables,limit = float("inf")):
             outfile = variable.output
             lines = entry.get(variable.field,[])
             for line in lines:
-                writing = str(bookid)+"\t"+line+"\n"
-                outfile.write(writing.encode('utf-8'))
+                try:
+                    writing = str(bookid)+"\t"+line+"\n"
+                    outfile.write(writing.encode('utf-8'))
+                except:
+                    print "some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines)
+                    pass
         if linenum > limit:
            break
         linenum=linenum+1
