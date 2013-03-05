@@ -131,7 +131,7 @@ class userquery():
 
         if groups == []:
             #Set an arbitrary column name that will always be true if nothing else is set.
-            groups = ["bookid is not null as In_Library"]
+            groups = ["fastcat.bookid is not null as In_Library"]
 
         if (len (groups) > 1):
             pass
@@ -520,10 +520,6 @@ class userquery():
         self.denominator =  userquery(outside_dictionary = self.compare_dictionary,db=self.db,databaseScheme=self.databaseScheme)
         self.supersetquery = self.denominator.counts_query()
 
-        if re.search("In_Library",self.denominator.selections):
-            self.selections = self.selections + ", fastcat.bookid is not null as In_Library"
-        #See above: In_Library is a dummy variable so that there's always something to join on.            
-
         self.mainquery    = self.counts_query()
         
         self.countcommand = ','.join(self.finaloperations)
@@ -692,7 +688,7 @@ class userquery():
     def return_query_values(self,query = "ratio_query"):
         #The API returns a dictionary with years pointing to values.
         """
-        DEPRECATED: use 'return_json' or 'return_tsv' instead
+        DEPRECATED: use 'return_json' or 'return_tsv' (the latter only works with single 'search_limits' options) instead
         """
         values = []
         querytext = getattr(self,query)()
@@ -777,7 +773,6 @@ class userquery():
             pass
         else:
             return getattr(self,self.method)()
-
 
 class databaseSchema:
     """

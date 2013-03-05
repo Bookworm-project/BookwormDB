@@ -69,8 +69,11 @@ if method!='return_tsv' and method!='return_json' and method!='search_results':
     print json.dumps(result)
 
 if method=='return_json' or method=='search_results':
-    result = p.execute()[0]
-    print json.dumps(result)
+    result = p.execute()
+    if isinstance(data['search_limits'],dict):
+        print json.dumps(result[0])
+    else:
+        print json.dumps(result)
 
 if method=="return_tsv":
     #Return_tsv can only give back a single file at a time.
