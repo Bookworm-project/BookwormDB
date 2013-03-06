@@ -20,7 +20,7 @@ class DB:
 
     def connect(self):
         #These scripts run as the Bookworm _Administrator_ on this machine.
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = '')
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = '',local_infile=1)
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS "+self.dbname)
         #Don't use native query attribute here to avoid infinite loops
