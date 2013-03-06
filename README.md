@@ -14,14 +14,17 @@ Files to start with
 IN PRESIDIO
 -----------
 
-NOTE: Changes will be synced to git, because individual project code may be useful for other ones.
+> NOTE: Changes will be synced to git, because individual project code may be useful for other ones.
 
 *  metadataParsers/$projectparser.py: This doesn't HAVE to be there, per se, but you might as well put your metadata parser here so people can see how it works and rerun on the data.
 *  metadataParsers/$project/$project.json: A JSON file specifying the data types for keys in the JSON objects in ../metadata/jsoncatalog.json. On running, that jsoncatalog will be parsed and the files dealt with according to the rules laid out here: it will also dump out a file to ../$project.json that can be placed in Bookworm to make Bookworm work properly. To see examples, look in one of the existing files; for an explanation of the keys, see the README in the metadata folder.
 
-IN OUTSIDE FILES (changes will not be synced, because they are too large)
+IN OUTSIDE FILES
 ----------------
-*  ../texts/raw. This is where the actual texts are going to live, all at the same depth. (This can be big--about a million files in a single directory is pretty common.) They will have arbitrary, unique names. You'll have to create. 
+
+> NOTE: Changes will not be synced, because they are too large.
+
+*  ../texts/raw: This is where the actual texts are going to live, all at the same depth. (This can be big--about a million files in a single directory is pretty common.) They will have arbitrary, unique names. You'll have to create. 
 
 *  ../metadata/jsoncatalog.txt: a set of lines with one JSON object per line. Each line looks something like this: {"title":"Ulysses","author":"James Joyce","authorbirth":"1880"}. Tabs and newlines ARE NOT currently permitted to appear in this file.
 
