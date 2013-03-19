@@ -21,8 +21,8 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
     for file in os.listdir('../texts/textids'):
         for line in open('../texts/textids/' + file,'r'):
             filenum = filenum + 1
+            line = line.strip()
             filename = line.split('\t')[1]
-            filename = re.sub('\n','',filename)
             try:
                 print "counting unigrams in " + filename + " and adding to memory wordlist of length " + str(len(wordcounts))
                 reading = codecopen('../texts/unigrams/'+filename+'.txt',encoding="UTF-8")
@@ -33,7 +33,7 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
                     wordEntry = wordEntry.split(' ')
                     if (len (wordEntry) > 2):
                         wordEntry = [''.join([wordEntry[i] for i in range(len(wordEntry)-1)]),wordEntry[-1]]
-                    wordEntry[1] = int(re.sub('\n','',wordEntry[1]))
+                    wordEntry[1] = int(wordEntry[1].strip())
                     try:
                         wordcounts[wordEntry[0]]+=wordEntry[1]
                     except KeyError:
