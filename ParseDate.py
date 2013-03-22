@@ -9,39 +9,54 @@ import re
 As well as parsing dates into cyclical forms, this also does a little basic 
 string substitution to remove some disallowed characters (\t,\n) from user-supplied metadata.
 """
+
+
 def DateParser():
-    f = open("../metadata/field_descriptions.json", "r")
+    f = open('../metadata/field_descriptions.json', 'r')
     fields = json.loads(f.read())
     f.close()
     
-    fields_to_derive = []
+    derivedFile = open('../metadata/field_descriptions_derived.json', 'w')
     
-    derivedFile = open("../metadata/field_descriptions_derived.json",'w')
-    
-    output = []
-    
+    fields_to_derive, output = [], []
     for field in fields:
         if field["datatype"] == "time":
-             if "derived" in field: fields_to_derive.append(field)
-             else: output.append(field)
-        else: output.append(field)
+             if "derived" in field:
+                 fields_to_derive.append(field)
+             else:
+                 output.append(field)
+        else:
+            output.append(field)
     
     for field in fields_to_derive:
         for derive in field["derived"]:
             if "aggregate" in derive:
-                output.append({"field":'_'.join([field["field"], derive["resolution"], derive["aggregate"]]), "datatype":"time", "type":"integer", "unique":True})
+                tmpdct = {
+                          "field": '_'.join([field["field"], derive["resolution"], derive["aggregate"]]),
+                          "datatype": "time",
+                          "type": "integer",
+                          "unique": True
+                         }
+                output.append(tmpdct)
             else:
-                output.append({"field":'_'.join([field["field"], derive["resolution"]]), "datatype":"time", "type":"integer", "unique":True})
-    
+                tmpdct = {
+                          "field": '_'.join([field["field"], derive["resolution"]]),
+                          "datatype": "time",
+                          "type": "integer",
+                          "unique": True
+                         }
+                output.append(tmpdct)
     derivedFile.write(json.dumps(output))
     derivedFile.close()
     
     order = ["year", "month", "week", "day"]
-    
     f = open("../metadata/jsoncatalog_derived.txt", "w")
     
     for data in open("../metadata/jsoncatalog.txt", "r"):
+        for char in ['\t', '\n']:
+            data = data.replace(char, '')
         line = json.loads(data)
+        
         for field in fields_to_derive:
             try:
                 content = line[field["field"]].split('-')
@@ -72,7 +87,8 @@ def DateParser():
                             elif derive["resolution"] == 'week' and derive["aggregate"] == "year":
                                 yearday = datetime.datetime(intent[0],intent[1],intent[2]).timetuple().tm_yday
                                 line[field["field"] + "_week_year"] = str(int(yearday/7))
-                            else: continue
+                            else:
+                                continue
                         else:
                             if derive["resolution"] == 'year':
                                 line[field["field"] + "_year"] = content[0]
@@ -82,17 +98,13 @@ def DateParser():
                                 line[field['field'] + "_week"] = str(int((datetime.date(intent[0],intent[1],intent[2]) - datetime.date(1,1,1)).days/7)*7)
                             elif derive["resolution"] == 'day':
                                 line[field["field"] + "_day"] = str((datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days)
-                            else: continue
+                            else:
+                                continue
                     except ValueError:
                         #one of out a million Times articles threw this with a year of like 111,203.
                         #It's not clear how best to handle this.
                         print "Something's wrong with " + line[field["field"]] + " as a date--moving on..."
                         pass
                 line.pop(field["field"])
-        dumped = json.dumps(line)
-        #absolutely no tabs or newlines are allowed in the json: this takes them out.
-        #This doesn't do precisely the right thing if they're trying to write a literal sequence with multiple escapes.
-        dumped = re.sub(r"\\[tn]",r"",dumped);
-        f.write(dumped + '\n')
-    
+        f.write(dumped + '%s\n' % json.dumps(line))
     f.close()
