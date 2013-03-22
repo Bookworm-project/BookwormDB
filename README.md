@@ -24,3 +24,24 @@ python OneClick.py dbname dbuser dbpassword
 ```
  * **dbname**: If the database doesn't exist, the script will create it for you.
  * **dbuser** and **dbpassword**: These need to be setup with the database ahead of time.
+
+### General Workflow ###
+The general workflow of OneClick.py is the following:
+
+1. Derive `../metadata/field_descriptions_derived.json` and `../metadata/jsoncatalog_derived.json` from `../metadata/field_descriptions.json` and `../metadata/jsoncatalog.json`, respectively.
+2. Initialize connection to the MySQL database.
+3. Create metadata catalog files in `../metadata/`.
+4. Copy directory structure of files in `../texts/`
+5. Clean and tokenize unigrams and bigrams.
+6. Create a table with all words.
+7. Encode unigrams and bigrams.
+8. Load data into MySQL database.
+9. Create temporary MySQL table and .json file that will be used by the web app.
+10. Create other API settings.
+
+# Demos #
+Here are a couple of Bookworm web apps that are already built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
+
+1. [Open Library](http://bookworm.culturomics.org/ "Open Library")
+2. [ArXiv](http://arxiv.culturomics.org/ "ArXiv")
+3. [Chronicling America](http://arxiv.culturomics.org/ChronAm/ "Chronicling America")
