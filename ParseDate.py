@@ -5,20 +5,16 @@ import sys
 import os
 import re
 
-"""
-As well as parsing dates into cyclical forms, this also does a little basic 
-string substitution to remove some disallowed characters (\t,\n) from user-supplied metadata.
-"""
+fields_to_derive = []
 
-
-def DateParser():
+def ParseFieldDescs():
     f = open('../metadata/field_descriptions.json', 'r')
     fields = json.loads(f.read())
     f.close()
     
     derivedFile = open('../metadata/field_descriptions_derived.json', 'w')
+    output = []
     
-    fields_to_derive, output = [], []
     for field in fields:
         if field["datatype"] == "time":
              if "derived" in field:
@@ -48,7 +44,9 @@ def DateParser():
                 output.append(tmpdct)
     derivedFile.write(json.dumps(output))
     derivedFile.close()
-    
+
+
+def ParseJSONCatalog():
     order = ["year", "month", "week", "day"]
     f = open("../metadata/jsoncatalog_derived.txt", "w")
     
