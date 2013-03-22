@@ -14,7 +14,9 @@ Before you can build the database with this library, there are a couple things t
 {"title":"Harry Potter and the Philosopher's Stone", "author":"J. K. Rowling", "pubyear":"1997", "authorbirth":"1965", "authorsex":"Female"}
 ```
 *  **../texts/raw**: This folder should contain a uniquely named .txt file for every item in your collection that you want to build a bookworm around. If the example `jsoncatalog.txt` file above was the one we were using, then the `../texts/raw` directory should contain 4 .txt files, each with the full text of a book.
-* **MySQL database**:  Your user must be authorized to edit the database and there must be a `my.cnf` file that Python can load with your permissions.
+
+### MySQL Database ###
+Your user must be authorized to edit the database and there must be a `my.cnf` file that Python can load with your permissions.
 
 # Running #
 Once everything described above is in place, building the database is done via a command like this:
