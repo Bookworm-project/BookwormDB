@@ -5,22 +5,23 @@ import json
 import os
 from subprocess import call
 
-# These three libraries define the Bookworm-specific methods.
+# These five libraries define the Bookworm-specific methods.
+from ParseDate import *
 from CreateDatabase import *
 from ImportNewLibrary import *
 from WordsTableCreate import WordsTableCreate
 from tokenizeAndEncodeFiles import bookidlist
-
-# Import our data parser.
-import ParseDate
 
 # Pull a dbname from command line input.
 dbname = sys.argv[1]
 dbuser = sys.argv[2]
 dbpassword = sys.argv[3]
 
-print "Parsing the dates to a native format"
-ParseDate.DateParser()
+print "Parsing field_descriptions.json"
+ParseFieldDescs()
+
+print "Parsing jsoncatalog.json"
+ParseJSONCatalog()
 
 # Initiate MySQL connection.
 Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
