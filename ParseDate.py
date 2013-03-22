@@ -106,5 +106,5 @@ def DateParser():
                         print "Something's wrong with " + line[field["field"]] + " as a date--moving on..."
                         pass
                 line.pop(field["field"])
-        f.write(dumped + '%s\n' % json.dumps(line))
+        f.write('%s\n' % json.dumps(line))
     f.close()
