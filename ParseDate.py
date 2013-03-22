@@ -53,7 +53,11 @@ def ParseJSONCatalog():
     for data in open("../metadata/jsoncatalog.txt", "r"):
         for char in ['\t', '\n']:
             data = data.replace(char, '')
-        line = json.loads(data)
+        try:
+            line = json.loads(data)
+        except:
+            print 'JSON Parsing Failed:\n%s\n' % data
+            pass
         
         for field in fields_to_derive:
             try:
