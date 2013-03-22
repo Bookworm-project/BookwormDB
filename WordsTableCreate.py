@@ -21,7 +21,7 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
     for file in os.listdir('../texts/textids'):
         for line in open('../texts/textids/' + file,'r'):
             filenum = filenum + 1
-            line = line.strip()
+            line = line.replace('\n', '')
             filename = line.split('\t')[1]
             try:
                 print "counting unigrams in " + filename + " and adding to memory wordlist of length " + str(len(wordcounts))
