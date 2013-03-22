@@ -14,7 +14,7 @@
 *  **../texts/raw**: This folder should contain a uniquely named *.txt* file for every item in your collection that you want to build a bookworm around. If the example *jsoncatalog.txt* file above was the one we were using, then the *../texts/raw* directory should contain 4 *.txt* files, each with the full text of a book.
 
 # Running #
-Once all the settings described below are accounted for, building the database is done via a command like this:
+Once everything described above is in place, building the database is done via a command like this:
 
 ```python
 python OneClick.py dbname dbuser dbpassword
