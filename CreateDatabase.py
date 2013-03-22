@@ -79,7 +79,7 @@ class dataField:
     def slowSQL(self,withIndex=False):
         #This returns something like """author VARCHAR(255)""", a small definition string with an index, potentially.
         mysqltypes = {
-                      "character": "VARCHAR(255)"
+                      "character": "VARCHAR(255)",
                       "integer": "INT",
                       "text": "VARCHAR(5000)",
                       "decimal": "DECIMAL (9,4)"
