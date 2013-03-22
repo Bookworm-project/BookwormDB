@@ -625,7 +625,7 @@ class BookwormSQLDatabase:
             output['default_search']  = [
                                          {
                                           "search_limits": [{"word":["test"]}],
-                                          "time_measure": mytime
+                                          "time_measure": mytime,
                                           "words_collation": "Case_Sensitive",
                                           "counttype": "Occurrences_per_Million_Words",
                                           "smoothingSpan": 0
