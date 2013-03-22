@@ -1,41 +1,36 @@
 #!/usr/bin/python
-
 import os
 import sys
 import re
 import subprocess
-from subprocess import call
 import codecs
 from codecs import open as codecopen
 
-def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
-#20 million words should be about 2 gigabyte of memory, which is plenty on the servers we use: flush out every time we hit that limit.
 
+def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     wordcounts = dict()
     filenum = 1
     readnum = 0
-    logfile = open("log.log",'w')
-    #I call this 'database' rather than 'wordlist' because it could be a database, so we might as well think of it as one.
-    database = open("../texts/wordlist/raw.txt",'w')
+    logfile = open('log.log', 'w')
+    database = open('../texts/wordlist/raw.txt', 'w')
     
-    for file in os.listdir('../texts/textids'):
-        for line in open('../texts/textids/' + file,'r'):
+    for thisfile in os.listdir('../texts/textids'):
+        for line in open('../texts/textids/%s' % thisfile, 'r'):
             filenum = filenum + 1
-            line = line.replace('\n', '')
             filename = line.split('\t')[1]
+            filename = filename.replace('\n', '')
             try:
-                print "counting unigrams in " + filename + " and adding to memory wordlist of length " + str(len(wordcounts))
-                reading = codecopen('../texts/unigrams/'+filename+'.txt',encoding="UTF-8")
-                readnum = readnum+1
-                logfile.write(str(readnum) + " " + filename)
+                reading = codecopen('../texts/unigrams/%s.txt' % filename, encoding='UTF-8')
+                readnum = readnum + 1
+                logfile.write('%s %s\n' % (str(readnum), filename))
 
                 for wordEntry in reading:
                     wordEntry = wordEntry.split(' ')
-                    if (len (wordEntry) > 2):
-                        wordEntry = [''.join([wordEntry[i] for i in range(len(wordEntry)-1)]),wordEntry[-1]]
-                    wordEntry[1] = int(wordEntry[1].strip())
+                    if len(wordEntry) > 2:
+                        wordEntry = [''.join([wordEntry[i] for i in range(len(wordEntry)-1)]), wordEntry[-1]]
+                    wordEntry[1] = int(re.sub('\n','',wordEntry[1]))
                     try:
-                        wordcounts[wordEntry[0]]+=wordEntry[1]
+                        wordcounts[wordEntry[0]] += wordEntry[1]
                     except KeyError:
                         #Really long strings without spaces might mess this up.
                         #30 is a reasonable limit, so 64 seems like plenty.
@@ -50,45 +45,26 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
                 pass
             except:
                 pass
-            #print "Error on WordsTableCreate: could not find file " + filename + " (...moving on to next file...)"
             if len(wordcounts) > maxMemoryStorage:
-                print "exporting to disk at file number " + str(filenum)
-                keys = wordcounts.keys()
-                for key in keys:
-                    database.write(key.encode("utf-8") + " " + str(wordcounts[key])+"\n")
-                wordcounts=dict()
-                print "  export done"
+                print "exporting to disk at file number %s" % str(filenum)
+                for key in wordcounts.iterkeys():
+                    database.write('%s %s\n' % (key.encode('utf-8'), str(wordcounts[key])))
+                wordcounts = dict()
+                print "export done"
 
     #dump vocab for the last time when it hasn't reached the limit.
-    print " exporting remaining words at file number " + str(filenum)
-    keys = wordcounts.keys()
-    for key in keys:
-        database.write(key.encode("utf-8") + " " + str(wordcounts[key]) + "\n")
+    print "exporting remaining words at file number %s" % str(filenum)
+    for key in wordcounts.iterkeys():
+        database.write('%s %s\n' % (key.encode('utf-8'), str(wordcounts[key])))
 
     database.close()
 
     print("Sorting full word counts\n")
     #This LC_COLLATE here seems to be extremely necessary, because otherwise alphabetical order isn't preserved across different orderings.
-    call(["export LC_COLLATE='C'; sort -k1 ../texts/wordlist/raw.txt > ../texts/wordlist/sorted.txt"],shell=True)
-    print("Collapsing word counts\n")
-    """
+    subprocess.call(["export LC_COLLATE='C'; sort -k1 ../texts/wordlist/raw.txt > ../texts/wordlist/sorted.txt"], shell=True)
     
-    switching this from awk to perl to handle large numbers. It would be fair to complain that I should have just written it in python, I suppose...
-    call([""awk 'BEGIN{count=0}
-        {
-         if (NR==1)
-            {count=0;word=$1;}
-         if ($1==word)
-            count += $2
-         if ($1!=word) {
-            print word " " count;
-            word=$1;
-            count=$2;
-            }
-        } END {print word " " count;}
-        ' ../texts/wordlist/sorted.txt > ../texts/wordlist/counts.txt""],shell=True) 
-    """
-    call(["""
+    print("Collapsing word counts\n")
+    subprocess.call(["""
          perl -ne '
            BEGIN {use bignum; $last=""; $count=0} 
            if ($_ =~ m/(.*) (\d+)/) {
@@ -97,9 +73,9 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
             } 
            $last = $1;
            $count += $2
-           } END {print "$last $count\n"}' ../texts/wordlist/sorted.txt > ../texts/wordlist/counts.txt"""],shell=True) 
-    call(["""sort -nrk2 ../texts/wordlist/counts.txt > ../texts/wordlist/complete.txt"""],shell=True)
-    logfile.write("Including the old words first")
+           } END {print "$last $count\n"}' ../texts/wordlist/sorted.txt > ../texts/wordlist/counts.txt"""], shell=True) 
+    subprocess.call(["sort -nrk2 ../texts/wordlist/counts.txt > ../texts/wordlist/complete.txt"], shell=True)
+    logfile.write("Including the old words first\n")
     oldids = set()
     oldids.add(0)
     oldwords = dict()
@@ -115,7 +91,7 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
             word = line[1]
             oldids.add(wid)
             oldwords[word] = wid
-            i = i+1
+            i = i + 1
             if i > maxDictionaryLength:
                 oldFile.close()
                 return
@@ -124,10 +100,10 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
     except:
         logfile.write(" No original file to work from: moving on...\n")
     newWords = set()
-    logfile.write("writing new ids")
+    logfile.write("writing new ids\n")
     newlist = codecopen("../texts/wordlist/complete.txt")
     i = 1
-    nextIDtoAssign = max(oldids)+1
+    nextIDtoAssign = max(oldids) + 1
     counts = list()
     for line in newlist:
         try:
@@ -139,8 +115,8 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
             except KeyError:
                 wordid = nextIDtoAssign
                 nextIDtoAssign = nextIDtoAssign+1
-            counts.append("\t".join([str(wordid),word.encode("utf-8"),count]))
-            i = i+1
+            counts.append("\t".join([str(wordid), word.encode("utf-8"), count]))
+            i = i + 1
             if i > maxDictionaryLength:
                 break
         except:
@@ -148,9 +124,9 @@ def WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 20000000):
     output = open("../texts/wordlist/newwordlist.txt", "w")
     for count in counts:
         output.write(count) #Should just carry over the newlines from earlier.
+    
     #Don't overwrite the new file until the old one is complete
-    call(["mv", "../texts/wordlist/newwordlist.txt", "../texts/wordlist/wordlist.txt"])
-    #call(["""head -""" + str(maxDictionaryLength) + """ ../texts/wordlist/complete.txt | awk '{print NR "\t" $1 "\t" $2}' > ../texts/wordlist/wordlist.txt """],shell=True)  
+    subprocess.call(["mv", "../texts/wordlist/newwordlist.txt", "../texts/wordlist/wordlist.txt"])
 
 if __name__ == "__main__":
-    WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
+    WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=15000000)
