@@ -15,7 +15,7 @@ Files to Start With
 ===================
 *  ../texts/raw: This is where the actual texts are going to live, all at the same depth. (This can be big--about a million files in a single directory is pretty common.) They will have arbitrary, unique names. You'll have to create. 
 *  ../metadata/jsoncatalog.txt: a set of lines with one JSON object per line. Tabs and newlines ARE NOT currently permitted to appear in this file. Each line looks something like this:
-```json
+```
 {"title":"Ulysses","author":"James Joyce","authorbirth":"1880"}
 ```
 *  A MySQL database you are authorized to edit, and a my.cnf file that python can load with your permissions.
