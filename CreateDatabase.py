@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 import subprocess
 import MySQLdb
 import re
@@ -9,18 +8,16 @@ import json
 import os
 import decimal
 
-
-#First off: what are we using? Pull a dbname from command line input.
-#As well as the username and password.
 	
 class DB:
+
     def __init__(self, dbname):
         self.dbname = dbname
         self.conn = None
 
     def connect(self):
         #These scripts run as the Bookworm _Administrator_ on this machine.
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode = 'True',charset='utf8',db = '',local_infile=1)
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf", use_unicode='True', charset='utf8', db='', local_infile=1)
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS "+self.dbname)
         #Don't use native query attribute here to avoid infinite loops
@@ -43,6 +40,7 @@ class DB:
             cursor = self.conn.cursor()
             cursor.execute(sql)
         return cursor
+
 
 class dataField:
     """
@@ -67,7 +65,7 @@ class dataField:
         if self.datatype=="categorical":
             self.type="character"
             #This will catch a common sort of mistake, but also coerce any categorical data to have fewer than 255 characters.
-            self.fastField = self.field + "__id"
+            self.fastField = "%s__id" % self.field
 
         if self.unique:
             self.table = "catalog"
@@ -76,19 +74,27 @@ class dataField:
         else:
             self.table = self.field + "Disk"
             self.fasttab = self.field
-            self.outputloc = "../metadata/" + self.field + ".txt"
+            self.outputloc = "../metadata/%s.txt" % self.field
 
     def slowSQL(self,withIndex=False):
         #This returns something like """author VARCHAR(255)""", a small definition string with an index, potentially.
-        mysqltypes = {"character":"VARCHAR(255)","integer":"INT","text":"VARCHAR(5000)","decimal":"DECIMAL (9,4)"}
+        mysqltypes = {
+                      "character": "VARCHAR(255)"
+                      "integer": "INT",
+                      "text": "VARCHAR(5000)",
+                      "decimal": "DECIMAL (9,4)"
+                     }
         indexstring = ", INDEX (%(field)s), INDEX (%(anchor)s, %(field)s " % self.__dict__
         #need to specify fixed prefix length on text strings: (http://dev.mysql.com/doc/refman/5.0/en/create-index.html)
-        indextypes = {"character":indexstring + ")","integer":indexstring + ")","text":indexstring + " (255) )","decimal":indexstring + ")"} 
-        createstring = " " + self.field + " " + mysqltypes[self.type]
-
+        indextypes = {
+                      "character": "%s)" % indexstring,
+                      "integer": "%s)" % indexstring,
+                      "text": "%s (255) )" % indexstring,
+                      "decimal": "%s)" % indexstring
+                     } 
+        createstring = " %s %s" % (self.field, mysqltypes[self.type])
         if withIndex and self.type != 'text':
-            return createstring +  indextypes[self.type]
-
+            return '%s%s' % (createstring, indextypes[self.type])
         return createstring
 
     def fastSQL(self):
@@ -100,9 +106,9 @@ class dataField:
                 self.setIntType()
                 return " %(field)s__id %(intType)s" % self.__dict__
             if self.type == "integer":
-                return " " + self.field + " " + "INT"
+                return " %s INT" % self.field
             if self.type == "decimal":
-                return " " + self.field + " " + "DECIMAL (9,4) "
+                return " %s DECIMAL (9,4) " % self.field
             else:
                 return None
         else:
@@ -163,9 +169,9 @@ class dataField:
             mydict['name'] = self.name
         except:
             mydict['name'] = self.field
-        if (self.datatype=="etc" or self.type=="text"):
+        if self.datatype=="etc" or self.type=="text":
             return dict() #(Some things don't go into the fast settings because they'd take too long)
-        if (self.datatype=="time"):
+        if self.datatype=="time":
             mydict['unit'] = self.field
             #default to the full min and max date ranges
             #times may not be zero or negative
@@ -176,8 +182,8 @@ class dataField:
     
         if (self.datatype=="categorical"):
             mydict['dbfield'] = self.field + "__id"
-            #Find all the variables used more than 100 times from the database, and build them into something json-usable.
-            cursor = self.dbToPutIn.query("SELECT %(field)s, %(field)s__id  FROM %(field)s__id WHERE %(field)s__count > 50 ORDER BY %(field)s__id ASC LIMIT 100;" % self.__dict__)
+            #Find all the variables used more than 20 times from the database, and build them into something json-usable.
+            cursor = self.dbToPutIn.query("SELECT %(field)s, %(field)s__id  FROM %(field)s__id WHERE %(field)s__count > 20 ORDER BY %(field)s__id ASC LIMIT 500;" % self.__dict__)
             sort_order = []
             descriptions = dict()
             for row in cursor.fetchall():
@@ -205,10 +211,12 @@ class dataField:
             cursor = self.dbToPutIn.query("SELECT count(DISTINCT "+ self.field + ") FROM " + self.table)
             self.nCategories = cursor.fetchall()[0][0]
             self.intType = "INT UNSIGNED"
-            
-            if (self.nCategories <= 16777215): self.intType="MEDIUMINT UNSIGNED"
-            if (self.nCategories <= 65535): self.intType = "SMALLINT UNSIGNED"
-            if (self.nCategories <= 255): self.intType = "TINYINT UNSIGNED"
+            if self.nCategories <= 16777215:
+                self.intType = "MEDIUMINT UNSIGNED"
+            if self.nCategories <= 65535:
+                self.intType = "SMALLINT UNSIGNED"
+            if self.nCategories <= 255:
+                self.intType = "TINYINT UNSIGNED"
 
     def buildIdTable(self):
 
@@ -223,26 +231,21 @@ class dataField:
         search multiple times, so it's necessary to optimize. Plus, it means we can save space on memory storage
         in important ways as well.
         """
-
         #First, figure out how long the ID table has to be and make that into a datatype.
         #Joins and groups are slower the larger the field grouping on, so this is worth optimizing.
         self.setIntType()
 
-        returnt="DROP TABLE IF EXISTS tmp;\n\n"
+        returnt = "DROP TABLE IF EXISTS tmp;\n\n"
         returnt += "CREATE TABLE tmp ENGINE=MEMORY SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
-
-
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
                       %(field)s VARCHAR (255), INDEX (%(field)s), %(field)s__count MEDIUMINT);\n\n""" % self.__dict__
-
         returnt += """INSERT INTO %(field)s__id (%(field)s,%(field)s__count) 
                       SELECT %(field)s,count FROM tmp LEFT JOIN %(field)s__id USING (%(field)s) WHERE %(field)s__id.%(field)s__id IS NULL 
                       ORDER BY count DESC;\n\n""" % self.__dict__
         returnt += """DROP TABLE tmp;\n\n"""
 
-        self.idCode = self.field+"__id"
-
+        self.idCode = "%s__id" % self.field
         return returnt
 
 
@@ -258,12 +261,10 @@ def splitMySQLcode(string):
     return output
 
 class variableSet:
-    """
 
-    """
     def __init__(self,jsonDefinition,anchorField='bookid'):
         self.variables = [dataField(item) for item in jsonDefinition]
-        self.anchorField=anchorField
+        self.anchorField = anchorField
         """
         Any set of variables could be 'anchored' to any datafield that ultimately
         checks back into 'bookid' (which is the reserved term that we use for the lowest
@@ -275,7 +276,7 @@ class variableSet:
         """
 
     def uniques(self):
-        return([variable for variable in self.variables if variable.unique])
+        return [variable for variable in self.variables if variable.unique]
 
 
 class textids(dict):
@@ -301,46 +302,49 @@ class textids(dict):
         for filelist in filelists:
             reading = open("../texts/textids/" + filelist)
             for line in reading:
-                line = line.replace('\n', '')
-                parts = line.split("\t")
+                parts = line.replace('\n', '').split("\t")
                 self[parts[1]] = int(parts[0])
                 numbers.append(int(parts[0]))
-        self.new = open("../texts/textids/new",'a')
+        self.new = open('../texts/textids/new', 'a')
         self.max = max(numbers)
+    
     def bump(self,newFileName):
-        self.max = self.max+1
+        self.max = self.max + 1
         writing = self.new
-        writing.write(str(self.max) + "\t" + newFileName.encode('utf-8') + "\n")
+        writing.write('%s\t%s\n' % (str(self.max), newFileName.encode('utf-8')))
         self[newFileName] = self.max
         return self.max
+    
     def close(self):
         self.new.close()
+
 
 def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
         if not isinstance(obj, unicode):
             obj = unicode(obj, encoding)
-    if isinstance(obj,int) or isinstance(obj,float) or isinstance(obj,decimal.Decimal):
-        obj=unicode(str(obj),encoding)
+    if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, decimal.Decimal):
+        obj = unicode(str(obj),encoding)
     return obj
 
 
-def write_metadata(variables,limit = float("inf")):
+def write_metadata(variables, limit=float("inf")):
     #Write out all the metadata into files that MySQL is able to read in.
     linenum = 1
     bookids = textids()
     metadatafile = open("../metadata/jsoncatalog_derived.txt")
-    catalog = open("../metadata/catalog.txt",'w')
+    catalog = open("../metadata/catalog.txt", 'w')
     for variable in [variable for variable in variables if not variable.unique]:
         #Don't open until here, because otherwise it destroys the existing files, I belatedly realized,
         #making stop-and-go debugging harder.
-        variable.output = open(variable.outputloc,'w')
+        variable.output = open(variable.outputloc, 'w')
     for entry in metadatafile:
         try:
             entry = to_unicode(entry)
-            entry = json.loads(entry.strip())
+            entry = entry.replace('\\n', ' ')
+            entry = json.loads(entry)
         except:
-            print "WARNING: json parsing failed for this catalog entry:"
+            print "WARNING: json parsing failed for this JSON:"
             print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
             print entry
             print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -355,10 +359,10 @@ def write_metadata(variables,limit = float("inf")):
         mainfields = [str(bookid),to_unicode(entry['filename'])]
         #First, pull the unique variables and write them to the 'catalog' table
         for var in [variable for variable in variables if variable.unique]:
-            myfield = entry.get(var.field,"")
+            myfield = entry.get(var.field, "")
             mainfields.append(to_unicode(myfield))
         try:
-            catalogtext = '\t'.join(mainfields) + "\n"
+            catalogtext = '%s\n' % '\t'.join(mainfields)
         except:
             print mainfields
             raise
@@ -366,22 +370,17 @@ def write_metadata(variables,limit = float("inf")):
         for variable in [variable for variable in variables if not variable.unique]:
              #Each of these has a different file it must write to...
             outfile = variable.output
-            lines = entry.get(variable.field,[])
+            lines = entry.get(variable.field, [])
             for line in lines:
-                try:
-                    writing = str(bookid)+"\t"+line+"\n"
-                    outfile.write(writing.encode('utf-8'))
-                except:
-                    print "some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines)
-                    pass
+                writing = '%s\t%s\n' % (str(bookid), line)
+                outfile.write(writing.encode('utf-8'))
         if linenum > limit:
            break
-        linenum=linenum+1
+        linenum = linenum+1
     for variable in [variable for variable in variables if not variable.unique]:
         variable.output.close()
     bookids.close()
     catalog.close()
-
 
 
 class BookwormSQLDatabase:
@@ -396,7 +395,7 @@ class BookwormSQLDatabase:
         self.dbuser = dbuser
         self.dbpassword = dbpassword
         try:
-            variablefile = open("../metadata/field_descriptions_derived.json",'r')
+            variablefile = open("../metadata/field_descriptions_derived.json", 'r')
         except:
             raise
         self.db = DB(dbname)
@@ -404,15 +403,15 @@ class BookwormSQLDatabase:
         self.variables = [dataField(variable,self.db) for variable in variables]
 
     def create_database(self):
-        dbname=self.dbname
-        dbuser=self.dbuser
-        dbpassword=self.dbpassword
-        db=self.db
+        dbname = self.dbname
+        dbuser = self.dbuser
+        dbpassword = self.dbpassword
+        db = self.db
         #This must be run as a MySQL user with create_table privileges
         try:
             db.query("CREATE DATABASE " + dbname)
         except:
-            print "Database " + dbname + " already exists: that might be intentional, so not dying"
+            print "Database %s already exists: that might be intentional, so not dying" % dbname
         try:
             "Setting up permissions for web user..."
             db.query("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'%' IDENTIFIED BY '" + dbpassword + "'")
@@ -426,9 +425,9 @@ class BookwormSQLDatabase:
             raise
             
     def load_book_list(self):
-        db=self.db
+        db = self.db
         print "Making a SQL table to hold the catalog data"
-        mysqlfields = ["bookid MEDIUMINT, PRIMARY KEY(bookid)","filename VARCHAR(255)","nwords INT"]
+        mysqlfields = ["bookid MEDIUMINT, PRIMARY KEY(bookid)", "filename VARCHAR(255)", "nwords INT"]
         for variable in [variable for variable in self.variables if variable.unique]:
             createstring = variable.slowSQL(withIndex=True)
             mysqlfields.append(createstring)
@@ -585,11 +584,11 @@ class BookwormSQLDatabase:
         for variable in [variable for variable in self.variables if not variable.unique]:
             commands.append(variable.fastSQLTable("MEMORY"))
 
-        SQLcreateCode = open("../createTables.SQL",'w')
+        SQLcreateCode = open('../createTables.SQL', 'w')
         for line in commands:
         #Write them out so they can be put somewhere to run automatically on startup:
             try:
-                SQLcreateCode.write(line + "\n")
+                SQLcreateCode.write('%s\n' % line)
             except:
                 print line
                 raise
@@ -604,20 +603,39 @@ class BookwormSQLDatabase:
         dbname = self.dbname
         #This creates a JSON file compliant with the Bookworm web site.
         output = dict()
-        output['settings'] = {"dbname":self.dbname,"itemName":"text","sourceName":self.dbname,"sourceURL":self.dbname}
-        ui_components = [{"type":"text","dbfield":"word","name":"Word(s)"}]
+        output['settings'] = {
+                              "dbname": self.dbname,
+                              "itemName":" text"
+                              "sourceName": self.dbname
+                              "sourceURL": self.dbname
+                             }
+        ui_components = [
+                         {
+                          "type":"text",
+                          "dbfield":"word",
+                          "name":"Word(s)"
+                         }
+                        ]
         for variable in variables:
             newdict = variable.jsonDict()
             if newdict: #(It can be empty, in which case we don't want it for the json)
                 ui_components.append(newdict)
         try:
             mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-            output['default_search']  = [{"search_limits":[{"word":["test"]}],"time_measure":mytime,"words_collation":"Case_Sensitive","counttype":"Occurrences_per_Million_Words","smoothingSpan":0}]
+            output['default_search']  = [
+                                         {
+                                          "search_limits": [{"word":["test"]}],
+                                          "time_measure": mytime
+                                          "words_collation": "Case_Sensitive",
+                                          "counttype": "Occurrences_per_Million_Words",
+                                          "smoothingSpan": 0
+                                         }
+                                        ]
         except:
             print "Not enough info for a default search"
             raise
         output['ui_components'] = ui_components
-        outfile = open("../" + dbname + ".json",'w')
+        outfile = open('../%s.json' % dbname, 'w')
         outfile.write(json.dumps(output))
 
     def create_API_settings(self):
@@ -627,9 +645,20 @@ class BookwormSQLDatabase:
             db.query("CREATE TABLE API_settings (settings VARCHAR(8192));")
         except:
             pass
-        addCode = json.dumps({"HOST":"10.102.15.45","database":self.dbname,"fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":[variable.field for variable in self.variables if not (variable.unique or variable.type=="etc") ],"read_url_head":"arxiv.culturomics.org" })
+        api_info = {
+                    "HOST": "10.102.15.45",
+                    "database": self.dbname,
+                    "fastcat": "fastcat",
+                    "fullcat": "catalog",
+                    "fastword": "wordsheap",
+                    "read_default_file": "/etc/mysql/my.cnf",
+                    "fullword": "words",
+                    "separateDataTables": [variable.field for variable in self.variables if not (variable.unique or variable.type=="etc") ],
+                    "read_url_head": "arxiv.culturomics.org"
+                   }
+        addCode = json.dumps(api_info)
         print addCode
-        db.query("INSERT INTO API_settings VALUES ('" + addCode + "');")
+        db.query("INSERT INTO API_settings VALUES ('%s');" % addCode)
 
     def update_Porter_stemming(self): #We use stems occasionally.
         print "Updating stems from Porter algorithm..."
@@ -640,7 +669,7 @@ class BookwormSQLDatabase:
         for local in words:
             word = ''.join(local) #Could probably take the first element of the tuple as well?
             #Apostrophes have the save stem as the word, if they're included        
-            word = re.sub("'s","",word)
+            word = word.replace("'s","")
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
                 z = cursor.execute(query)
