@@ -31,7 +31,7 @@ The general workflow of OneClick.py is the following:
 1. Derive `../metadata/field_descriptions_derived.json` and `../metadata/jsoncatalog_derived.json` from `../metadata/field_descriptions.json` and `../metadata/jsoncatalog.json`, respectively.
 2. Initialize connection to the MySQL database.
 3. Create metadata catalog files in `../metadata/`.
-4. Copy directory structure of files in `../texts/`
+4. Copy directory structure of files in `../texts/`.
 5. Clean and tokenize unigrams and bigrams.
 6. Create a table with all words.
 7. Encode unigrams and bigrams.
