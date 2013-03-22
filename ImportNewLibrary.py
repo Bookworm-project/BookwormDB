@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import subprocess
-from subprocess import call as sh
 import os
 
 """
@@ -34,27 +33,27 @@ Disk access seems to be a major bottleneck, as does poor parallelization.
 #There are a whole bunch of directories that it wants to be there:
 for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unigrams','logs/unigrams','logs/bigrams','texts/bigrams','texts/encoded','texts/encoded/unigrams','texts/encoded/bigrams','logs/encode2','logs/encode1', 'texts/wordlist']:
     if not os.path.exists("../" + directory):
-        sh(['mkdir', '../' + directory])
+        subprocess.call(['mkdir', '../' + directory])
 
 def CopyDirectoryStructuresFromRawDirectory():
     #Internal python solutions for this are not as fast or as clean as simply using rsync in the shell.
     #That's what the code below does. Downside: it requires rsync.
     print "Copying directory Structures from primary folder to later ones..."
-    sh(["sh","./copyDirectoryStructures.sh"])
+    subprocess.call(["sh","./copyDirectoryStructures.sh"])
 
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
 
 def CleanTexts():
     print "Cleaning the texts"
-    sh(['python','master.py','clean'])
+    subprocess.call(['python','master.py','clean'])
 
 def MakeUnigramCounts():
     print "Creating 1 gram counts"
-    sh(['python','master.py','unigrams'])
+    subprocess.call(['python','master.py','unigrams'])
 
 def MakeBigramCounts():
     print "Creating 2gram counts"
-    sh(['python','master.py','bigrams'])
+    subprocess.call(['python','master.py','bigrams'])
     #We could add 3grams, and so forth, here.
 
 def MakeTrigramCounts():
@@ -66,11 +65,11 @@ def MakeTrigramCounts():
 
 def EncodeUnigrams():
     print "Creating 1grams encodings"
-    sh(['python','master.py','encode1'])
+    subprocess.call(['python','master.py','encode1'])
 
 def EncodeBigrams():
     print "Creating 2grams encodings"
-    sh(['python','master.py','encode2'])
+    subprocess.call(['python','master.py','encode2'])
     
 if (__name__=="__main__"):
     #This won't get run much, I imagine.
