@@ -605,8 +605,8 @@ class BookwormSQLDatabase:
         output = dict()
         output['settings'] = {
                               "dbname": self.dbname,
-                              "itemName":" text"
-                              "sourceName": self.dbname
+                              "itemName":" text",
+                              "sourceName": self.dbname,
                               "sourceURL": self.dbname
                              }
         ui_components = [
