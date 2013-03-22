@@ -301,7 +301,7 @@ class textids(dict):
         for filelist in filelists:
             reading = open("../texts/textids/" + filelist)
             for line in reading:
-                line = line.strip()
+                line = line.replace('\n', '')
                 parts = line.split("\t")
                 self[parts[1]] = int(parts[0])
                 numbers.append(int(parts[0]))
