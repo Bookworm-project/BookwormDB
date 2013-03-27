@@ -65,7 +65,7 @@ class bookidlist:
         for bookid in self.bookids:
             bookinstance = book(bookid)
             bookinstance.ngrams(n)
-            myArg = bookinstance.generateArgument()
+            myArg = bookinstance.generateNgramArgument()
             if len(myArg) > 0: #many cases this will return empty
                 self.args.append(myArg)
         self.execute(exMethod=shellCall)
@@ -109,16 +109,8 @@ class book:
         self.coreloc = "%s.txt" % bookid
         
     def ngrams(self, n):
-        #This generalizes writing an awk script to pull out gram counts
-        #The join loop here prints a string like '$(i+0) " " $(i+1) " " $(i+2)' that gets the words in position i to i+2 plus two as a group for the thing to use. 
-        #At some point 'unigrams' and 'bigrams' should be deleted as methods, and only this should be used.
-        self.start_operator = "cat"
         self.start = "../texts/cleaned/%s" % self.coreloc
-        self.function = """awk '{ for(i=1; i<=NF-""" +str(n-1)+ """; i++)                    
-                 {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,n)]) + """]++}
-                 }
-                 END{          
-                 for(i in count){print i, count[i]}}'"""
+        self.function = "./cngrams/ngrams --type=word --n=%s --in=%s" % (n, self.start)
         destinations = {1: "unigrams", 2: "bigrams", 3: "trigrams", 4: "quadgrams", 5: "quintgrams"}
         self.destination = "../texts/%s/%s" % (destinations[n], self.coreloc)
         #self.execute   = self.shell_execute
@@ -141,6 +133,19 @@ class book:
             print "No action. %s is too small." % self.start
             return []
         shell_operators = [self.start_operator, self.start, "|", self.function, ">", self.destination]
+        return shell_operators
+
+    def generateNgramArgument(self):
+        if os.path.exists(self.destination):
+            #print "No action. %s already exists." % self.destination
+            return []
+        if not os.path.exists(self.start):
+            print "No action. %s does not exist." % self.start
+            return []
+        if os.path.getsize(self.start) < 10:
+            print "No action. %s is too small." % self.start
+            return []
+        shell_operators = [self.function, ">", self.destination]
         return shell_operators
 
 if __name__ == '__main__':
