@@ -22,7 +22,7 @@ Before you can build the database with this library, there are a couple things t
 
 
 # Demo #
-Here we'll look at how to use Presidio by going through a demo where we will look at t[text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day. The goal is to provide everything needed to build a Bookworm using publically available data.
+Here we'll look at how to use Presidio by going through a demo where we will look at [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day. The goal is to provide everything needed to build a Bookworm using publically available data.
 
 First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Start by cloning that repo:
 
