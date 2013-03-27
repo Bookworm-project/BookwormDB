@@ -1,0 +1,1 @@
+ngrams --type=word --n=3 --in= sample.txt
