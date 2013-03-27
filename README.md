@@ -27,7 +27,7 @@ Here we'll look at how to use Presidio by going through a demo where we will loo
 First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Start by cloning that repo:
 
 ```bash
-git clone git://github.com/econpy/congress_api.git
+git clone git://github.com/econpy/congress_api
 ```
 
 Now run the `get_and_unzip_data.py` script to fetch the data and unzip the zip files:
@@ -46,7 +46,7 @@ cd ..
 mkdir metadata
 mkdir texts
 mkdir texts/raw
-git clone git://github.com/econpy/Presidio_dev.git
+git clone git://github.com/econpy/Presidio
 ```
 We first need to fill `texts/raw/` with .txt files containing the summary of bills introduced into Congress. Each .txt file will be uniquely named and will contain the text from the summary of a bill. Then, we will create the `metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `texts/raw/`.
 
@@ -103,3 +103,4 @@ The general workflow of OneClick.py is the following:
 8. Load data into MySQL database.
 9. Create temporary MySQL table and .json file that will be used by the web app.
 10. Create other API settings.
+11. 
