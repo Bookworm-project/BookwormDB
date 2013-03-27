@@ -24,6 +24,7 @@ Before you can build the database with this library, there are a couple things t
 # Demo #
 Here we'll look at how to use Presidio by going through a demo where we will look at [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day. The goal is to provide everything needed to build a Bookworm using publically available data.
 
+## Data ##
 First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Start by cloning that repo:
 
 ```bash
@@ -41,6 +42,9 @@ This will take a few minutes depending on your Internet connection and the speed
 
 Once all the files have finished downloading we'll clone this repo and begin to build the metadata for the Bookworm.
 
+## Prep to Build Bookworm ##
+Now create some directories and clone Presidio:
+
 ```bash
 cd ..
 mkdir metadata
@@ -48,6 +52,7 @@ mkdir texts
 mkdir texts/raw
 git clone git://github.com/econpy/Presidio
 ```
+
 We first need to fill `texts/raw/` with .txt files containing the summary of bills introduced into Congress. Each .txt file will be uniquely named and will contain the text from the summary of a bill. Then, we will create the `metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `texts/raw/`.
 
 Included in the `congress_api` repo is a script titled `congress_parser.py` which we'll run to create the jsoncatalog.txt file and all the .txt files.
