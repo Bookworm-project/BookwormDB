@@ -107,4 +107,3 @@ The general workflow of OneClick.py is the following:
 8. Load data into MySQL database.
 9. Create temporary MySQL table and .json file that will be used by the web app.
 10. Create other API settings.
-11. 
