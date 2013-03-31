@@ -67,7 +67,7 @@ Now we just need to create the `metadata/field_descriptions.json` file which is 
 [
     {"field":"date","datatype":"time","type":"numeric","unique":true,"derived":[{"resolution":"month"}]},
     {"field":"searchstring","datatype":"searchstring","type":"text","unique":true},
-    {"field":"status","datatype":"categorical","type":"text","unique":false},
+    {"field":"enacted","datatype":"categorical","type":"text","unique":false},
     {"field":"sponsor_state","datatype":"categorical","type":"text","unique":false},
     {"field":"cosponsors_state","datatype":"categorical","type":"text","unique":false},
     {"field":"chamber","datatype":"categorical","type":"text","unique":false}
