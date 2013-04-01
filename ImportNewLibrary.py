@@ -39,7 +39,7 @@ def CopyDirectoryStructuresFromRawDirectory():
     #Internal python solutions for this are not as fast or as clean as simply using rsync in the shell.
     #That's what the code below does. Downside: it requires rsync.
     print "Copying directory Structures from primary folder to later ones..."
-    subprocess.call(["sh","./copyDirectoryStructures.sh"])
+    subprocess.call(["sh","./scripts/copyDirectoryStructures.sh"])
 
 """Use the cleaning program to make texts that are set for tokenizing, and with sentences at linebreaks."""
 
