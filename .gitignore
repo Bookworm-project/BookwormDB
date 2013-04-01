@@ -2,6 +2,5 @@
 *.log
 *.png
 *~
-*.tmp
 .DS_Store
 *.pyc
