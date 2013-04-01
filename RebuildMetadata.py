@@ -5,9 +5,7 @@ import json
 import os
 from subprocess import call
 
-import ParseDate
-
-#These three libraries define the Bookworm-specific methods.
+from ParseDate import *
 from CreateDatabase import *
 from ImportNewLibrary import *
 from WordsTableCreate import WordsTableCreate
@@ -19,8 +17,11 @@ dbpassword = sys.argv[3]
 
 Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
 
-print "Parsing the dates to a native format"
-ParseDate.DateParser()
+print "Parsing field_descriptions.json"
+ParseFieldDescs()
+
+print "Parsing jsoncatalog.json"
+ParseJSONCatalog()
 
 "Writing metadata to new catalog file..."
 write_metadata(Bookworm.variables)
