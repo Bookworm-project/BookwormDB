@@ -49,7 +49,7 @@ class bookidlist:
         #mode is 'unigrams' or 'bigrams' (or trigrams)
         #This just takes the raw file, the perl script knows where to look.
         #Not the cleanest.
-        self.args = [['perl', 'encodeText.pl', mode] + booklist for booklist in self.booklists]
+        self.args = [['perl', 'scripts/encodeText.pl', mode] + booklist for booklist in self.booklists]
 
     def tokenize(self,mode):
         if mode=='trigrams':
@@ -110,7 +110,7 @@ class book:
         
     def ngrams(self, n):
         self.start = "../texts/cleaned/%s" % self.coreloc
-        self.function = "./cngrams/ngrams --type=word --n=%s --in=%s" % (n, self.start)
+        self.function = "scripts/cngrams/ngrams --type=word --n=%s --in=%s" % (n, self.start)
         destinations = {1: "unigrams", 2: "bigrams", 3: "trigrams", 4: "quadgrams", 5: "quintgrams"}
         self.destination = "../texts/%s/%s" % (destinations[n], self.coreloc)
         #self.execute   = self.shell_execute
@@ -118,7 +118,7 @@ class book:
     def clean(self):
         self.start_operator = "cat"
         self.start = "../texts/raw/%s" % self.coreloc
-        self.function = "perl CleanText.pl"
+        self.function = "perl scripts/CleanText.pl"
         self.destination = "../texts/cleaned/%s" % self.coreloc
         #self.execute = self.shell_execute
 
