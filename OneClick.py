@@ -8,8 +8,7 @@ from subprocess import call
 # These five libraries define the Bookworm-specific methods.
 from ParseDate import *
 from CreateDatabase import *
-from ImportNewLibrary import *
-from WordsTableCreate import WordsTableCreate
+from WordsTableCreate import *
 from tokenizeAndEncodeFiles import bookidlist
 
 # Pull a dbname from command line input.
