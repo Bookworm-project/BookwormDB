@@ -19,6 +19,14 @@ Before you can build the database with this library, there are a couple things t
 *  **../texts/raw**: This folder should contain a uniquely named .txt file for every item in your collection that you want to build a bookworm around. If the example `jsoncatalog.txt` file above was the one we were using, then the `../texts/raw` directory should contain 4 .txt files, each with the full text of a book.
 * **MySQL Database**: Your user must be authorized to edit the database and there must be a `my.cnf` file that Python can load with your permissions. More info about setting up the database and permissions will be added soon.
 
+Assuming a running MySQL database, we'll set up a user `bookwormuser` on the database and give them the access they'll need.
+
+```sql
+CREATE USER 'bookwormuser'@'localhost' IDENTIFIED BY 'mypassword';
+GRANT ALL PRIVILEGES ON *.* TO 'bookwormuser'@'localhost';
+FLUSH PRIVILEGES;
+```
+
 
 # Demo #
 Here we'll look at how to use Presidio by going through a demo where we will look at [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day. The goal is to provide everything needed to build a Bookworm using publically available data.
