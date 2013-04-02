@@ -5,8 +5,7 @@ import json
 import os
 from subprocess import call
 
-# These five libraries define the Bookworm-specific methods.
-from ParseDate import ParseFieldDescs,ParseJSONCatalog
+# These three libraries define the Bookworm-specific methods.
 from CreateDatabase import *
 from WordsTableCreate import *
 from tokenizeAndEncodeFiles import bookidlist
