@@ -1,4 +1,4 @@
-[Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for building the database and tables used with a Bookworm web app and [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
+[Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for building the database and tables used with a Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app") and [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
 
 # Bookworms #
 Here are a couple of Bookworm web apps that are already built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
