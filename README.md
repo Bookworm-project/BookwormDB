@@ -17,7 +17,7 @@ Before you can build the database with this library, there are a couple things t
 ### Required Files ###
 *  **../metadata/jsoncatalog.txt**: A file with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
 *  **../texts/raw**: This folder should contain a uniquely named .txt file for every item in your collection that you want to build a bookworm around. If the example `jsoncatalog.txt` file above was the one we were using, then the `../texts/raw` directory should contain 4 .txt files, each with the full text of a book.
-* **MySQL Database**: Your user must be authorized to edit the database and there must be a `my.cnf` file that Python can load with your permissions. More info about setting up the database and permissions will be added soon.
+* **MySQL Database**: Your user must be authorized to edit the database and there must be a `my.cnf` file that Python can load with your permissions.
 
 Assuming a running MySQL database, we'll set up a user `bookwormuser` on the database and give them the access they'll need.
 
