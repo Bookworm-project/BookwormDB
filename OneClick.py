@@ -6,9 +6,9 @@ import os
 from subprocess import call
 
 # These three libraries define the Bookworm-specific methods.
-from CreateDatabase import *
-from WordsTableCreate import *
-from tokenizeAndEncodeFiles import bookidlist
+from bookworm.CreateDatabase import *
+from bookworm.WordsTableCreate import *
+from bookworm.tokenizeAndEncodeFiles import bookidlist
 
 # Pull a dbname from command line input.
 dbname = sys.argv[1]
