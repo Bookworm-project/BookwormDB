@@ -4,14 +4,6 @@ import subprocess
 import multiprocessing
 import re
 
-"""
-I want to use multiprocessing to actually spawn real child processes: this is replacing the old file
-master.py to do that.
-"""
-
-#Because pools don't work with class methods: #http://bytes.com/topic/python/answers/552476-why-cant-you-pickle-instancemethods
-#and because multiprocessing pools don't allow multiple methods.
-
 
 def noShellCall(arg):
     subprocess.call(arg, shell=False)
