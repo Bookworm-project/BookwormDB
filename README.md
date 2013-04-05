@@ -94,7 +94,7 @@ Here, that would look like this:
 python OneClick.py bookwormcongress foobar mysecret
 ```
 
-If the database **bookwormcongress** doesn't exist, it will be created. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/econpy/Presidio#required-mysql-database) in this tutorial.
+The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/econpy/Presidio#required-mysql-database) in this tutorial.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
