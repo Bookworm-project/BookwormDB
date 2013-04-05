@@ -1,7 +1,7 @@
 [Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for building the database and tables used with a Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app") and [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
 
-# Bookworms #
-Here are a couple of Bookworm web apps that are already built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
+## Bookworms ##
+Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
 
 1. [Open Library](http://bookworm.culturomics.org/ "Open Library")
 2. [ArXiv](http://arxiv.culturomics.org/ "ArXiv")
@@ -10,49 +10,42 @@ Here are a couple of Bookworm web apps that are already built using [Presidio](h
 5. [US Congress](http://steinbeck.seas.harvard.edu/bookworm/congress/ "Bills in US Congress")
 
 
-# Getting Started #
-Before you can build the database with this library, there are a couple things that need to be setup.
-
-
-### Required Files ###
-*  **../metadata/jsoncatalog.txt**: A file with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
-*  **../texts/raw**: This folder should contain a uniquely named .txt file for every item in your collection that you want to build a bookworm around. If the example `jsoncatalog.txt` file above was the one we were using, then the `../texts/raw` directory should contain 4 .txt files, each with the full text of a book.
-* **MySQL Database**: Your user must be authorized to edit the database and there must be a `my.cnf` file that Python can load with your permissions.
-
-Assuming a running MySQL database, we'll set up a user `bookwormuser` on the database and give them the access they'll need.
+## Getting Started ##
+### Required MySQL Database ###
+There must be a MySQL user that has permission to insert/select data from all databases. For example, creating a user `foobar` with password `mysecret` with access to all databases from `localhost` could be done like this:
 
 ```sql
-CREATE USER 'bookwormuser'@'localhost' IDENTIFIED BY 'mypassword';
-GRANT ALL PRIVILEGES ON *.* TO 'bookwormuser'@'localhost';
+CREATE USER 'foobar'@'localhost' IDENTIFIED BY 'mysecret';
+GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost';
 FLUSH PRIVILEGES;
 ```
+There must also be a file at` ~/.my.cnf` that Python can load with your MySQL user/pass (this prevents having to store any sensitive information in the Python scripts). Here's an example of what the `~/.my.cnf` file would look like for the user/pass created above:
 
+```
+[client]
+user = foobar
+password = 'mysecret'
+```
+With these settings in place, you're ready to begin building a Bookworm.
 
 # Demo #
 Here we'll look at how to use Presidio by going through a demo where we will look at [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day. The goal is to provide everything needed to build a Bookworm using publically available data.
 
-## Data ##
-First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Start by cloning that repo:
+## Get the Data ##
+First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Clone that repo and run `get_and_unzip_data.py` to fetch and unzip the data:
 
 ```bash
 git clone git://github.com/econpy/congress_api
-```
-
-Now run the `get_and_unzip_data.py` script to fetch the data and unzip the zip files:
-
-```bash
 cd congress_api
 python get_and_unzip_data.py
 ```
 
-This will take a few minutes depending on your Internet connection and the speed of your computer. The script downloads and unzips all the files in parallel using [multiprocessing](http://docs.python.org/2/library/multiprocessing.html "multiprocessing") to make this as fast as possible. Note that once fully unzipped, the files will take up just under 3GB of disk space.
-
-Once all the files have finished downloading we'll clone this repo and begin to build the metadata for the Bookworm.
+This will take a few minutes depending on your Internet connection and the speed of your computer. The `get_and_unzip_data.py` script simply downloads and unzips all the files in parallel using [multiprocessing](http://docs.python.org/2/library/multiprocessing.html "multiprocessing"). NOTE: Once fully unzipped, the files will take up just under 3GB of disk space.
 
 ## Prep to Build Bookworm ##
-Now create some directories and clone Presidio:
+Now create some directories and clone this repo:
 
-```bash
+```
 cd ..
 mkdir metadata
 mkdir texts
@@ -60,16 +53,20 @@ mkdir texts/raw
 git clone git://github.com/econpy/Presidio
 ```
 
-We first need to fill `texts/raw/` with .txt files containing the summary of bills introduced into Congress. Each .txt file will be uniquely named and will contain the text from the summary of a bill. Then, we will create the `metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `texts/raw/`.
+### Required Files ###
+*  `/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
+*  `/texts/raw` This folder should contain a uniquely named .txt file for every item in your collection of texts that you want to build a bookworm around.
+
+Fill `texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `texts/raw/`.
 
 Included in the `congress_api` repo is a script titled `congress_parser.py` which we'll run to create the jsoncatalog.txt file and all the .txt files.
 
-```bash
+```
 cd congress_api
 python congress_parser.py
 ```
 
-Now we just need to create the `metadata/field_descriptions.json` file which is used to define the type of variable for each variable in `jsoncatalog.txt`. Copy the following JSON object into `metadata/field_descriptions.json`:
+Now create a file in the `metadata` folder called `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`. For this demo, copy the following JSON object into `field_descriptions.json`:
 
 ```json
 [
@@ -85,33 +82,32 @@ Now we just need to create the `metadata/field_descriptions.json` file which is 
 Everything should now be in place and we are ready to build the database.
 
 ## Running ##
-Building the database for a Bookworm is done via a command like this:
+The structure of the arguments needed by `OneClick.py` to build the database are the following:
 
-```python
+```
 python OneClick.py dbname dbuser dbpassword
 ```
 
- * **dbname**: If the database doesn't exist, the script will create it for you.
- * **dbuser** and **dbpassword**: These need to be setup with the database ahead of time.
+Here, that would look like this:
 
-Assuming our MySQL username is `bookwormuser` with password `mypassword`, we'll create a database named `congress` by running:
-
-```python
-python OneClick.py congress bookwormuser mypassword
+```
+python OneClick.py bookwormcongress foobar mysecret
 ```
 
-This will take a while to run. Sit back and relax.
+If the database `bookwormcongress` doesn't exist, it will be created for you. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/econpy/Presidio#required-mysql-database) in this tutorial.
+
+Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
 ### General Workflow ###
-The general workflow of OneClick.py is the following:
+For reference, the general workflow of OneClick.py is the following:
 
 1. Derive `../metadata/field_descriptions_derived.json` and `../metadata/jsoncatalog_derived.json` from `../metadata/field_descriptions.json` and `../metadata/jsoncatalog.json`, respectively.
 2. Initialize connection to the MySQL database.
 3. Create metadata catalog files in `../metadata/`.
-4. Copy directory structure of files in `../texts/`.
+4. Build the directory structure in `../texts/`.
 5. Clean and tokenize unigrams and bigrams.
 6. Create a table with all words.
 7. Encode unigrams and bigrams.
 8. Load data into MySQL database.
 9. Create temporary MySQL table and .json file that will be used by the web app.
-10. Create other API settings.
+10. Create API settings.
