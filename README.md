@@ -14,7 +14,7 @@ Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms b
 ### Required MySQL Database ###
 There must be a MySQL user that has permission to insert/select data from all databases. For example, creating a user `foobar` with password `mysecret` with access to all databases from `localhost` could be done like this:
 
-```sql
+```mysql
 CREATE USER 'foobar'@'localhost' IDENTIFIED BY 'mysecret';
 GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost';
 FLUSH PRIVILEGES;
@@ -57,9 +57,9 @@ git clone git://github.com/econpy/Presidio
 *  `/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
 *  `/texts/raw` This folder should contain a uniquely named .txt file for every item in your collection of texts that you want to build a bookworm around.
 
-Fill `texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `texts/raw/`.
+Fill `/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `texts/raw/`.
 
-Included in the `congress_api` repo is a script titled `congress_parser.py` which we'll run to create the jsoncatalog.txt file and all the .txt files.
+Included in the `congress_api` repo is a script titled `congress_parser.py` which we'll run to create `jsoncatalog.txt` and all the .txt files.
 
 ```
 cd congress_api
