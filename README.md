@@ -94,20 +94,21 @@ Here, that would look like this:
 python OneClick.py bookwormcongress foobar mysecret
 ```
 
-If the database `bookwormcongress` doesn't exist, it will be created for you. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/econpy/Presidio#required-mysql-database) in this tutorial.
+If the database **bookwormcongress** doesn't exist, it will be created. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/econpy/Presidio#required-mysql-database) in this tutorial.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
 ### General Workflow ###
 For reference, the general workflow of OneClick.py is the following:
 
-1. Derive `../metadata/field_descriptions_derived.json` and `../metadata/jsoncatalog_derived.json` from `../metadata/field_descriptions.json` and `../metadata/jsoncatalog.json`, respectively.
-2. Initialize connection to the MySQL database.
-3. Create metadata catalog files in `../metadata/`.
-4. Build the directory structure in `../texts/`.
-5. Clean and tokenize unigrams and bigrams.
-6. Create a table with all words.
-7. Encode unigrams and bigrams.
-8. Load data into MySQL database.
-9. Create temporary MySQL table and .json file that will be used by the web app.
-10. Create API settings.
+1. Derive `/metadata/field_descriptions_derived.json` from `/metadata/field_descriptions.json`.
+2. Derive `/metadata/jsoncatalog_derived.json` from `/metadata/jsoncatalog.json`, respectively.
+3. Initialize connection to the MySQL database.
+4. Create metadata catalog files in `../metadata/`.
+5. Build the directory structure in `../texts/`.
+6. Clean and tokenize unigrams and bigrams.
+7. Create a table with all words.
+8. Encode unigrams and bigrams.
+9. Load data into MySQL database.
+10. Create temporary MySQL table and .json file that will be used by the web app.
+11. Create API settings.
