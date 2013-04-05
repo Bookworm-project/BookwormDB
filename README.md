@@ -34,7 +34,7 @@ Here we'll look at how to use Presidio by going through a demo where we will loo
 ## Get the Data ##
 First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Clone that repo and run `get_and_unzip_data.py` to fetch and unzip the data:
 
-```bash
+```
 git clone git://github.com/econpy/congress_api
 cd congress_api
 python get_and_unzip_data.py
