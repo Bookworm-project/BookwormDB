@@ -25,7 +25,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     wordcounts = dict()
     filenum = 1
     readnum = 0
-    logfile = open('log.log', 'w')
+    logfile = open('../logs/log.log', 'w')
     database = open('../texts/wordlist/raw.txt', 'w')
     
     for thisfile in os.listdir('../texts/textids'):
