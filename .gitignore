@@ -10,3 +10,4 @@ kyoto*
 *.RData
 HistoryDiss
 HistoryDiss/*
+*.tar.gz

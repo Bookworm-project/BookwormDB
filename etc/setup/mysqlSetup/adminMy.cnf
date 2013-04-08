@@ -1,0 +1,6 @@
+[client]
+user = administrator
+password = 'a good secure administrator password'
+
+[mysql]
+#database = presidio
