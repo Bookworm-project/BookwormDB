@@ -1,0 +1,12 @@
+AUTHORS
+LICENSE
+MANIFEST.in
+README.rst
+setup.py
+nameparser/__init__.py
+nameparser/constants.py
+nameparser/parser.py
+nameparser.egg-info/PKG-INFO
+nameparser.egg-info/SOURCES.txt
+nameparser.egg-info/dependency_links.txt
+nameparser.egg-info/top_level.txt
