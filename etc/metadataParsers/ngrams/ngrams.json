@@ -1,0 +1,1 @@
+[{"datatype": "categorical", "field": "corpus", "unique": true, "type": "character"}, {"datatype": "searchstring", "field": "searchstring", "unique": true, "type": "text"}, {"datatype": "time", "field": "date_year", "unique": true, "type": "integer"}]
