@@ -77,6 +77,8 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     subprocess.call(["export LC_COLLATE='C'; sort -k1 files/texts/wordlist/raw.txt > files/texts/wordlist/sorted.txt"], shell=True)
     
     print("Collapsing word counts\n")
+    #This is in perl, using bignum, because it's possible to get integer overflows on a really huge text set (like Google ngrams).
+
     subprocess.call(["""
          perl -ne '
            BEGIN {use bignum; $last=""; $count=0} 
@@ -87,14 +89,17 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
            $last = $1;
            $count += $2
            } END {print "$last $count\n"}' files/texts/wordlist/sorted.txt > files/texts/wordlist/counts.txt"""], shell=True) 
+
     subprocess.call(["sort -nrk2 files/texts/wordlist/counts.txt > files/texts/wordlist/complete.txt"], shell=True)
     logfile.write("Including the old words first\n")
     oldids = set()
     oldids.add(0)
     oldwords = dict()
+
     """
     This following section may be fixed for unicode problems
     """
+
     try:
         i = 1
         oldFile = codecopen("files/texts/wordlist/wordlist.txt")
@@ -109,6 +114,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
                 oldFile.close()
                 return
         oldFile.close()
+
     #To work perfectly, this would have to keep track of all the words that have been added, and also update the database with the counts from the old books for each of them. That's hard. Currently, a new word will be added if the new set of texts AND the old one has it in its top 1m words; BUT it will be only added into the database among the new texts, not the old ones. In a few cases defeats the point of updating the old list at all, since we can't see the origins, but at least new people will show up eventually.
     except:
         logfile.write(" No original file to work from: moving on...\n")
@@ -140,3 +146,6 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     
     #Don't overwrite the new file until the old one is complete
     subprocess.call(["mv", "files/texts/wordlist/newwordlist.txt", "files/texts/wordlist/wordlist.txt"])
+
+if __name__=="__main__":
+    WordsTableCreate()    
