@@ -12,10 +12,9 @@ HistoryDiss
 HistoryDiss/*
 *.tar.gz
 
-files
+oldfiles
 files/*
 
-!files
 !files/texts
 !files/metadata
 !files/logs
