@@ -11,3 +11,12 @@ kyoto*
 HistoryDiss
 HistoryDiss/*
 *.tar.gz
+
+files
+files/*
+
+!files
+!files/texts
+!files/metadata
+!files/logs
+

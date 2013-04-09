@@ -74,7 +74,7 @@ class dataField:
         else:
             self.table = self.field + "Disk"
             self.fasttab = self.field
-            self.outputloc = "../metadata/%s.txt" % self.field
+            self.outputloc = "files/metadata/%s.txt" % self.field
 
     def slowSQL(self, withIndex=False):
         #This returns something like """author VARCHAR(255)""", a small definition string with an index, potentially.
@@ -287,17 +287,17 @@ class textids(dict):
     #And make it so that any new entries are also written to disk, so that they are kept permanently.
     def __init__(self):
         try:
-            subprocess.call(['mkdir','../texts/textids'])
+            subprocess.call(['mkdir','files/texts/textids'])
         except:
             pass
-        filelists = os.listdir("../texts/textids")
+        filelists = os.listdir("files/texts/textids")
         numbers = [0]
         for filelist in filelists:
-            for line in open("../texts/textids/%s" % filelist):
+            for line in open("files/texts/textids/%s" % filelist):
                 parts = line.replace('\n', '').split("\t")
                 self[parts[1]] = int(parts[0])
                 numbers.append(int(parts[0]))
-        self.new = open('../texts/textids/new', 'a')
+        self.new = open('files/texts/textids/new', 'a')
         self.max = max(numbers)
     
     def bump(self,newFileName):
@@ -324,8 +324,8 @@ def write_metadata(variables, limit=float("inf")):
     #Write out all the metadata into files that MySQL is able to read in.
     linenum = 1
     bookids = textids()
-    metadatafile = open("../metadata/jsoncatalog_derived.txt")
-    catalog = open("../metadata/catalog.txt", 'w')
+    metadatafile = open("files/metadata/jsoncatalog_derived.txt")
+    catalog = open("files/metadata/catalog.txt", 'w')
     for variable in [variable for variable in variables if not variable.unique]:
         #Don't open until here, because otherwise it destroys the existing files, I belatedly realized,
         #making stop-and-go debugging harder.
@@ -391,7 +391,7 @@ class BookwormSQLDatabase:
         self.dbuser = dbuser
         self.dbpassword = dbpassword
         try:
-            variablefile = open("../metadata/field_descriptions_derived.json", 'r')
+            variablefile = open("files/metadata/field_descriptions_derived.json", 'r')
         except:
             raise
         self.db = DB(dbname)
@@ -440,7 +440,7 @@ class BookwormSQLDatabase:
         #Never have keys before a LOAD DATA INFILE
         db.query("ALTER TABLE catalog DISABLE KEYS")
         print "loading data into catalog using LOAD DATA LOCAL INFILE..."
-        loadcode = """LOAD DATA LOCAL INFILE '../metadata/catalog.txt' 
+        loadcode = """LOAD DATA LOCAL INFILE 'files/metadata/catalog.txt' 
                    INTO TABLE catalog FIELDS ESCAPED BY ''
                    (bookid,filename,""" + ','.join([field.field for field in self.variables if field.unique]) + """) 
                    """
@@ -468,7 +468,7 @@ class BookwormSQLDatabase:
             """ +dfield.slowSQL(withIndex=True) + """
             );""")
             db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
-            loadcode = """LOAD DATA LOCAL INFILE '../metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk
+            loadcode = """LOAD DATA LOCAL INFILE 'files/metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk
                    FIELDS ESCAPED BY '';"""
             db.query(loadcode)
             cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
@@ -497,7 +497,7 @@ class BookwormSQLDatabase:
 
         db.query("ALTER TABLE words DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        db.query("""LOAD DATA LOCAL INFILE '../texts/wordlist/wordlist.txt' 
+        db.query("""LOAD DATA LOCAL INFILE 'files/texts/wordlist/wordlist.txt' 
                    INTO TABLE words
                    CHARACTER SET binary
                    (wordid,word,count) """)
@@ -515,10 +515,10 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        for line in open("../metadata/catalog.txt"):
+        for line in open("files/metadata/catalog.txt"):
             fields = line.split()
             try:
-                db.query("LOAD DATA LOCAL INFILE '../texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]+";")
+                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]+";")
             except:
                 pass
         print "Creating Unigram Indexes"
@@ -535,10 +535,10 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        for line in open("../metadata/catalog.txt"):
+        for line in open("files/metadata/catalog.txt"):
             fields = line.split()
             try:
-                db.query("LOAD DATA LOCAL INFILE '../texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]+";")
+                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]+";")
             except:
                 pass
         print "Creating bigram indexes"
@@ -580,7 +580,7 @@ class BookwormSQLDatabase:
         for variable in [variable for variable in self.variables if not variable.unique]:
             commands.append(variable.fastSQLTable("MEMORY"))
 
-        SQLcreateCode = open('../createTables.SQL', 'w')
+        SQLcreateCode = open('files/createTables.SQL', 'w')
         for line in commands:
         #Write them out so they can be put somewhere to run automatically on startup:
             try:
@@ -631,7 +631,7 @@ class BookwormSQLDatabase:
             print "Not enough info for a default search"
             raise
         output['ui_components'] = ui_components
-        outfile = open('../%s.json' % dbname, 'w')
+        outfile = open('files/%s.json' % dbname, 'w')
         outfile.write(json.dumps(output))
 
     def create_API_settings(self):

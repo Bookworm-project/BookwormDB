@@ -5,11 +5,11 @@ import json
 fields_to_derive = []
 
 def ParseFieldDescs():
-    f = open('../metadata/field_descriptions.json', 'r')
+    f = open('files/metadata/field_descriptions.json', 'r')
     fields = json.loads(f.read())
     f.close()
     
-    derivedFile = open('../metadata/field_descriptions_derived.json', 'w')
+    derivedFile = open('files/metadata/field_descriptions_derived.json', 'w')
     output = []
     
     for field in fields:
@@ -45,9 +45,9 @@ def ParseFieldDescs():
 
 def ParseJSONCatalog():
     order = ["year", "month", "week", "day"]
-    f = open("../metadata/jsoncatalog_derived.txt", "w")
+    f = open("files/metadata/jsoncatalog_derived.txt", "w")
     
-    for data in open("../metadata/jsoncatalog.txt", "r"):
+    for data in open("files/metadata/jsoncatalog.txt", "r"):
         for char in ['\t', '\n']:
             data = data.replace(char, '')
         try:
