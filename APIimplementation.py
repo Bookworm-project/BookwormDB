@@ -9,15 +9,10 @@ import copy
 import decimal
 
 """
-#These are here so we can support multiple databases with different naming schemes from a single API.
-#A bit ugly to have here; could be part of configuration file somewhere else, I guess. there are 'fast' and 'full' tables for books and words;
+#There are 'fast' and 'full' tables for books and words;
 #that's so memory tables can be used in certain cases for fast, hashed matching, but longer form data (like book titles)
 #can be stored on disk. Different queries use different types of calls.
 #Also, certain metadata fields are stored separately from the main catalog table;
-#I list them manually here to avoid a database call to find out what they are,
-#although the latter would be more elegant. The way to do that would be a database call
-#of tables with two columns one of which is 'bookid', maybe, or something like that.
-#(Or to add it as error handling when a query failed; only then check for missing files.
 """
 
 execfile('knownHosts.py')
@@ -147,9 +142,9 @@ class userquery():
             self.outerGroups.append(group)
             try:
                 #Search on the ID field, not the basic field.
-                self.groups.add(self.databaseScheme.idFields[group])
+                self.groups.add(self.databaseScheme.aliases[group])
                 table = self.databaseScheme.tableToLookIn[group]
-                joinfield = self.databaseScheme.idFields[group]
+                joinfield = self.databaseScheme.aliases[group]
                 self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
                 
             except KeyError:
@@ -555,6 +550,16 @@ class userquery():
         
         return query        
 
+    def returnPossibleFields(self):
+        self.cursor.execute("SELECT * FROM masterVariableTable WHERE status='public'")
+        colnames = [line[0] for line in self.cursor.description]
+        returnset = []
+        for line in self.cursor.fetchall():
+            thisEntry = {}
+            for i in range(len(line)):
+                thisEntry[colnames[i]] = line[i]
+            returnset.append(thisEntry)
+        return returnset
 
     def return_slug_data(self,force=False):
         #Rather than understand this error, I'm just returning 0 if it fails.
@@ -792,17 +797,17 @@ class databaseSchema:
         self.tableToLookIn = {}
         #hash of what the root variable for each search term is (eg, 'author_birth' might be crosswalked to 'authorid' in the main catalog.) 
         self.anchorFields = {}
-        #idFields: a hash showing internal identifications codes that dramatically speed up query time, but which shouldn't be exposed.
+        #aliases: a hash showing internal identifications codes that dramatically speed up query time, but which shouldn't be exposed.
         #So you can run a search for "state," say, and the database will group on a 50-element integer code instead of a VARCHAR that
         #has to be long enough to support "Massachusetts" and "North Carolina."
         #A couple are hard-coded in, but most are derived by looking for fields that end in the suffix "__id" later.
 
         if self.db.dbname=="presidio":
-            self.idFields = {"classification":"lc1","lat":"pointid","lng":"pointid"}
+            self.aliases = {"classification":"lc1","lat":"pointid","lng":"pointid"}
         elif self.db.dbname=="ChronAm":
-            self.idFields = {"lat":"papercode","lng":"papercode","state":"papercode","region":"papercode"}
+            self.aliases = {"lat":"papercode","lng":"papercode","state":"papercode","region":"papercode"}
         else:
-            self.idFields = dict()
+            self.aliases = dict()
             
         #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
 
@@ -813,7 +818,7 @@ class databaseSchema:
         previous = None
         for databaseColumn in columnNames:
             if previous != databaseColumn[2]:
-                if databaseColumn[3]=='PRI':
+                if databaseColumn[3]=='PRI' or databaseColumn[3]=='MUL':
                     parent = databaseColumn[1]
                 else:
                     parent = 'bookid'
@@ -821,8 +826,16 @@ class databaseSchema:
             if databaseColumn[3]!='PRI': #if it's a primary key, this isn't the right place to find it.
                 self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
             if re.search('__id\*?$',databaseColumn[2]):
-                self.idFields[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
+                self.aliases[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
 
+        try:
+            cursor = self.cursor.execute("SELECT dbname,tablename,anchor,alias FROM masterVariableTables")
+            for row in cursor.fetchall():
+                if row[0] != row[3]:
+                    self.aliases[row[0]] = row[3]
+                self.anchorFields[row[0]] = row[2]
+        except:
+            pass
 
     #############
     ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
