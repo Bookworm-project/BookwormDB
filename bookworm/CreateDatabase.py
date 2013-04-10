@@ -49,7 +49,8 @@ class dataField:
     parsed out before this) described in the Bookworm interface.
     This knows whether it's unique, whether it should treat itself as a date, and so forth.
     """
-    def __init__(self, definition, dbToPutIn, anchorType="MEDIUMINT", anchor="bookid"):
+
+    def __init__(self, definition, dbToPutIn, anchorType="MEDIUMINT", anchor="bookid",table="catalog",fasttab="fastcat"):
         #anchorType should be derived from somewhere.
         self.anchorType = anchorType
         self.anchor = anchor
@@ -58,17 +59,27 @@ class dataField:
             vars(self)[key] = definition[key]
         self.dbToPutIn = dbToPutIn
 
+        #ordinarily, a column has no alias other than itself.
+        self.alias = self.field
+        self.status = "hidden"
+
         #The table it's stored in will be either 'catalog', or a new table named after the variable. For now, at least. (later the anchor should get used).
 
         self.fastField = self.field
+
         if self.datatype == "categorical":
             self.type = "character"
             #This will catch a common sort of mistake, but also coerce any categorical data to have fewer than 255 characters.
             self.fastField = "%s__id" % self.field
+            self.alias = self.fastField
+            self.status = "public"
+
+        if self.datatype == "time":
+            self.status = "public"
 
         if self.unique:
-            self.table = "catalog"
-            self.fasttab = "fastcat"
+            self.table = table
+            self.fasttab = fasttab
 
         else:
             self.table = self.field + "Disk"
@@ -90,10 +101,12 @@ class dataField:
                       "integer": "%s)" % indexstring,
                       "text": "%s (255) )" % indexstring,
                       "decimal": "%s)" % indexstring
-                     } 
+                     }
         createstring = " %s %s" % (self.field, mysqltypes[self.type])
+
         if withIndex and self.type != 'text':
             return '%s%s' % (createstring, indextypes[self.type])
+
         return createstring
 
     def fastSQL(self):
@@ -550,6 +563,69 @@ class BookwormSQLDatabase:
                 pass
         print "Creating bigram indexes"
         db.query("ALTER TABLE master_bigrams ENABLE KEYS")
+
+    def deriveImplicitVariables(self):
+        """
+        After create time, it might make sense to add in some new fields by hand to the database. This slurps those up in the defined table scheme.
+        The code was taken from that doing the same thing in API implementation: they could be merged together somehow.
+        This will never be done on a new creation, because all the relevant data should be created by "loadVariableDescriptionsIntoDatabase"
+        The sort order on the query is doing a *lot* of work here.
+        """
+        db = self.db
+        m = db.query("""SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN
+INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' AND TABLE_NAME != 'masterVariableTable' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY="PRI" DESC,COLUMN_KEY="MUL" DESC;
+""" %self.db.__dict__)
+
+        columnNames = m.fetchall()
+        previous = None
+        allEntries = {}
+        anchor = "bookid" #while reading through, dynamically remember what the local header is
+        knownAliases = {}
+
+        #Go through the columns: for each variable, if it's not the primary key, post to a table about what is.
+        for databaseColumn in columnNames:
+            thisEntry = {}
+            if databaseColumn[1]=='wordsheap':
+                print databaseColumn
+                print previous
+            if previous != databaseColumn[1]:
+                if databaseColumn[3]=='PRI':
+                    parent = databaseColumn[2] #If the first element is a primary key, it becomes the parent for the table
+                else:
+                    parent = 'bookid'
+            previous = databaseColumn[1]
+            thisEntry['anchor'] = parent
+            thisEntry['name']   = databaseColumn[2]
+            if databaseColumn[3] != 'PRI': #if it's a primary key, this isn't the right place to find it: we want the table it's a minor player in.
+                thisEntry['tablename'] = databaseColumn[1]
+                allEntries[thisEntry['name']] = thisEntry
+            if re.search('__id\*?$',databaseColumn[2]):
+                knownAliases[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
+
+        for field in allEntries.iterkeys():
+            data = allEntries[field]
+            #The alias is either set in the previous code block, or is just the name.
+            data['alias'] = knownAliases.setdefault(data['name'],data['name'])
+            query = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description) 
+                        VALUES
+                        ('%(name)s','%(name)s',NULL,'%(tablename)s','%(anchor)s','%(alias)s','private','')""" %data
+            db.query(query)
+
+    def loadVariableDescriptionsIntoDatabase(self):
+        db = self.db
+        m = db.query("""
+            CREATE TABLE IF NOT EXISTS masterVariableTable
+              (dbname VARCHAR(255), PRIMARY KEY (dbname),
+              name VARCHAR(255),
+              type VARCHAR(255),
+              tablename VARCHAR(255),
+              anchor VARCHAR(255),
+              alias VARCHAR(255),
+              status VARCHAR(255),
+              description VARCHAR(5000))""")
+        for variable in self.variables:
+            code = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description) VALUES ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','') """ %variable.__dict__
+            db.query(code)
 
     def create_memory_table_script(self,run=True):
         ###This is the part that has to run on every startup. Now we make a SQL code that can just run on its own, stored in the root directory.
