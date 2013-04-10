@@ -784,6 +784,7 @@ class databaseSchema:
     It's closely related to some of the classes around variables and variableSets in the Bookworm Creation scripts,
     but is kept separate for now: that allows a bit more flexibility, but is probaby a Bad Thing in the long run.
     """
+
     def __init__(self,db):
         self.db = db
         self.cursor=db.cursor
