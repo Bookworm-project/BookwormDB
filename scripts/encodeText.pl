@@ -25,7 +25,7 @@ die "Must enter valid parsing type ('unigrams','bigrams',etc.)"
 
 my @filesToParse = @ARGV;
 
-open(DICT,'../texts/wordlist/wordlist.txt');
+open(DICT,'files/texts/wordlist/wordlist.txt');
 
 my %wordid;
 
@@ -36,8 +36,8 @@ while (my $dictEntry = <DICT>) {
 }
 
 for my $file(@filesToParse) {
-    my $output = "../texts/encoded/$parsingType/$file.txt";
-    my $input = "../texts/$parsingType/$file.txt";
+    my $output = "files/texts/encoded/$parsingType/$file.txt";
+    my $input = "files/texts/$parsingType/$file.txt";
     unless (-e $output) {
 	if (-e $input) {
 	    print "$output being written to\n";

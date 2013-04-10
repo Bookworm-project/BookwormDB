@@ -15,10 +15,10 @@ def shellCall(arg):
 
 class bookidlist:
     def __init__(self):
-        filelists = os.listdir('../texts/textids')
+        filelists = os.listdir('files/texts/textids')
         bookids = []
         for filename in filelists:
-            for line in open('../texts/textids/%s' % filename):
+            for line in open('files/texts/textids/%s' % filename):
                 splitted = line.split('\t')
                 intid = splitted[0]
                 bookid = splitted[1]
@@ -105,20 +105,20 @@ class book:
         #The join loop here prints a string like '$(i+0) " " $(i+1) " " $(i+2)' that gets the words in position i to i+2 plus two as a group for the thing to use.
         #At some point 'unigrams' and 'bigrams' should be deleted as methods, and only this should be used.
         self.start_operator = "cat"
-        self.start = "../texts/cleaned/" + self.coreloc
+        self.start = "files/texts/cleaned/" + self.coreloc
         self.function = """awk '{ for(i=1; i<=NF-""" +str(n-1)+ """; i++)
                         {count[""" + ' " " '.join(["$(i+" + str(j) + ")" for j in range(0,n)]) + """]++}
                         }
                         END{
                         for(i in count){print i, count[i]}}'"""
         destinations = {1:"unigrams",2:"bigrams",3:"trigrams",4:"quadgrams",5:"quintgrams"}
-        self.destination = "../texts/"+destinations[n] +"/" + self.coreloc
+        self.destination = "files/texts/"+destinations[n] +"/" + self.coreloc
                  
     def clean(self):
         self.start_operator = "cat"
-        self.start = "../texts/raw/%s" % self.coreloc
+        self.start = "files/texts/raw/%s" % self.coreloc
         self.function = "perl scripts/CleanText.pl"
-        self.destination = "../texts/cleaned/%s" % self.coreloc
+        self.destination = "files/texts/cleaned/%s" % self.coreloc
         #self.execute = self.shell_execute
 
     def generateArgument(self):
