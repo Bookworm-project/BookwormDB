@@ -10,7 +10,6 @@ import decimal
 
 	
 class DB:
-
     def __init__(self, dbname):
         self.dbname = dbname
         self.conn = None
@@ -250,6 +249,7 @@ class dataField:
 def splitMySQLcode(string):
     """
     MySQL code can only be executed one command at a time, and fails if it has any empty slots
+    So as a convenience wrapper, I'm just splitting it and returning an array.
     """
     output = ['%s;\n' % query for query in string.split(';') if re.search(r"\w", query)]
     return output
@@ -322,6 +322,11 @@ def to_unicode(obj, encoding='utf-8'):
 
 def write_metadata(variables, limit=float("inf")):
     #Write out all the metadata into files that MySQL is able to read in.
+    """
+    This assumes the existence of a derived json catalog created earlier in the process: it then
+    chops that up into a number of tsv files that can be slurped right up into MySQL.
+
+    """
     linenum = 1
     bookids = textids()
     metadatafile = open("../metadata/jsoncatalog_derived.txt")
@@ -386,8 +391,10 @@ class BookwormSQLDatabase:
     that write out text files needed by the API and the web front end: I take it as logical to do those here, since that how
     it fits chronologically in the bookworm-creation sequence.
     """
+
     def __init__(self,dbname,dbuser,dbpassword):
         self.dbname = dbname
+        #dbuser and dbpassword can just be pulled from "etc/mysql/my.cnf", perhaps.
         self.dbuser = dbuser
         self.dbpassword = dbpassword
         try:
