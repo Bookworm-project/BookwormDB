@@ -40,6 +40,8 @@ bookidList.tokenize('bigrams')
 print "Creating a master wordlist"
 WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 bookidList.encodeUnigrams()
+bookidList.encodeBigrams()
+#bookidList.encodeTrigrams()
 
 Bookworm.load_word_list()
 Bookworm.create_unigram_book_counts()
@@ -48,6 +50,9 @@ Bookworm.load_book_list()
 
 # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
 Bookworm.create_memory_table_script()
+
+#This creates a table in the database that makes the results of field_descriptions accessible through the API.
+Bookworm.loadVariableDescriptionsIntoDatabase()
 
 Bookworm.jsonify_data() # Create the dbname.json file in the root directory.
 Bookworm.create_API_settings()
