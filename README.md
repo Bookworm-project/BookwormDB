@@ -60,10 +60,7 @@ Now clone this repo and make a few directories where we'll put some files:
 
 ```
 git clone git://github.com/econpy/Presidio
-mkdir files
-mkdir files/metadata
-mkdir files/texts
-mkdir files/texts/raw
+mkdir files && mkdir files/{metadata,texts,texts/raw}
 git clone git://github.com/econpy/Presidio
 ```
 
