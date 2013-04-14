@@ -10,7 +10,7 @@ foreach my $filename (@ARGV) {
     next if (length $filename < 2);
 
     unless (open (INPUT,"$inputname")) {
-	print "couldn't find $inputname"; 
+	print "couldn't find $inputname\n"; 
 	next;
     }
     
