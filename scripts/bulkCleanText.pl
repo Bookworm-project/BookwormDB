@@ -2,27 +2,26 @@
 use strict;
 use warnings;
 
-
-
 foreach my $filename (@ARGV) {
     #print $filename;
-    my $inputname =  "files/texts/raw/" . "$filename" . ".txt\n";
-    my $outputname =  "files/texts/cleaned/" . "$filename" . ".txt\n";
-    print $outputname;
+    my $inputname =  "files/texts/raw/" . "$filename" . ".txt";
+    my $outputname =  "files/texts/cleaned/" . "$filename" . ".txt";
+
     next if (length $filename < 2);
-    #$filename =~ s/\n//gi;
-    
-    unless (-e "files/texts/raw/$filename.txt") {next};
-    open (INPUT,"files/texts/raw/$filename.txt");
-    
-    if (-e "files/texts/cleaned/$filename.txt") {
-	print "$filename already exists... skipping";
+
+    unless (open (INPUT,"$inputname")) {
+	print "couldn't find $inputname"; 
 	next;
     }
-
-    open (OUTPUT,">files/texts/cleaned/$filename.txt");
-
-    print "working on $filename";
+    
+    if (-e "$outputname") {
+	print "$outputname already exists... skipping\n";
+	next;
+    }
+    
+    open (OUTPUT,">$outputname");
+    
+    print "working on $outputname\n";
     
     while (my @z = <INPUT>) {
 #This is a perl script that accepts text from STDIN and tokenizes it in a human readable format that serves as a good interchange for serious data parsing. It is optimized for use with Internet Archive books, but may have problems with them. It attempts to follow the rules for tokenizing laid out in the Michel-Aiden supplemental materials in science, using whitespace as a delimiter between words; in addition, it attempts to use English language punctuation rules to identify the ends of sentences and indicates those using a newline character.
