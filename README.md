@@ -59,9 +59,9 @@ This will take a few minutes depending on your Internet connection and the speed
 Now clone this repo and make a few directories where we'll put some files:
 
 ```
-git clone git://github.com/econpy/Presidio
+git clone git://github.com/bmschmidt/Presidio
+cd Presidio
 mkdir files && mkdir files/{metadata,texts,texts/raw}
-git clone git://github.com/econpy/Presidio
 ```
 
 ### Required Files ###
