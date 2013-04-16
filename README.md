@@ -112,8 +112,8 @@ Depending on the total number and average size of your texts, this could take a 
 ### General Workflow ###
 For reference, the general workflow of OneClick.py is the following:
 
-1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.json`.
-2. Derive `files/metadata/jsoncatalog_derived.json` from `files/metadata/jsoncatalog.json`, respectively.
+1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.txt`.
+2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
 3. Initialize connection to the MySQL database.
 4. Create metadata catalog files in `files/metadata/`.
 5. Build the directory structure in `files/texts/`.
