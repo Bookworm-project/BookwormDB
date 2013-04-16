@@ -59,9 +59,10 @@ This will take a few minutes depending on your Internet connection and the speed
 Now clone this repo and make a few directories where we'll put some files:
 
 ```
-git clone git://github.com/econpy/Presidio
+cd ..
+git clone git://github.com/bmschmidt/Presidio
+cd Presidio
 mkdir files && mkdir files/{metadata,texts,texts/raw}
-git clone git://github.com/econpy/Presidio
 ```
 
 ### Required Files ###
@@ -112,8 +113,8 @@ Depending on the total number and average size of your texts, this could take a 
 ### General Workflow ###
 For reference, the general workflow of OneClick.py is the following:
 
-1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.json`.
-2. Derive `files/metadata/jsoncatalog_derived.json` from `files/metadata/jsoncatalog.json`, respectively.
+1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.txt`.
+2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
 3. Initialize connection to the MySQL database.
 4. Create metadata catalog files in `files/metadata/`.
 5. Build the directory structure in `files/texts/`.
