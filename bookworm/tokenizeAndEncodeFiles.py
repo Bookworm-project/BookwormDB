@@ -31,7 +31,7 @@ class bookidlist:
         self.processors = multiprocessing.cpu_count() #Try double for some Intel processors: can't hurt much, right?
         #We can accept at most 100K arguments at a time on the command line.
         #but varies from system to system. So break up the chunks into lots and lots of pieces.
-        self.processes = max([self.processors,int(len(self.bookids)/10000)])
+        self.processes = max([self.processors,int(len(self.bookids)/1000)])
         #and make it divisible by the number of processors which should help make it go optimally fast.
         #(although it should maybe be down to n-1 or something, in case one thread is hanging or one is super-speedy)
         self.processes = int(self.processes/self.processors)*self.processors + self.processors
