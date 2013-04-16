@@ -1,0 +1,12 @@
+[
+    {"datatype": "categorical", "field": "publisher", "unique": true, "type": "character"},
+    {"datatype": "etc", "field": "contributor_record_id", "unique": true, "type": "character"},
+    {"datatype": "categorical", "field": "contributor_name", "unique": true, "type": "character"},
+    {"datatype": "numeric", "field": "ISBN", "unique": false, "type": "character"},
+    {"datatype": "etc", "field": "description", "unique": false, "type": "character"},
+    {"datatype": "categorical", "field": "language", "unique": true, "type": "character"},
+    {"datatype": "etc", "field": "title", "unique": true, "type": "character"},
+    {"datatype":"time","field":"publication","unique":true,"type":"character","derived":[{"resolution":"year"}]},
+    {"datatype":"categorical","field":"subject","unique":false,"type":"character"}
+]
+

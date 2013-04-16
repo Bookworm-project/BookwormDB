@@ -6,7 +6,7 @@ foreach my $filename (@ARGV) {
     #print $filename;
     my $inputname =  "files/texts/raw/" . "$filename" . ".txt";
     my $outputname =  "files/texts/cleaned/" . "$filename" . ".txt";
-
+    my $bigramsname = "files/texts/bigrams/" . "$filename" . ".txt";
     next if (length $filename < 2);
 
     unless (open (INPUT,"$inputname")) {
