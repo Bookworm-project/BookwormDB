@@ -62,13 +62,13 @@ else: #(Use command line input otherwise--this shouldn't be necessary anymore ex
 
 #This following would be better as a straight switch.
 
-if method!='return_tsv' and method!='return_json' and method!='search_results':
+if method!='return_tsv' and method!='return_json' and method!='search_results' and method!='returnPossibleFields':
     result = p.execute()
     #This 'RESULT' bit NEEDS to go, but legacy code uses it heavily.
     print '===RESULT==='
     print json.dumps(result)
 
-if method=='return_json' or method=='search_results':
+if method=='return_json' or method=='search_results' or method=='returnPossibleFields':
     result = p.execute()
     if isinstance(data['search_limits'],dict):
         print json.dumps(result[0])

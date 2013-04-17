@@ -551,14 +551,17 @@ class userquery():
         return query        
 
     def returnPossibleFields(self):
-        self.cursor.execute("SELECT * FROM masterVariableTable WHERE status='public'")
-        colnames = [line[0] for line in self.cursor.description]
-        returnset = []
-        for line in self.cursor.fetchall():
-            thisEntry = {}
-            for i in range(len(line)):
-                thisEntry[colnames[i]] = line[i]
-            returnset.append(thisEntry)
+        try:
+            self.cursor.execute("SELECT * FROM masterVariableTable WHERE status='public'")
+            colnames = [line[0] for line in self.cursor.description]
+            returnset = []
+            for line in self.cursor.fetchall():
+                thisEntry = {}
+                for i in range(len(line)):
+                    thisEntry[colnames[i]] = line[i]
+                returnset.append(thisEntry)
+        except:
+            returnset=[]
         return returnset
 
     def return_slug_data(self,force=False):
