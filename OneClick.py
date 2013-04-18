@@ -40,6 +40,7 @@ bookidList.tokenize('bigrams')
 print "Creating a master wordlist"
 WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 bookidList.encodeUnigrams()
+bookidList.encodeBigrams()
 
 Bookworm.load_word_list()
 Bookworm.create_unigram_book_counts()
