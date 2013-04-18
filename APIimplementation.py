@@ -18,7 +18,7 @@ import decimal
 execfile('knownHosts.py')
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
-class dbConnect():
+class dbConnect:
     #This is a read-only account
     def __init__(self,prefs):
         import MySQLdb
@@ -34,7 +34,7 @@ class dbConnect():
 # The "Search_limits" array in the passed dictionary determines how many elements it returns; this lets multiple queries be bundled together.
 # Most functions describe a subquery that might be combined into one big query in various ways.
 
-class userqueries():
+class userqueries:
     #This is a set of queries that are bound together; each element in search limits is iterated over, and we're done.
     #currently used for various different groups sent in a bundle (multiple lines on a Bookworm chart).
     #A sufficiently sophisticated 'group by' search might make this unnecessary.
@@ -69,7 +69,7 @@ class userqueries():
     def execute(self):
         return self.returnval
 
-class userquery():
+class userquery:
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
         #Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         try:
