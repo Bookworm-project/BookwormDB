@@ -86,20 +86,41 @@ class userquery:
         self.databaseScheme = databaseScheme
         if databaseScheme is None:
             self.databaseScheme = databaseSchema(self.db)
+            
         self.cursor = self.db.cursor
         self.wordsheap = self.prefs['fastword']
         self.words = self.prefs['fullword']
-
-        #I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries: 
-        #this makes the syntax cleaner on most queries,
-        #while still allowing some long ones from the Bookworm website.
-
+        """
+        I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries: 
+        this makes the syntax cleaner on most queries,
+        while still allowing some long ones from the Bookworm website.
+        """
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
-
+        outside_dictionary = self.limitCategoricalQueries(outside_dictionary)
         self.defaults(outside_dictionary) #Take some defaults
         self.derive_variables() #Derive some useful variables that the query will use.
         
+    def limitCategoricalQueries(self,outside_dictionary,n=75):
+        """
+        For every group, if it's categorical we automatically curtail the list to the
+        top 75 unless it's specified somewhere else.
+        """
+        try:
+            for group in outside_dictionary['groups']:
+                try:
+                    alias = self.databaseScheme.aliases[group]
+                    if re.search("__id",alias) and not alias in outside_dictionary['search_limits'].keys():
+                        #If you want to avoid the dropping, some constraint ("$gte":0, say) has to be put on the
+                        #ids in the query.
+                        outside_dictionary['search_limits'][alias] = {"$lte":n}
+                except KeyError:
+                    pass
+        except KeyError: #sometimes a query won't have a groups field
+            pass
+                    
+        return outside_dictionary
+
     def defaults(self,outside_dictionary):
         #these are default values;these are the only values that can be set in the query
             #search_limits is an array of dictionaries;
