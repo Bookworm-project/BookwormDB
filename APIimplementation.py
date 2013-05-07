@@ -15,7 +15,6 @@ import decimal
 #Also, certain metadata fields are stored separately from the main catalog table;
 """
 
-execfile('knownHosts.py')
 #We define prefs to default to the Open Library set at first; later, it can do other things.
 
 class dbConnect:
