@@ -15,7 +15,10 @@ import decimal
 #Also, certain metadata fields are stored separately from the main catalog table;
 """
 
+execfile('knownHosts.py')
 #We define prefs to default to the Open Library set at first; later, it can do other things.
+
+
 
 class dbConnect:
     #This is a read-only account
@@ -289,10 +292,18 @@ class userquery:
             if not re.search('\.',columnInQuery): #Lets me keep a little bit of SQL sauce for my own queries
                 try:
                     self.relevantTables.add(databaseScheme.tableToLookIn[columnInQuery])
-                    self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[databaseScheme.anchorFields[columnInQuery]]])
+                    try:
+                        self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[columnInQuery]])
+                        try:
+                            self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[databaseScheme.anchorFields[columnInQuery]]])
+                        except KeyError:
+                            pass
+                    except KeyError:
+                        pass
                 except KeyError:
                     pass
                     #Could raise as well--shouldn't be errors--but this helps back-compatability.
+
 
         self.catalog = "fastcat"
         for table in self.relevantTables:
@@ -632,6 +643,10 @@ class userquery:
         self.idfterm = ""
         prep = self.counts_query()
 
+        
+        if self.main == " ":
+            self.ordertype="RAND()"
+
         bibQuery = """
         SELECT searchstring 
         FROM """ % self.__dict__ + self.prefs['fullcat'] + """ RIGHT JOIN (
@@ -840,26 +855,35 @@ class databaseSchema:
         parent = 'bookid'
         previous = None
         for databaseColumn in columnNames:
-            if previous != databaseColumn[2]:
+            if previous != databaseColumn[1]:
                 if databaseColumn[3]=='PRI' or databaseColumn[3]=='MUL':
-                    parent = databaseColumn[1]
+
+                    parent = databaseColumn[2]
+                    previous = databaseColumn[1]
                 else:
                     parent = 'bookid'
-            self.anchorFields[databaseColumn[2]]  = parent
-            if databaseColumn[3]!='PRI': #if it's a primary key, this isn't the right place to find it.
-                self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
-            if re.search('__id\*?$',databaseColumn[2]):
-                self.aliases[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
-
+            else:
+                self.anchorFields[databaseColumn[2]]  = parent
+                if databaseColumn[3]!='PRI' and databaseColumn[3]!="MUL": #if it's a primary key, this isn't the right place to find it.
+                    self.tableToLookIn[databaseColumn[2]] = databaseColumn[1]
+                if re.search('__id\*?$',databaseColumn[2]):
+                    self.aliases[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
+            
         try:
             cursor = self.cursor.execute("SELECT dbname,tablename,anchor,alias FROM masterVariableTables")
             for row in cursor.fetchall():
                 if row[0] != row[3]:
                     self.aliases[row[0]] = row[3]
-                self.anchorFields[row[0]] = row[2]
+                if row[0] != row[2]:
+                    self.anchorFields[row[0]] = row[2]
+                #Should be uncommented, but some temporary issues with the building script
+                #self.tableToLookIn[row[0]] = row[1]
         except:
             pass
-
+        self.tableToLookIn['bookid'] = 'fastcat'
+        self.anchorFields['bookid'] = 'fastcat'
+        self.anchorFields['wordid'] = 'wordid'
+        self.tableToLookIn['wordid'] = 'wordsheap'
     #############
     ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
     #############
