@@ -26,7 +26,6 @@ class dbConnect:
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
         self.cursor = self.db.cursor()
 
-
 # The basic object here is a userquery: it takes dictionary as input, as defined in the API, and returns a value 
 # via the 'execute' function whose behavior 
 # depends on the mode that is passed to it.
