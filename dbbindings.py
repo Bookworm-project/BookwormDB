@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 
 #So we load in the terms that allow the API implementation to happen for now.
 execfile("APIimplementation.py")
@@ -22,6 +22,7 @@ if len(form) > 0: #(Use CGI input if it's there:)
     JSONinput = form["queryTerms"].value
     outfile.write(JSONinput)
     outfile.write("\n")
+    output = open("/tmp/err",'w'); output.write(json.__file__)
     data = json.loads(JSONinput)
     #For back-compatability, "method" can be defined in the json or as a separate part of the post.
     #Using the form-posting way of returning 'method' is deprecated.
