@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/python
 
 #So we load in the terms that allow the API implementation to happen for now.
 execfile("APIimplementation.py")
