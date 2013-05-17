@@ -66,3 +66,17 @@ class dplaField:
         """
         pass
 
+
+
+def writeFieldDescriptions(listOfEntries):
+    m = open('dplaCrosswalk.json')
+    lookup = json.loads(m)
+    outputFieldDescriptions = []
+    for item in listOfEntries:
+        try:
+            outputFieldDescriptions.append(lookup)
+        except KeyError:
+            print "warning: no known bookworm mapping for %s" %item
+    
+    outputfile = open("../../../metadata/field_descriptions.json")
+    outputfile.write(json.dumps(outputFieldDescriptions)
