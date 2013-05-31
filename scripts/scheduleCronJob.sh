@@ -19,7 +19,6 @@ chmod +x startup.sh;
 #copy the existing cron file, and add a reboot event
 crontab -l > tmp.cron
 echo "@reboot $path/startup.sh" >> tmp.cron
-echo "@hourly $path/startup.sh" >> tmp.cron
 
 #make that the cron events.
 crontab tmp.cron
