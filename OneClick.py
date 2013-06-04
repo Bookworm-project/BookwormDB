@@ -55,6 +55,7 @@ WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
 bookidList.encodeAll()
 
+
 Bookworm.load_word_list()
 Bookworm.create_unigram_book_counts()
 Bookworm.create_bigram_book_counts()
