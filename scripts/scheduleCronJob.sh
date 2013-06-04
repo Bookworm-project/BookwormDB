@@ -10,14 +10,15 @@ path=`pwd`;
 echo "
 #!/usr/bin/sh
 sleep 20;
-mysql < $path/createTables.SQL;
+mysql < $path/files/createTables.SQL;
 " > startup.sh;
 
 chmod +x startup.sh;
 
-
 #copy the existing cron file, and add a reboot event
-crontab -l > tmp.cron
+#replace existing chronjobs on this particular directory
+
+crontab -l | grep -v $path > tmp.cron
 echo "@reboot $path/startup.sh" >> tmp.cron
 
 #make that the cron events.
