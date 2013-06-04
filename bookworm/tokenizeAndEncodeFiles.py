@@ -53,11 +53,11 @@ class bookidlist:
         self.args = [['perl', 'scripts/encodeText.pl', mode] + booklist for booklist in self.booklists]
 
     def createUnigramsAndBigrams(self):
-        self.args = [['perl', 'scripts/makeUnigramsandBigrams.pl', mode] + booklist for booklist in self.booklists]
+        self.args = [['perl', 'scripts/makeUnigramsandBigrams.pl'] + booklist for booklist in self.booklists]
         self.execute()
 
     def encodeAll(self):
-        self.args = [['perl', 'scripts/encodeAllTypes.pl', mode] + booklist for booklist in self.booklists]
+        self.args = [['perl', 'scripts/encodeAllTypes.pl'] + booklist for booklist in self.booklists]
         self.execute()
         
 
@@ -154,4 +154,5 @@ class book:
         return shell_operators
 
 if __name__ == '__main__':
+    #for debugging
     bookids = bookidlist()
