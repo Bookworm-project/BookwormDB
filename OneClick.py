@@ -3,6 +3,8 @@ import re
 import sys
 import json
 import os
+import ConfigParser
+
 from subprocess import call
 
 # These four libraries define the Bookworm-specific methods.
@@ -14,8 +16,10 @@ from bookworm.tokenizeAndEncodeFiles import bookidlist
 
 # Pull a dbname from command line input.
 dbname = sys.argv[1]
-dbuser = sys.argv[2]
-dbpassword = sys.argv[3]
+
+systemConfigFile = ConfigParser.ConfigParser().read(["/etc/my.cnf"]);
+dbuser = systemConfigFile.get("client","username")
+dbpassword = systemConfigFile.get("client","password")
 
 print "Parsing field_descriptions.json"
 ParseFieldDescs()
@@ -32,14 +36,20 @@ write_metadata(Bookworm.variables)
 # These are imported with ImportNewLibrary
 CopyDirectoryStructuresFromRawDirectory()
 bookidList = bookidlist()
-bookidList.clean()
-bookidList.tokenize('unigrams')
-bookidList.tokenize('bigrams')
+#bookidList.clean()
+#bookidList.tokenize('unigrams')
+#bookidList.tokenize('bigrams')
 #bookidList.tokenize('trigrams')
+
+bookidList.createUnigramsAndBigrams()
 
 print "Creating a master wordlist"
 WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
-bookidList.encodeUnigrams()
+
+#obsolete
+#bookidList.encodeUnigrams()
+#bookidList.encodeBigrams()
+bookidList.encodeAll()
 
 Bookworm.load_word_list()
 Bookworm.create_unigram_book_counts()
