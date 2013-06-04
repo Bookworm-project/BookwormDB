@@ -28,10 +28,19 @@ class bookidlist:
         self.bookids = bookids
 
         print "Done reading in files: moving to create subprocesses"
-        self.processors = multiprocessing.cpu_count() #Try double for some Intel processors: can't hurt much, right?
+        self.processors = multiprocessing.cpu_count()
+        #A ridiculous line of code to ensure that we don't have too little ram.
+        try:
+            gigsOfRam = (re.findall('Mem: (.*) ', subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).stdout.read())[0].strip().split(' ')[0])
+        except: #free doesn't exist on OS X; currently just doing it single-core.
+            gigsOfRam = 1
+        #Rule of thumb: each process needs to have a gig of memory, lest things get out of control
+        self.simultaneousTasks = min([self.processors,gigsOfRam])
+        
         #We can accept at most 100K arguments at a time on the command line.
         #but varies from system to system. So break up the chunks into lots and lots of pieces.
-        self.processes = max([self.processors,int(len(self.bookids)/1000)])
+        #Processes is different than processors.
+        self.processes = max([self.processors,int(len(self.bookids)/2000)])
         #and make it divisible by the number of processors which should help make it go optimally fast.
         #(although it should maybe be down to n-1 or something, in case one thread is hanging or one is super-speedy)
         self.processes = int(self.processes/self.processors)*self.processors + self.processors
@@ -43,7 +52,17 @@ class bookidlist:
         #Not the cleanest.
         self.args = [['perl', 'scripts/encodeText.pl', mode] + booklist for booklist in self.booklists]
 
+    def createUnigramsAndBigrams(self):
+        self.args = [['perl', 'scripts/makeUnigramsandBigrams.pl'] + booklist for booklist in self.booklists]
+        self.execute()
+
+    def encodeAll(self):
+        self.args = [['perl', 'scripts/encodeAllTypes.pl'] + booklist for booklist in self.booklists]
+        self.execute()
+        
+
     def tokenize(self,mode):
+        #Now obsoleted: code should be cleared out.
         if mode=='trigrams':
             n = 3
         if mode=='bigrams':
@@ -87,7 +106,7 @@ class bookidlist:
         self.execute()
 
     def execute(self,exMethod=noShellCall):
-        pool = multiprocessing.Pool(processes=self.processors)
+        pool = multiprocessing.Pool(processes=self.simultaneousTasks)
         pool.map(exMethod, self.args)
 
 
@@ -135,4 +154,5 @@ class book:
         return shell_operators
 
 if __name__ == '__main__':
+    #for debugging
     bookids = bookidlist()
