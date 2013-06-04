@@ -1,4 +1,18 @@
-[Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for building the database and tables used with a Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app") and [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
+[Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for transforming a large
+set of files and their metadata into an efficient and easily queryable database that can make full use of all the
+metadata and lexical data in the original source.
+
+Technically, it is a set of Python and Perl scripts that leaves behind a MySQL database.
+
+## Related projects
+
+This is closely tied to two other projects. 
+
+To query the database created here programatically, you should use the Bookworm [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
+
+Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app"), which runs
+on top of the API. 
+
 
 ## Bookworms ##
 Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
