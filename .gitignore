@@ -11,6 +11,9 @@ kyoto*
 HistoryDiss
 HistoryDiss/*
 *.tar.gz
+tmp.cron
+setup.sh
+
 
 oldfiles
 files
