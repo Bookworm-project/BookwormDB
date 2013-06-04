@@ -30,8 +30,10 @@ class bookidlist:
         print "Done reading in files: moving to create subprocesses"
         self.processors = multiprocessing.cpu_count()
         #A ridiculous line of code to ensure that we don't have too little ram.
-        gigsOfRam = (re.findall('Mem: (.*) ', subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).stdout.read())[0].strip().split(' ')[0])
-
+        try:
+            gigsOfRam = (re.findall('Mem: (.*) ', subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).stdout.read())[0].strip().split(' ')[0])
+        except: #free doesn't exist on OS X; currently just doing it single-core.
+            gigsOfRam = 1
         #Rule of thumb: each process needs to have a gig of memory, lest things get out of control
         self.simultaneousTasks = min([self.processors,gigsOfRam])
         
@@ -50,7 +52,17 @@ class bookidlist:
         #Not the cleanest.
         self.args = [['perl', 'scripts/encodeText.pl', mode] + booklist for booklist in self.booklists]
 
+    def createUnigramsAndBigrams(self):
+        self.args = [['perl', 'scripts/makeUnigramsandBigrams.pl', mode] + booklist for booklist in self.booklists]
+        self.execute()
+
+    def encodeAll(self):
+        self.args = [['perl', 'scripts/encodeAllTypes.pl', mode] + booklist for booklist in self.booklists]
+        self.execute()
+        
+
     def tokenize(self,mode):
+        #Now obsoleted: code should be cleared out.
         if mode=='trigrams':
             n = 3
         if mode=='bigrams':
