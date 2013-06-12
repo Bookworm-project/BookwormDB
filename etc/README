@@ -1,0 +1,7 @@
+This directory contains some shell scripts to customize a *system* to run Bookworm.
+
+It need only be run once, rather than once per Bookworm installation.
+
+ApacheSetup creates some necessary folders for logging queries.
+
+MySQLsetup 

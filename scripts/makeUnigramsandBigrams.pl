@@ -5,7 +5,6 @@ use warnings;
 foreach my $filename (@ARGV) {
     #print $filename;
     my $inputname =  "files/texts/raw/" . "$filename" . ".txt";
-    my $outputname =  "files/texts/cleaned/" . "$filename" . ".txt";
     my $bigramsname = "files/texts/bigrams/" . "$filename" . ".txt";
     my $unigramsname = "files/texts/unigrams/" . "$filename" . ".txt";
     next if (length $filename < 2);
@@ -20,7 +19,7 @@ foreach my $filename (@ARGV) {
         next;
     }
 
-    print "working on $outputname\n";
+    print "working on $bigramsname\n";
 
     my $stringedLine = ' '; #We'll add to this over time.
 
