@@ -22,8 +22,8 @@ except:
     raise
 
 #Use the client listed in the my.cnf file for access
-systemConfigFile = ConfigParser.ConfigParser()
-systemConfigFile.read(["/etc/my.cnf"]);
+systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
+systemConfigFile.read(["/etc/mysql/my.cnf"]);
 dbuser = systemConfigFile.get("client","user")
 dbpassword = systemConfigFile.get("client","password")
 
