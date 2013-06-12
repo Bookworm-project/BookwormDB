@@ -92,11 +92,17 @@ def ParseJSONCatalog():
                             if derive["resolution"] == 'year':
                                 line[field["field"] + "_year"] = content[0]
                             elif derive["resolution"] == 'month':
-                                line[field["field"] + "_month"] = str(int((datetime.date(intent[0],intent[1],1) - datetime.date(1,1,1)).days))
+                                try:
+                                    line[field["field"] + "_month"] = str(int((datetime.date(intent[0],intent[1],1) - datetime.date(1,1,1)).days))
+                                except:
+                                    pass
                             elif derive['resolution'] == 'week':
                                 line[field['field'] + "_week"] = str(int((datetime.date(intent[0],intent[1],intent[2]) - datetime.date(1,1,1)).days/7)*7)
                             elif derive["resolution"] == 'day':
-                                line[field["field"] + "_day"] = str((datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days)
+                                try:
+                                    line[field["field"] + "_day"] = str((datetime.datetime.strptime('%02d'%int(content[2])+'%02d'%int(content[1])+content[0], "%d%m%Y").date() - datetime.date(1,1,1)).days)
+                                except:
+                                    pass
                             else:
                                 continue
                     except ValueError:
