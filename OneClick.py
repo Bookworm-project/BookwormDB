@@ -33,9 +33,9 @@ ParseFieldDescs()
 print "Parsing jsoncatalog.json"
 ParseJSONCatalog()
 
-
 # Initiate MySQL connection.
 Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+
 
 
 # This creates helper files in the /metadata/ folder.
