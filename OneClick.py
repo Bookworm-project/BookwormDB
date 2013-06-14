@@ -27,14 +27,15 @@ systemConfigFile.read(["/etc/mysql/my.cnf"]);
 dbuser = systemConfigFile.get("client","user")
 dbpassword = systemConfigFile.get("client","password")
 
-Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
 
 print "Parsing field_descriptions.json"
 ParseFieldDescs()
 print "Parsing jsoncatalog.json"
 ParseJSONCatalog()
 
+
 # Initiate MySQL connection.
+Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
 
 
 # This creates helper files in the /metadata/ folder.
