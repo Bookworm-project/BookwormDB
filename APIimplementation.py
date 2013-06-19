@@ -156,21 +156,28 @@ class userquery:
             #Define some sort of limitations here, if not done in dbbindings.py
 
         for group in groups:
-            group = group
-            if group=="unigram" or group=="word":
-                group = "words1." + self.word_field + " as unigram"
-            if group=="bigram":
-                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
-            self.outerGroups.append(group)
-            try:
-                #Search on the ID field, not the basic field.
-                self.groups.add(self.databaseScheme.aliases[group])
-                table = self.databaseScheme.tableToLookIn[group]
-                joinfield = self.databaseScheme.aliases[group]
-                self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+
+            if group=="unigram":
+                self.finalMergeTables.add("")
+                self.outerGroups.append("wordLookup." + self.word_field + " as unigram")
+                self.finalMergeTables.add(" JOIN wordsheap as wordLookup ON wordLookup.wordid=w1")
+                group = "words1.wordid as word1"
+                self.groups.add("words1.wordid as w1")
                 
-            except KeyError:
-                self.groups.add(group)
+            elif group=="bigram":
+                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
+
+            else:
+                self.outerGroups.append(group)
+                try:
+                #Search on the ID field, not the basic field.
+                    self.groups.add(self.databaseScheme.aliases[group])
+                    table = self.databaseScheme.tableToLookIn[group]
+                    joinfield = self.databaseScheme.aliases[group]
+                    self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+
+                except KeyError:
+                    self.groups.add(group)
 
         """
         There are the selections which can include table refs, and the groupings, which may not:
@@ -181,11 +188,6 @@ class userquery:
         self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
 
         self.joinSuffix = "" + " ".join(self.finalMergeTables)
-#        if len(self.finalMergeTables) > 0:
-#           self.joinSuffix = " NATURAL JOIN " + " NATURAL JOIN ".join(self.finalMergeTables)
-
-
-
 
         """
         Define the comparison set if a comparison is being done.
@@ -195,12 +197,12 @@ class userquery:
 
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
 
-        self.counttype = outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
+        self.counttype = outside_dictionary.setdefault('counttype',["WordCount"])
 
         if isinstance(self.counttype,basestring):
             self.counttype = [self.counttype]
 
-        #index is deprecated
+        #index is deprecated,but the old version uses it.
         self.index  = outside_dictionary.setdefault('index',0)
         """
         #Ordinarily, the input should be an an array of groups that will both select and group by.
@@ -246,12 +248,10 @@ class userquery:
         The grouping behavior here is not desirable, but I'm not quite sure how yet.
         """
         try:
-            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]
+            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]# topicfix? and not re.match("topic",group)]
         except:
             self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
         
-        self.counttype = self.outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
-
 
     def derive_variables(self):
         #These are locally useful, and depend on the variables
@@ -306,7 +306,7 @@ class userquery:
 
         self.catalog = "fastcat"
         for table in self.relevantTables:
-            if table!="fastcat" and table!="words" and table!="wordsheap":
+            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
         #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth. 
@@ -346,6 +346,7 @@ class userquery:
         #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
         for key in self.limits.keys():
+            ###Warning--none of these phrases can be used ina  bookworm as a custom table names.
             if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
                 catlimits[key] = self.limits[key]
         if len(catlimits.keys()) > 0:
@@ -416,12 +417,12 @@ class userquery:
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
 
-        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections):
+        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections) or re.search("topic",self.selections):
             self.maintable = 'master_bookcounts'
             self.main = '''
-                JOIN
-                 master_bookcounts as main
-                 ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
+                NATURAL JOIN
+                 master_bookcounts as main '''
+                 #ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
@@ -514,12 +515,10 @@ class userquery:
             self.finaloperations.append(self.finaloperation[summaryStat])
 
     def counts_query(self):
-        #self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
-        #self.catoperation = {"Occurrences_per_Million_Words":"sum(nwords)","Raw_Counts":"sum(nwords)","Percentage_of_Books":"count(nwords)","Number_of_Books":"count(nwords)"}        
 
         self.operation = ','.join(self.bookoperations)
-
         self.build_wordstables()
+
         countsQuery = """
             SELECT
                 %(selections)s,
@@ -550,7 +549,10 @@ class userquery:
         self.countcommand = ','.join(self.finaloperations)
 
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
-        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups])
+        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups]) #Still in use?
+        #I'm switching to this version to make it work with "unigram"; that could be special cased if I
+        #still am using the aliases elsewhere. We'll see.
+        self.totalselections  = ",".join([group for group in self.outerGroups])
 
         query = """
         SELECT
@@ -567,6 +569,7 @@ class userquery:
 
 
         #There are dramatic speed improvement to not returning 0 results when not needed in a merge query.
+        #This replaces old code to do the same thing.
         if len(set(["TextCount","WordCount"]).intersection(set(self.counttype)))==len(self.counttype):
             query = """
         SELECT
