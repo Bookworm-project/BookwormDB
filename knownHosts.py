@@ -2,7 +2,9 @@
 
 general_prefs = dict()
 
-general_prefs["default"] = {"fastcat": "fastcat", "HOST": "127.0.0.1", "separateDataTables": [], "fastword": "wordsheap", "database": "ThisShallBeChangedByTheInputParameter", "read_url_head": "ThisDoesn'tMatterAnyway", "fullcat": "catalog", "fullword": "words", "read_default_file": "/etc/mysql/my.cnf"}
+general_prefs["default"] = {"fastcat": "fastcat", "HOST": "localhost", "separateDataTables": [], "fastword": "wordsheap", "database": "ThisShallBeChangedByTheInputParameter", "read_url_head": "ThisDoesn'tMatterAnyway", "fullcat": "catalog", "fullword": "words", "read_default_file": "/etc/mysql/my.cnf"}
+
+general_prefs["movies"] = {"fastcat": "fastcat", "HOST": "localhost", "separateDataTables": [], "fastword": "wordsheap", "database": "movies", "read_url_head": "ThisDoesn'tMatterAnyway", "fullcat": "catalog", "fullword": "words", "read_default_file": "/etc/mysql/my.cnf"}
 
 general_prefs["presidio"] = {"HOST":"melville.seas.harvard.edu","database":"presidio","fastcat":"fastcat","fullcat":"open_editions","fastword":"wordsheap","read_default_file":"/etc/mysql/my.cnf","fullword":"words","separateDataTables":["LCSH","gender"],"read_url_head":"http://www.archive.org/stream/"}
 general_prefs["arxiv"] = {"HOST":"chaucer.fas.harvard.edu","database":"arxiv","fastcat":"fastcat","fullcat":"catalog","fastword":"wordsheap","fullword":"words","read_default_file":"/etc/mysql/my.cnf","separateDataTables":["genre","fastgenre","archive","subclass"],"read_url_head":"http://www.arxiv.org/abs/"}
