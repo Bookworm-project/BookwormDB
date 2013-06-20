@@ -157,16 +157,27 @@ class userquery:
 
         for group in groups:
 
-            if group=="unigram":
-                self.finalMergeTables.add("")
-                self.outerGroups.append("wordLookup." + self.word_field + " as unigram")
-                self.finalMergeTables.add(" JOIN wordsheap as wordLookup ON wordLookup.wordid=w1")
-                group = "words1.wordid as word1"
-                self.groups.add("words1.wordid as w1")
-                
-            elif group=="bigram":
-                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
+            #There's a special set of rules for how to handle unigram and bigrams
+            multigramSearch = re.match("(unigram|bigram|trigram)(\d)?",group)
+            
+            if multigramSearch:
+                if group=="unigram":
+                    gramPos = "1"
+                    gramType = "unigram"
 
+                else:
+                    gramType = multigramSearch.groups()[0]
+                    try:
+                        gramPos = multigramSearch.groups()[1]
+                    except:
+                        print "currently you must specify which bigram element you want (eg, 'bigram1')"
+                        raise
+                    
+                lookupTableName = "%sLookup%s" %(gramType,gramPos)
+                self.outerGroups.append("%s.%s as %s" %(lookupTableName,self.word_field,group))
+                self.finalMergeTables.add(" JOIN wordsheap as %s ON %s.wordid=w%s" %(lookupTableName,lookupTableName,gramPos))
+                self.groups.add("words%s.wordid as w%s" %(gramPos,gramPos))
+                
             else:
                 self.outerGroups.append(group)
                 try:
@@ -400,6 +411,7 @@ class userquery:
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
         #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
+
         if (self.max_word_length == 2 or re.search("words2",self.selections)):
 
             self.maintable = 'master_bigrams'
