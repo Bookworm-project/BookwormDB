@@ -14,8 +14,14 @@ def headers(method):
         print "Content-Disposition: filename=Bookworm-data.txt"
         print "Pragma: no-cache"
         print "Expires: 0\n"
-        
-outfile = open("/var/log/presidio/log.txt",'a')
+
+try:        
+    outfile = open("/var/log/presidio/log.txt",'a')
+except IOError:
+    outfile = open("/dev/null","a")
+    #It doesn't have to log results anymore
+
+
 form = cgi.FieldStorage()
 
 if len(form) > 0: #(Use CGI input if it's there:)
