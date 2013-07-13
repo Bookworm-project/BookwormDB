@@ -23,7 +23,15 @@ except:
 
 #Use the client listed in the my.cnf file for access
 systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
-systemConfigFile.read(["/etc/mysql/my.cnf"]);
+try:
+    systemConfigFile.read(["/etc/mysql/my.cnf"]);
+    #The error isn't thrown until you try to read the damned thing.
+    dbuser = systemConfigFile.get("client","user")
+
+except:
+    #It's here on my Mac. But doing this could get ugly.
+    systemConfigFile.read(["/etc/my.cnf"])
+
 dbuser = systemConfigFile.get("client","user")
 dbpassword = systemConfigFile.get("client","password")
 
@@ -32,6 +40,7 @@ print "Parsing field_descriptions.json"
 ParseFieldDescs()
 print "Parsing jsoncatalog.json"
 ParseJSONCatalog()
+
 
 # Initiate MySQL connection.
 Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
@@ -56,10 +65,12 @@ WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
 
 bookidList.encodeAll()
 
+
 Bookworm.load_word_list()
 Bookworm.create_unigram_book_counts()
 Bookworm.create_bigram_book_counts()
 Bookworm.load_book_list()
+
 
 # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
 Bookworm.create_memory_table_script()
