@@ -13,6 +13,8 @@ HistoryDiss/*
 *.tar.gz
 tmp.cron
 setup.sh
+startup.sh
+etc/numpy-1.6.2
 
 
 oldfiles

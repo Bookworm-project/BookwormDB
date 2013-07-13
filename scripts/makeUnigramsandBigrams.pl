@@ -80,6 +80,7 @@ foreach my $filename (@ARGV) {
         if ($strip_html) {
             if ($z[0] =~ m/html/) {
                 die;
+
             }
         }
 
@@ -162,32 +163,35 @@ foreach my $filename (@ARGV) {
             #the words "google.com" comes at the end of the Google Intro page; this catches it even when it's poorly ocr'ed.
             if ($line =~ m/[gq]oo[gq][li1]e\W*com/gi) {$googswitch = 1;}# $switchedat = $linenumber; print ""}
 
-	}
+        }
 
-            my %bigrams = ();
-            my %unigrams = ();
-            my $word2 = "\n";
-            foreach my $word1 (split(' ',$stringedLine)) {
-                if ($word1 ne "\n") {
-                    $unigrams{$word1}++;
-                    if ($word2 ne "\n") {
-                        $bigrams{$word2 . ' ' . $word1}++;
-                    }
-                    $word2 = $word1;
+        my %bigrams = ();
+        my %unigrams = ();
+        my $word2 = "\n";
+        foreach my $word1 (split(' ',$stringedLine)) {
+            if ($word1 ne "\n") {
+                $unigrams{$word1}++;
+                if ($word2 ne "\n") {
+                    $bigrams{$word2 . ' ' . $word1}++;
                 }
+                $word2 = $word1;
             }
+        }
 
-            open (UNIGRAMS,">$unigramsname");		
+        open (UNIGRAMS,">$unigramsname");
 
-	    while ( my ($key, $value) = each %unigrams ) {
-		print UNIGRAMS $key . ' ' . $value . "\n";
-	    }
+        while ( my ($key, $value) = each %unigrams ) {
+            print UNIGRAMS $key . ' ' . $value . "\n";
+        }
 
-            open (BIGRAMS,">$bigramsname");		
-	    
-            while ( (my $key, my $value) = each %bigrams ) {
-                print BIGRAMS $key . ' ' . $value . "\n";
-            }
+        open (BIGRAMS,">$bigramsname");
+
+        while ( (my $key, my $value) = each %bigrams ) {
+            print BIGRAMS $key . ' ' . $value . "\n";
+        }
     }
+
 }
+
+
 
