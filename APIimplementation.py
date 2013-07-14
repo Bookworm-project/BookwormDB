@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys
 import json
@@ -321,6 +321,18 @@ class userquery:
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
         #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth. 
+
+    def make_catwhere(self):
+        #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
+        catlimits = dict()
+        for key in self.limits.keys():
+            ###Warning--none of these phrases can be used ina  bookworm as a custom table names.
+            if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
+                catlimits[key] = self.limits[key]
+        if len(catlimits.keys()) > 0:
+            self.catwhere = where_from_hash(catlimits)
+        else:
+            self.catwhere = "TRUE"
         if 'hasword' in self.limits.keys():
             """
             This is the sort of code I'm trying to move towards
@@ -338,32 +350,19 @@ class userquery:
             #deepcopy lets us get a real copy of the dictionary 
             #that can be changed without affecting the old one.
             mydict = copy.deepcopy(self.outside_dictionary)
+            #This may make it take longer than it should; we might want the list to 
+            #just be every bookid with the given word rather than filtering by the limits.
+            #It's not obvious to me which will be faster.
             mydict['search_limits'] = copy.deepcopy(self.limits)
             mydict['search_limits']['word'] = copy.deepcopy(mydict['search_limits']['hasword'])
             del mydict['search_limits']['hasword']
             tempquery = userquery(mydict,databaseScheme=self.databaseScheme)
-            bookids = ''
-            bookids = tempquery.counts_query()
+            listofBookids = tempquery.bookid_query()
+            from uuid import uuid4
+            random_string = re.sub("-","",str(uuid4()))
+            #I don't want collisions--a uuid is overkill, but works.
+            self.catwhere = self.catwhere + " AND fastcat.bookid IN (%s)"%(listofBookids)
 
-            #If this is ever going to work, 'catalog' here should be some call to self.prefs['fastcat']
-            bookids = re.sub("(?s).*" + self.prefs['fastcat'] + "[^\.]?[^\.\n]*\n","\n",bookids)
-            bookids = re.sub("(?s)WHERE.*","\n",bookids)
-            bookids = re.sub("(words|lookup)([0-9])","has\\1\\2",bookids)
-            bookids = re.sub("main","hasTable",bookids)
-            self.catalog = self.catalog + bookids
-            #del self.limits['hasword']
-
-    def make_catwhere(self):
-        #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
-        catlimits = dict()
-        for key in self.limits.keys():
-            ###Warning--none of these phrases can be used ina  bookworm as a custom table names.
-            if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
-                catlimits[key] = self.limits[key]
-        if len(catlimits.keys()) > 0:
-            self.catwhere = where_from_hash(catlimits)
-        else:
-            self.catwhere = "TRUE"
 
     def make_wordwheres(self):
         self.wordswhere = " TRUE "
@@ -543,6 +542,23 @@ class userquery:
                  %(catwhere)s AND %(wordswhere)s
             GROUP BY 
                 %(groupings)s
+        """ % self.__dict__
+        return countsQuery
+
+    def bookid_query(self):
+        #A temporary method to setup the hasword query.
+        self.operation = ','.join(self.bookoperations)
+        self.build_wordstables()
+
+        countsQuery = """
+            SELECT
+                main.bookid as bookid
+            FROM 
+                %(catalog)s
+                %(main)s
+                %(wordstables)s 
+            WHERE
+                 %(catwhere)s AND %(wordswhere)s
         """ % self.__dict__
         return countsQuery
     
