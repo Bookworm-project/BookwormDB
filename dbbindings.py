@@ -14,14 +14,21 @@ def headers(method):
         print "Content-Disposition: filename=Bookworm-data.txt"
         print "Pragma: no-cache"
         print "Expires: 0\n"
-        
-outfile = open("/var/log/presidio/log.txt",'a')
+
+try:        
+    outfile = open("/var/log/presidio/log.txt",'a')
+except IOError:
+    outfile = open("/dev/null","a")
+    #It doesn't have to log results anymore
+
+
 form = cgi.FieldStorage()
 
 if len(form) > 0: #(Use CGI input if it's there:)
     JSONinput = form["queryTerms"].value
     outfile.write(JSONinput)
     outfile.write("\n")
+    output = open("/tmp/err",'w'); output.write(json.__file__)
     data = json.loads(JSONinput)
     #For back-compatability, "method" can be defined in the json or as a separate part of the post.
     #Using the form-posting way of returning 'method' is deprecated.
@@ -62,15 +69,18 @@ else: #(Use command line input otherwise--this shouldn't be necessary anymore ex
 
 #This following would be better as a straight switch.
 
-if method!='return_tsv' and method!='return_json' and method!='search_results':
+if method!='return_tsv' and method!='return_json' and method!='search_results' and method!='returnPossibleFields':
     result = p.execute()
     #This 'RESULT' bit NEEDS to go, but legacy code uses it heavily.
     print '===RESULT==='
     print json.dumps(result)
 
-if method=='return_json' or method=='search_results':
-    result = p.execute()[0]
-    print json.dumps(result)
+if method=='return_json' or method=='search_results' or method=='returnPossibleFields':
+    result = p.execute()
+    if isinstance(data['search_limits'],dict):
+        print json.dumps(result[0])
+    else:
+        print json.dumps(result)
 
 if method=="return_tsv":
     #Return_tsv can only give back a single file at a time.
