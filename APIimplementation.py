@@ -28,7 +28,7 @@ class dbConnect:
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
         self.cursor = self.db.cursor()
 
-# The basic object here is a userquery: it takes dictionary as input, as defined in the API, and returns a value 
+# The basic object here is a 'userquery:' it takes dictionary as input, as defined in the API, and returns a value 
 # via the 'execute' function whose behavior 
 # depends on the mode that is passed to it.
 # Given the dictionary, it can return a number of objects.
@@ -36,9 +36,10 @@ class dbConnect:
 # Most functions describe a subquery that might be combined into one big query in various ways.
 
 class userqueries:
-    #This is a set of queries that are bound together; each element in search limits is iterated over, and we're done.
+    #This is a set of userqueries that are bound together; each element in search limits is iterated over, and we're done.
     #currently used for various different groups sent in a bundle (multiple lines on a Bookworm chart).
     #A sufficiently sophisticated 'group by' search might make this unnecessary.
+    #But until that day, it's useful to be able to return lists of elements, which happens in here.
 
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
         try:
