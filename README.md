@@ -1,5 +1,9 @@
 [Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for building the database and tables used with a Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app") and [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
 
+The "master" branch is more stable, but the "dev" branch tends to be significantly faster both for creation and
+for querying.
+
+
 ## Bookworms ##
 Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
 
