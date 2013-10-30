@@ -149,7 +149,7 @@ class userquery:
 
         if groups == []:
             #Set an arbitrary column name that will always be true if nothing else is set.
-            groups = ["fastcat.bookid is not null as In_Library"]
+            groups = ["1 as In_Library"]
 
         if (len (groups) > 1):
             pass
