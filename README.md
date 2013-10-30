@@ -1,7 +1,8 @@
 [Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for building the database and tables used with a Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app") and [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
 
-The "master" branch is more stable, but the "dev" branch tends to be significantly faster both for creation and
-for querying.
+The "master" branch is more backwards-compatible, but the "dev" branch tends to be significantly faster both for creation and
+for querying. "Master" exists primarily as an internal scheme to support legacy installations; there has not been a "stable" 
+release to date, so neither is guaranteed to be more stable than the other. Most new installations should use "dev."
 
 
 ## Bookworms ##
