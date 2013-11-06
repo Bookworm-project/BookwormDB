@@ -8,16 +8,16 @@ release to date, so neither is guaranteed to be more stable than the other. Most
 ## Bookworms ##
 Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
 
-1. [Open Library](http://bookworm.culturomics.org/ "Open Library")
-2. [ArXiv](http://arxiv.culturomics.org/ "ArXiv")
+1. [Open Library](http://bookworm.culturomics.org/OL/ "Open Library")
+2. [ArXiv](http://bookworm.culturomics.org/arxiv/ "ArXiv")
 3. [Chronicling America](http://arxiv.culturomics.org/ChronAm/ "Chronicling America")
-4. [SSRN](http://steinbeck.seas.harvard.edu/bookworm/ssrn/ "SSRN: Social Science Research Network")
-5. [US Congress](http://steinbeck.seas.harvard.edu/bookworm/congress/ "Bills in US Congress")
+4. [SSRN](http://bookworm.culturomics.org/ssrn/ "SSRN: Social Science Research Network")
+5. [US Congress](http://bookworm.culturomics.org/congress/ "Bills in US Congress")
 
 
 ## Getting Started ##
 ### Required MySQL Database ###
-At the very least, there must be a MySQL user with permissions to insert and select data from all databases.
+At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
 
 For example, create a user `foobar` with password `mysecret` and full access to all databases from `localhost`:
 
@@ -29,13 +29,14 @@ FLUSH PRIVILEGES;
 
 However, ideally there should be 2 MySQL users. The first user would have the ability to create new databases (i.e. GRANT ALL) and the second would only be able to select data from databases (i.e. GRANT SELECT).
 
-The first user would be the one defined above. The second user would be the user that the API uses to get data to push to the bookworm GUI. For example, create the user `apiuser` with password `anothersecret`:
+The first user would be the one defined above. The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 
 
 ```mysql
-CREATE USER 'apiuser'@'localhost' IDENTIFIED BY 'anothersecret';
-GRANT SELECT PRIVILEGES ON *.* TO 'apiuser'@'localhost';
+GRANT SELECT PRIVILEGES ON *.* TO 'www-data'@'localhost';
 FLUSH PRIVILEGES;
 ```
+
+If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above.
 
 Finally, there must also be a file at `~/.my.cnf` that Python can load with your MySQL user/pass (this prevents having to store any sensitive information in the Python scripts). Here is an example of what the `~/.my.cnf` file would look like for the user/pass created above:
 
