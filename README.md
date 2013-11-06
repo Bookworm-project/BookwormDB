@@ -36,7 +36,11 @@ GRANT SELECT PRIVILEGES ON *.* TO 'www-data'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above.
+If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above. Otherwise, you can get it from your `httpd.conf` file (located in this example at `/etc/apache2/httpd.conf`) by doing:
+
+```bash
+cat /etc/apache2/httpd.conf | grep ^User | cut -d" " -f 2
+```
 
 Finally, there must also be a file at `~/.my.cnf` that Python can load with your MySQL user/pass (this prevents having to store any sensitive information in the Python scripts). Here is an example of what the `~/.my.cnf` file would look like for the user/pass created above:
 
