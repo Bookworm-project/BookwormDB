@@ -52,6 +52,7 @@ class LCClass():
     def __init__(self, string):
         self.string = string
     def split(self):
+        #LC classifications cannot include non-ascii characters, so we just coerce.
         lcclass = self.string.encode("ascii",'replace')
         #This regex defines an LC classification.
         mymatch = re.match(r"^(?P<lc1>[A-Z]+) ?(?P<lc2>\d+)", lcclass)
