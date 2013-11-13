@@ -79,8 +79,25 @@ mkdir files && mkdir files/{metadata,texts,texts/raw}
 ```
 
 ### Required Files ###
+
+To build a bookworm, files are required in three places.
+`
+BookwormDirectory/
+ -- files
+  | -- texts
+  |  | raw  <--- contains texts files or a folder of text files
+  | -- metadata
+  |  | -- jsoncatalog.txt
+  |  | -- field_descriptions.json
+
+`
+*  `files/texts/raw`
+This folder should contain a uniquely named .txt file for every item in your collection of texts 
+that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key
+should include the full path to the file.
+
 *  `files/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
-*  `files/texts/raw` This folder should contain a uniquely named .txt file for every item in your collection of texts that you want to build a bookworm around.
+
 
 Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`.
 
