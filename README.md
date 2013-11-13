@@ -80,17 +80,20 @@ mkdir files && mkdir files/{metadata,texts,texts/raw}
 
 ### Required Files ###
 
-To build a bookworm, files are required in three places.
-`
-BookwormDirectory/
- -- files
-  | -- texts
+To build a bookworm, files are required in three places. Relative to the root directory (which will be called `Presidio` 
+if you clone this repo directly), they are all in a subdirectory called `files`.
+
+```
+Presidio/
+ -- files/
+  | -- texts/
   |  | raw  <--- contains texts files or a folder of text files
-  | -- metadata
+  | -- metadata/
   |  | -- jsoncatalog.txt
   |  | -- field_descriptions.json
 
-`
+```
+
 *  `files/texts/raw`
 This folder should contain a uniquely named .txt file for every item in your collection of texts 
 that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key
