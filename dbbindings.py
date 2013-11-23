@@ -1,14 +1,17 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 #So we load in the terms that allow the API implementation to happen for now.
 execfile("APIimplementation.py")
-
+from datetime import datetime
+import os
 import cgitb
 cgitb.enable()
 
 def headers(method):
     if method!="return_tsv":
         print "Content-type: text/html\n"
+        userip = cgi.escape(os.environ["REMOTE_ADDR"])
+        return userip
     elif method=="return_tsv":
         print "Content-type: text; charset=utf-8"
         print "Content-Disposition: filename=Bookworm-data.txt"
@@ -26,10 +29,9 @@ form = cgi.FieldStorage()
 
 if len(form) > 0: #(Use CGI input if it's there:)
     JSONinput = form["queryTerms"].value
-    outfile.write(JSONinput)
-    outfile.write("\n")
-    output = open("/tmp/err",'w'); output.write(json.__file__)
     data = json.loads(JSONinput)
+    data['log_date'] = datetime.now().strftime('%d/%h/%Y:%H:%M:%S')
+    output = open("/tmp/err",'w'); output.write(json.__file__)
     #For back-compatability, "method" can be defined in the json or as a separate part of the post.
     #Using the form-posting way of returning 'method' is deprecated.
     try:
@@ -41,7 +43,12 @@ if len(form) > 0: #(Use CGI input if it's there:)
         except:
             raise
             pass
-    headers(method)
+    data['user_ip'] = headers(method)
+    outfile.write('%s\n' % json.dumps(data))
+    outfile.flush()
+    for userinfo in ['user_ip', 'log_date']:
+        if userinfo in data:
+            data.pop(userinfo)
 
     #if somewhere else has already set a privileges level, then you can get higher ones here.
     try:
