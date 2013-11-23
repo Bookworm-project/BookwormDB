@@ -20,7 +20,7 @@ execfile('knownHosts.py')
 
 
 
-class dbConnect:
+class dbConnect(object):
     #This is a read-only account
     def __init__(self,prefs):
         import MySQLdb
