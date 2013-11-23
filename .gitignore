@@ -4,3 +4,6 @@ APIkeys
 #*
 .#*
 *.cgi
+migration.py
+shipping.py
+bookworm
