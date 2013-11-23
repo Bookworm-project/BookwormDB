@@ -7,11 +7,15 @@ from subprocess import Popen,list2cmdline,PIPE
 execfile("../parsingClasses.py")
 
 #This file downloads a list of ocaids, in parallel.
+#The JSON catalog must already have been created.
 
-filelist = open("../../../metadata/jsoncatalog.txt")
+root = "../../../files"
+
+filelist = open(root + "/metadata/jsoncatalog.txt")
 
 def exec_commands(cmds):
-    ''' Exec commands in parallel in multiple process                                   
+    '''
+    Exec commands in parallel in multiple process                                   
     (as much as we have CPU) (This is code from stack overflow that Ryan Lee cleaned up for us) 
     '''
     if not cmds: return # empty list                                
@@ -39,7 +43,7 @@ def exec_commands(cmds):
         else:
             time.sleep(0.05)
 
-max_task = 20
+max_task = 10
 cmds = []
 
 
@@ -51,20 +55,20 @@ for line in filelist:
         continue
     #if the file exists, we don't need to download it.
     try:
-        foundIt = open("../../../texts/raw/" + id.fileLocation())
+        foundIt = open(root + "/texts/raw/" + id.fileLocation())
         print id.fileLocation() + " already exists"
 
     except:
         try:
-            os.makedirs("../../../texts/raw/" + id.homeDirectory())
+            os.makedirs(root + "/texts/raw/" + id.homeDirectory())
         except OSError:
             #Usually the directory should be there.
             pass
         except UnicodeEncodeError:
-            #This one shouldn't be happening, but does.
+            #This one shouldn't be happening, but does. Isn't that something?
             continue
 
-        cmds.append(['curl','-L', '-o', "../../../texts/raw/" + id.fileLocation() , id.onlineLocation()])
+        cmds.append(['curl','-L', '-s','-o', root + "/texts/raw/" + id.fileLocation() , id.onlineLocation()])
         print "Adding " + id.string + " to stack"
 
     if len(cmds) >= 1000:

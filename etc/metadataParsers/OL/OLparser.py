@@ -14,16 +14,14 @@ from nameparser import *
 
 execfile("../parsingClasses.py")
 
+root = "../../.."
 
-#input    = "../../Downloads/Catinfo/ocaidbooks.txt"
-#Our unique identifier
-#input = "../../../Downloads/Catinfo/ocaidbooks.txt"
-editions = "../../../Downloads/Catinfo/ol_dump_editions_latest.txt"
+editions = root + "/files/downloads/Catinfo/ol_dump_editions_latest.txt"
 
 #Not necessary, but to make this faster I grep out only the files with 'ocaid' in them
-editions = "../../../Downloads/Catinfo/editions.txt"
-works = "../../../Downloads/Catinfo/ol_dump_works_latest.txt"
-authors = "../../../Downloads/Catinfo/ol_dump_authors_latest.txt"
+editions = root + "/files/catinfo/ol_dump_editions_latest.txt"
+works = root + "/files/catinfo/ol_dump_works_latest.txt"
+authors = root + "/files/catinfo/ol_dump_authors_latest.txt"
 
 #OL stores variable in structures that have to be treated differently
 singleVars = ["ocaid","title","publish_country","publish_date","key"]
@@ -34,7 +32,7 @@ derivedVars = ["lc0","lc1","lc2","year","author_birth","author_death","author","
 author_vars = ["name","birth_date","death_date"]
 work_vars = ["subject_places","subject_people","subjects"]
 
-catalog = open("../../../metadata/jsoncatalog.txt",'w')
+catalog = open(root + "/files/metadata/jsoncatalog.txt",'w')
 
 class OLline(dict):
     #This is for processing an input line into a dictionary.
@@ -90,6 +88,7 @@ for line in open(works):
 
 print "Work Data Loaded"
 """
+
 entries = []
 
 i=0 #counter for status updates
@@ -140,6 +139,7 @@ for line in open(editions):
         authorstring = output.get('author','[No author]')
         publishstring = "(" + str(output.get('year','undated')) + ")"
         output['searchstring'] = authorstring + ", " + titlestring + " " + publishstring + ' <a href="http://openlibrary.org' + output['editionid'] + '">more info</a> <a href="' + internetArchiveID.readerLocation() + '">read</a>'
+
     except:
         print output.keys()
         raise
@@ -169,6 +169,7 @@ for line in open(editions):
         print str(i*1000) + "\r"
         i = i+1
         entries = []
-                 
+
+#do a final writeout                 
 for individual in entries:
     catalog.write(json.dumps(individual) + "\n")
