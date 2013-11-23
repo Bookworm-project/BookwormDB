@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys
 import json
@@ -16,8 +16,6 @@ import decimal
 """
 
 execfile('knownHosts.py')
-#We define prefs to default to the Open Library set at first; later, it can do other things.
-
 
 
 class dbConnect(object):
@@ -43,7 +41,7 @@ class userqueries:
 
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
         try:
-            self.database = outside_dictionary.setdefault('database','arxiv')
+            self.database = outside_dictionary.setdefault('database', 'default')
             prefs = general_prefs[self.database]
         except KeyError: #If it's not in the option, use some default preferences and search on localhost. This will work in most cases here on out.
             prefs = general_prefs['default']
@@ -70,6 +68,7 @@ class userqueries:
 
     def execute(self):
         return self.returnval
+
 
 class userquery:
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
