@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 """
 Whenever you add a new bookworm to your server, remember to add a line for it in this file.

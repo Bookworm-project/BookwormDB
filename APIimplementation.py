@@ -7,6 +7,7 @@ import re
 import numpy #used for smoothing.
 import copy
 import decimal
+import MySQLdb
 
 """
 #There are 'fast' and 'full' tables for books and words;
@@ -21,7 +22,6 @@ execfile('knownHosts.py')
 class dbConnect(object):
     #This is a read-only account
     def __init__(self,prefs):
-        import MySQLdb
         self.dbname = prefs['database']
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
         self.cursor = self.db.cursor()

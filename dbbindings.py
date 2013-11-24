@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+#!/usr/local/bin/python
 
 #So we load in the terms that allow the API implementation to happen for now.
 execfile("APIimplementation.py")
 from datetime import datetime
 import os
 import cgitb
+#import MySQLdb
 cgitb.enable()
 
 def headers(method):
@@ -22,7 +24,7 @@ try:
     outfile = open("/var/log/presidio/log.txt",'a')
 except IOError:
     outfile = open("/dev/null","a")
-    #It doesn't have to log results anymore
+    #It doesn't have to log results anymore: It'll just write to a null file.
 
 
 form = cgi.FieldStorage()
