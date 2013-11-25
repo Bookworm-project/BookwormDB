@@ -3,14 +3,13 @@
 use strict;
 
 ###
-# This program takes command line input: first, the type of parsing ('bigrams','ungirams',etc)
-# and second, a list of files to translate (which can, in testing be up to about 250,000 items long,
+# This program takes a list of files to translate (which can, in testing be up to about 250,000 items long,
 # although that limit varies dramatically by operating system)
 # Just passsed through the arguments list, that seems like the easiest way to handle control flow.
 # The primary goal here is minimize the number of times we have to load in that hash of words, which takes
 # several seconds, by letting it get used on several different items.
 #
-# It uses perl instead of python for speed.
+# It uses perl instead of python for speed; all that unicode junk in python is just excruciating.
 ###
 
 #These values aren't actually used anywhere now: there's just for checking validity.
