@@ -4,6 +4,7 @@ files = $(root)/files
 catinfo = $(files)/catinfo
 
 
+
 downloads: $(root)/files/metadata/jsoncatalog.txt
 	mkdir -p $(root)/files/downloads
 	python OL_download.py
@@ -15,6 +16,8 @@ catinfo:
 $(catinfo)/: catinfo
 	curl http://openlibrary.org/data/ol_dump_editions_latest.txt.gz
 
+$(files)/metadata/field_descriptions.json:
+	mv field_descriptions.json $(files)/metadata/field_descriptions.json
 
 $(root)/metadata/catalog.json: $(catinfo)/ol_dump_editions_latest.txt
 	mkdir -p $(root)/files/metadata
@@ -33,10 +36,9 @@ $(catinfo)/ol_dump_editions_latest.txt: $(catinfo)
 
 
 
+
 #Phony targets for testing.
 
 metadata: $(catinfo)/ol_dump_editions_latest.txt 
 catalog: $(root)/metadata/catalog.json
-
-
-
+authors: $(catinfo)/ol_dump_authors_latest.txt
