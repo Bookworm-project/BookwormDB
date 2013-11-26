@@ -146,9 +146,9 @@ class userquery:
         except:
             groups = [outside_dictionary['time_measure']]
 
-        if groups == []:
+        if groups == [] or groups == ["unigram"]:
             #Set an arbitrary column name that will always be true if nothing else is set.
-            groups = ["1 as In_Library"]
+            groups.insert(0,"1 as In_Library")
 
         if (len (groups) > 1):
             pass
