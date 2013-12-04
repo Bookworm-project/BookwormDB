@@ -112,7 +112,6 @@ class bookidlist:
     def execute(self,exMethod=noShellCall):
         pool = multiprocessing.Pool(processes=self.simultaneousTasks)
         pool.map(exMethod, self.args)
-        pool.close()
 
 
 class book:
