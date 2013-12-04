@@ -30,12 +30,16 @@ class bookidlist:
         print "Done reading in files: moving to create subprocesses"
         self.processors = multiprocessing.cpu_count()
         #A ridiculous line of code to ensure that we don't have too little ram.
-        try:
-            gigsOfRam = (re.findall('Mem: (.*) ', subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE).stdout.read())[0].strip().split(' ')[0])
+        try: # First try Ubuntu
+            checkcpus = subprocess.Popen(['free', '-g'], stdout=subprocess.PIPE)
+            gigsOfRam = int(re.findall('Mem: (.*) ', checkcpus.stdout.read())[0].strip().split(' ')[0])
+        except OSError: # OS X will throw an OSError if the try above failed, so try an OS X command
+            checkcpus = subprocess.Popen(['sysctl', 'hw.memsize'], stdout=subprocess.PIPE)
+            gigsOfRam = int(checkcpus.stdout.read().strip().split(' ')[1])/1024**3
         except: #free doesn't exist on OS X; currently just doing it single-core.
             gigsOfRam = 1
         #Rule of thumb: each process needs to have a gig of memory, lest things get out of control
-        self.simultaneousTasks = min([self.processors,gigsOfRam])
+        self.simultaneousTasks = min([self.processors, gigsOfRam])
         
         #We can accept at most 100K arguments at a time on the command line.
         #but varies from system to system. So break up the chunks into lots and lots of pieces.
@@ -108,6 +112,7 @@ class bookidlist:
     def execute(self,exMethod=noShellCall):
         pool = multiprocessing.Pool(processes=self.simultaneousTasks)
         pool.map(exMethod, self.args)
+        pool.close()
 
 
 class book:
