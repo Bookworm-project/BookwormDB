@@ -124,9 +124,9 @@ class userquery:
 
     def defaults(self,outside_dictionary):
         #these are default values;these are the only values that can be set in the query
-            #search_limits is an array of dictionaries;
-            #each one contains a set of limits that are mutually independent
-            #The other limitations are universal for all the search limits being set.
+        #search_limits is an array of dictionaries;
+        #each one contains a set of limits that are mutually independent
+        #The other limitations are universal for all the search limits being set.
 
         #Set up a dictionary for the denominator of any fraction if it doesn't already exist:
         self.search_limits = outside_dictionary.setdefault('search_limits',[{"word":["polka dot"]}])
@@ -235,6 +235,9 @@ class userquery:
             del self.outside_dictionary['compare_limits']
         elif sum([bool(re.search(r'\*',string)) for string in self.outside_dictionary['search_limits'].keys()]) > 0:
             #If any keys have stars at the end, drop them from the compare set
+            #This is often a _very_ helpful definition for succinct comparison queries of many types.
+            #The cost is that an asterisk doesn't allow you 
+            
             for key in self.outside_dictionary['search_limits'].keys():
                 if re.search(r'\*',key):
                     #rename the main one to not have a star
@@ -257,9 +260,10 @@ class userquery:
                     pass
         """
         The grouping behavior here is not desirable, but I'm not quite sure how yet.
+        Aha--one way is that it accidentally drops out a bunch of options. I'm just disabling it: let's see what goes wrong now.
         """
         try:
-            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]# topicfix? and not re.match("topic",group)]
+            pass#self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]# topicfix? and not re.match("topic",group)]
         except:
             self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
         
@@ -368,7 +372,11 @@ class userquery:
         self.wordswhere = " TRUE "
         self.max_word_length = 0
         limits = []
-        
+        for gramterm in ['unigram','bigram']:
+            if gramterm in self.limits.keys() and not "word" in self.limits.keys():
+                self.limits['word'] = self.limits[gramterm]
+                del self.limits[gramterm]
+
         if 'word' in self.limits.keys():
             """
             This doesn't currently allow mixing of one and two word searches together in a logical way.
@@ -580,8 +588,8 @@ class userquery:
         self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups]) #Still in use?
         #I'm switching to this version to make it work with "unigram"; that could be special cased if I
         #still am using the aliases elsewhere. We'll see.
-        self.totalselections  = ",".join([group for group in self.outerGroups])
-
+        self.totalselections  = ",".join([group for group in self.outerGroups if group!="1 as In_Library"])
+        self.groupings = re.sub("1 as In_Library","1",self.groupings)
         query = """
         SELECT
             %(totalselections)s,
