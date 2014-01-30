@@ -3,6 +3,8 @@ threads = 4
 bookwormName = "OL"
 filesPerProcess = 100
 
+all: encoded
+
 files/texts/unigrams: files/texts/raw
 	mkdir -p files/texts/unigrams
 	mkdir -p files/texts/bigrams
