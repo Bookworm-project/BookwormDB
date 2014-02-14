@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys
 import json
@@ -7,6 +7,7 @@ import re
 import numpy #used for smoothing.
 import copy
 import decimal
+import MySQLdb
 
 """
 #There are 'fast' and 'full' tables for books and words;
@@ -16,19 +17,16 @@ import decimal
 """
 
 execfile('knownHosts.py')
-#We define prefs to default to the Open Library set at first; later, it can do other things.
 
 
-
-class dbConnect:
+class dbConnect(object):
     #This is a read-only account
     def __init__(self,prefs):
-        import MySQLdb
         self.dbname = prefs['database']
         self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
         self.cursor = self.db.cursor()
 
-# The basic object here is a userquery: it takes dictionary as input, as defined in the API, and returns a value 
+# The basic object here is a 'userquery:' it takes dictionary as input, as defined in the API, and returns a value 
 # via the 'execute' function whose behavior 
 # depends on the mode that is passed to it.
 # Given the dictionary, it can return a number of objects.
@@ -36,13 +34,14 @@ class dbConnect:
 # Most functions describe a subquery that might be combined into one big query in various ways.
 
 class userqueries:
-    #This is a set of queries that are bound together; each element in search limits is iterated over, and we're done.
+    #This is a set of userqueries that are bound together; each element in search limits is iterated over, and we're done.
     #currently used for various different groups sent in a bundle (multiple lines on a Bookworm chart).
     #A sufficiently sophisticated 'group by' search might make this unnecessary.
+    #But until that day, it's useful to be able to return lists of elements, which happens in here.
 
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
         try:
-            self.database = outside_dictionary.setdefault('database','arxiv')
+            self.database = outside_dictionary.setdefault('database', 'default')
             prefs = general_prefs[self.database]
         except KeyError: #If it's not in the option, use some default preferences and search on localhost. This will work in most cases here on out.
             prefs = general_prefs['default']
@@ -69,6 +68,7 @@ class userqueries:
 
     def execute(self):
         return self.returnval
+
 
 class userquery:
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
@@ -124,9 +124,9 @@ class userquery:
 
     def defaults(self,outside_dictionary):
         #these are default values;these are the only values that can be set in the query
-            #search_limits is an array of dictionaries;
-            #each one contains a set of limits that are mutually independent
-            #The other limitations are universal for all the search limits being set.
+        #search_limits is an array of dictionaries;
+        #each one contains a set of limits that are mutually independent
+        #The other limitations are universal for all the search limits being set.
 
         #Set up a dictionary for the denominator of any fraction if it doesn't already exist:
         self.search_limits = outside_dictionary.setdefault('search_limits',[{"word":["polka dot"]}])
@@ -146,9 +146,9 @@ class userquery:
         except:
             groups = [outside_dictionary['time_measure']]
 
-        if groups == []:
+        if groups == [] or groups == ["unigram"]:
             #Set an arbitrary column name that will always be true if nothing else is set.
-            groups = ["fastcat.bookid is not null as In_Library"]
+            groups.insert(0,"1 as In_Library")
 
         if (len (groups) > 1):
             pass
@@ -156,21 +156,39 @@ class userquery:
             #Define some sort of limitations here, if not done in dbbindings.py
 
         for group in groups:
-            group = group
-            if group=="unigram" or group=="word":
-                group = "words1." + self.word_field + " as unigram"
-            if group=="bigram":
-                group = "CONCAT (words1." + self.word_field + " ,' ' , words2." + self.word_field + ") as bigram" % self.__dict__
-            self.outerGroups.append(group)
-            try:
-                #Search on the ID field, not the basic field.
-                self.groups.add(self.databaseScheme.aliases[group])
-                table = self.databaseScheme.tableToLookIn[group]
-                joinfield = self.databaseScheme.aliases[group]
-                self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+
+            #There's a special set of rules for how to handle unigram and bigrams
+            multigramSearch = re.match("(unigram|bigram|trigram)(\d)?",group)
+            
+            if multigramSearch:
+                if group=="unigram":
+                    gramPos = "1"
+                    gramType = "unigram"
+
+                else:
+                    gramType = multigramSearch.groups()[0]
+                    try:
+                        gramPos = multigramSearch.groups()[1]
+                    except:
+                        print "currently you must specify which bigram element you want (eg, 'bigram1')"
+                        raise
+                    
+                lookupTableName = "%sLookup%s" %(gramType,gramPos)
+                self.outerGroups.append("%s.%s as %s" %(lookupTableName,self.word_field,group))
+                self.finalMergeTables.add(" JOIN wordsheap as %s ON %s.wordid=w%s" %(lookupTableName,lookupTableName,gramPos))
+                self.groups.add("words%s.wordid as w%s" %(gramPos,gramPos))
                 
-            except KeyError:
-                self.groups.add(group)
+            else:
+                self.outerGroups.append(group)
+                try:
+                #Search on the ID field, not the basic field.
+                    self.groups.add(self.databaseScheme.aliases[group])
+                    table = self.databaseScheme.tableToLookIn[group]
+                    joinfield = self.databaseScheme.aliases[group]
+                    self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+
+                except KeyError:
+                    self.groups.add(group)
 
         """
         There are the selections which can include table refs, and the groupings, which may not:
@@ -181,11 +199,6 @@ class userquery:
         self.groupings  = ",".join([re.sub(".* as","",group) for group in self.groups])
 
         self.joinSuffix = "" + " ".join(self.finalMergeTables)
-#        if len(self.finalMergeTables) > 0:
-#           self.joinSuffix = " NATURAL JOIN " + " NATURAL JOIN ".join(self.finalMergeTables)
-
-
-
 
         """
         Define the comparison set if a comparison is being done.
@@ -195,12 +208,12 @@ class userquery:
 
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
 
-        self.counttype = outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
+        self.counttype = outside_dictionary.setdefault('counttype',["WordCount"])
 
         if isinstance(self.counttype,basestring):
             self.counttype = [self.counttype]
 
-        #index is deprecated
+        #index is deprecated,but the old version uses it.
         self.index  = outside_dictionary.setdefault('index',0)
         """
         #Ordinarily, the input should be an an array of groups that will both select and group by.
@@ -222,6 +235,9 @@ class userquery:
             del self.outside_dictionary['compare_limits']
         elif sum([bool(re.search(r'\*',string)) for string in self.outside_dictionary['search_limits'].keys()]) > 0:
             #If any keys have stars at the end, drop them from the compare set
+            #This is often a _very_ helpful definition for succinct comparison queries of many types.
+            #The cost is that an asterisk doesn't allow you 
+            
             for key in self.outside_dictionary['search_limits'].keys():
                 if re.search(r'\*',key):
                     #rename the main one to not have a star
@@ -244,14 +260,13 @@ class userquery:
                     pass
         """
         The grouping behavior here is not desirable, but I'm not quite sure how yet.
+        Aha--one way is that it accidentally drops out a bunch of options. I'm just disabling it: let's see what goes wrong now.
         """
         try:
-            self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]
+            pass#self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word',group) and not re.match("[u]?[bn]igram",group)]# topicfix? and not re.match("topic",group)]
         except:
             self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
         
-        self.counttype = self.outside_dictionary.setdefault('counttype',["Occurrences_per_Million_Words"])
-
 
     def derive_variables(self):
         #These are locally useful, and depend on the variables
@@ -306,10 +321,22 @@ class userquery:
 
         self.catalog = "fastcat"
         for table in self.relevantTables:
-            if table!="fastcat" and table!="words" and table!="wordsheap":
+            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
         #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth. 
+
+    def make_catwhere(self):
+        #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
+        catlimits = dict()
+        for key in self.limits.keys():
+            ###Warning--none of these phrases can be used ina  bookworm as a custom table names.
+            if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
+                catlimits[key] = self.limits[key]
+        if len(catlimits.keys()) > 0:
+            self.catwhere = where_from_hash(catlimits)
+        else:
+            self.catwhere = "TRUE"
         if 'hasword' in self.limits.keys():
             """
             This is the sort of code I'm trying to move towards
@@ -327,37 +354,29 @@ class userquery:
             #deepcopy lets us get a real copy of the dictionary 
             #that can be changed without affecting the old one.
             mydict = copy.deepcopy(self.outside_dictionary)
+            #This may make it take longer than it should; we might want the list to 
+            #just be every bookid with the given word rather than filtering by the limits.
+            #It's not obvious to me which will be faster.
             mydict['search_limits'] = copy.deepcopy(self.limits)
             mydict['search_limits']['word'] = copy.deepcopy(mydict['search_limits']['hasword'])
             del mydict['search_limits']['hasword']
             tempquery = userquery(mydict,databaseScheme=self.databaseScheme)
-            bookids = ''
-            bookids = tempquery.counts_query()
+            listofBookids = tempquery.bookid_query()
+            from uuid import uuid4
+            random_string = re.sub("-","",str(uuid4()))
+            #I don't want collisions--a uuid is overkill, but works.
+            self.catwhere = self.catwhere + " AND fastcat.bookid IN (%s)"%(listofBookids)
 
-            #If this is ever going to work, 'catalog' here should be some call to self.prefs['fastcat']
-            bookids = re.sub("(?s).*" + self.prefs['fastcat'] + "[^\.]?[^\.\n]*\n","\n",bookids)
-            bookids = re.sub("(?s)WHERE.*","\n",bookids)
-            bookids = re.sub("(words|lookup)([0-9])","has\\1\\2",bookids)
-            bookids = re.sub("main","hasTable",bookids)
-            self.catalog = self.catalog + bookids
-            #del self.limits['hasword']
-
-    def make_catwhere(self):
-        #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
-        catlimits = dict()
-        for key in self.limits.keys():
-            if key not in ('word','word1','word2','hasword') and not re.search("words\d",key):
-                catlimits[key] = self.limits[key]
-        if len(catlimits.keys()) > 0:
-            self.catwhere = where_from_hash(catlimits)
-        else:
-            self.catwhere = "TRUE"
 
     def make_wordwheres(self):
         self.wordswhere = " TRUE "
         self.max_word_length = 0
         limits = []
-        
+        for gramterm in ['unigram','bigram']:
+            if gramterm in self.limits.keys() and not "word" in self.limits.keys():
+                self.limits['word'] = self.limits[gramterm]
+                del self.limits[gramterm]
+
         if 'word' in self.limits.keys():
             """
             This doesn't currently allow mixing of one and two word searches together in a logical way.
@@ -399,6 +418,7 @@ class userquery:
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
         #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
+
         if (self.max_word_length == 2 or re.search("words2",self.selections)):
 
             self.maintable = 'master_bigrams'
@@ -416,12 +436,12 @@ class userquery:
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
 
-        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections):
+        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections) or re.search("topic",self.selections):
             self.maintable = 'master_bookcounts'
             self.main = '''
-                JOIN
-                 master_bookcounts as main
-                 ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
+                NATURAL JOIN
+                 master_bookcounts as main '''
+                 #ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
@@ -514,12 +534,10 @@ class userquery:
             self.finaloperations.append(self.finaloperation[summaryStat])
 
     def counts_query(self):
-        #self.bookoperation = {"Occurrences_per_Million_Words":"sum(main.count)","Raw_Counts":"sum(main.count)","Percentage_of_Books":"count(DISTINCT " + self.prefs['fastcat'] + ".bookid)","Number_of_Books":"count(DISTINCT "+ self.prefs['fastcat'] + ".bookid)"}
-        #self.catoperation = {"Occurrences_per_Million_Words":"sum(nwords)","Raw_Counts":"sum(nwords)","Percentage_of_Books":"count(nwords)","Number_of_Books":"count(nwords)"}        
 
         self.operation = ','.join(self.bookoperations)
-
         self.build_wordstables()
+
         countsQuery = """
             SELECT
                 %(selections)s,
@@ -532,6 +550,23 @@ class userquery:
                  %(catwhere)s AND %(wordswhere)s
             GROUP BY 
                 %(groupings)s
+        """ % self.__dict__
+        return countsQuery
+
+    def bookid_query(self):
+        #A temporary method to setup the hasword query.
+        self.operation = ','.join(self.bookoperations)
+        self.build_wordstables()
+
+        countsQuery = """
+            SELECT
+                main.bookid as bookid
+            FROM 
+                %(catalog)s
+                %(main)s
+                %(wordstables)s 
+            WHERE
+                 %(catwhere)s AND %(wordswhere)s
         """ % self.__dict__
         return countsQuery
     
@@ -550,8 +585,11 @@ class userquery:
         self.countcommand = ','.join(self.finaloperations)
 
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
-        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups])
-
+        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups]) #Still in use?
+        #I'm switching to this version to make it work with "unigram"; that could be special cased if I
+        #still am using the aliases elsewhere. We'll see.
+        self.totalselections  = ",".join([group for group in self.outerGroups if group!="1 as In_Library"])
+        self.groupings = re.sub("1 as In_Library","1",self.groupings)
         query = """
         SELECT
             %(totalselections)s,
@@ -567,6 +605,7 @@ class userquery:
 
 
         #There are dramatic speed improvement to not returning 0 results when not needed in a merge query.
+        #This replaces old code to do the same thing.
         if len(set(["TextCount","WordCount"]).intersection(set(self.counttype)))==len(self.counttype):
             query = """
         SELECT
