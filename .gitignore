@@ -2,4 +2,7 @@ old/*
 *~
 APIkeys
 #*
-.#*.DS_Store
+.#*
+.DS_Store
+*.cgi
+
