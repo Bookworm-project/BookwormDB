@@ -11,8 +11,12 @@ files/texts/unigrams: files/texts/raw
 	mkdir -p files/texts/encoded
 	mkdir -p files/texts/encoded/unigrams
 	mkdir -p files/texts/encoded/bigrams
-	sh scripts/copyDirectoryStructures.sh
+	mkdir -p files/texts/encoded/trigrams
+	#sh scripts/copyDirectoryStructures.sh
 
+files/texts/wordcounts:
+	mkdir -p files/texts/wordcounts
+	cat files/texts/input.txt
 
 testSettings:
 	echo $(bookwormName)
@@ -20,7 +24,7 @@ testSettings:
 encoded: files/texts/raw
 	#Create metadata files.
 	python OneClick.py $(bookwormName) metadata
-	#Rather than call the one click method, these three lines in shell allow us much more parallelism than would be easily possible in python.
+	#Rather than call the one click method, these three lines in shell allow us much more parallelism than is easily possible in python.
 	#The next three lines could be replaced by `python OneClick.py $(bookwormName) 
 	find -L files/texts/raw/ -type f | sed 's/.*raw\///;s/.txt$$//' | xargs -P $(threads) -n $(filesPerProcess) perl scripts/makeUnigramsandBigrams.pl
 	#Count the words--this takes a while, and could probably be optimized.
