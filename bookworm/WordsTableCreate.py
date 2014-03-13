@@ -6,59 +6,33 @@ import time
 import subprocess
 import codecs
 from codecs import open as codecopen
-
+import cPickle as pickle
+from tokenizer import *
 
 #There are a whole bunch of directories that it wants to be there:
 for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unigrams','logs/unigrams','logs/bigrams','texts/bigrams','texts/encoded','texts/encoded/unigrams','texts/encoded/bigrams','logs/encode2','logs/encode1', 'texts/wordlist']:
     if not os.path.exists("files/" + directory):
         subprocess.call(['mkdir', 'files/' + directory])
 
-
-def CopyDirectoryStructuresFromRawDirectory():
-    #Internal python solutions for this are not as fast or as clean as simply using rsync in the shell.
-    #That's what the code below does. Downside: it requires rsync.
-    print "Copying directory Structures from primary folder to later ones..."
-    subprocess.call(["sh","scripts/copyDirectoryStructures.sh"])
-
-
 def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     wordcounts = dict()
-    filenum = 1
+    filenum = 0
     readnum = 0
     logfile = open('files/logs/log.log', 'w')
     database = open('files/texts/wordlist/raw.txt', 'w')
     
-    for thisfile in os.listdir('files/texts/textids'):
-        for line in open('files/texts/textids/%s' % thisfile, 'r'):
-            filenum = filenum + 1
-            filename = line.split('\t')[1]
-            filename = filename.replace('\n', '')
-            try:
-                reading = codecopen('files/texts/unigrams/%s.txt' % filename, encoding='UTF-8')
-                readnum = readnum + 1
-                logfile.write('%s %s\n' % (str(readnum), filename))
-                for wordEntry in reading:
-                    wordEntry = wordEntry.split(' ')
-                    if len(wordEntry) > 2:
-                        wordEntry = [''.join([wordEntry[i] for i in range(len(wordEntry)-1)]), wordEntry[-1]]
-                    wordEntry[1] = int(re.sub('\n','',wordEntry[1]))
-                    try:
-                        wordcounts[wordEntry[0]] += wordEntry[1]
-                    except KeyError:
-                        #Really long strings without spaces might mess this up.
-                        #30 is a reasonable limit, so 64 seems like plenty.
-                        if len(wordEntry[0]) < 64:
-                            wordcounts[wordEntry[0]] = wordEntry[1]
-                        else:
-                            pass
-                     #Now we need to delete the words that appear below a cutoff that we find dynamically:
-            except UnicodeDecodeError:
-                #These just happen, and after a certain point I'm sick of tracking down exactly why to preserve some bizzaro character
-                #(It's not accents we're losing, it's stranger birds; I think characters outside of the Unicode alphabet entirely, or something like that.)
-                pass
-            except:
-                pass
-            if len(wordcounts) > maxMemoryStorage:
+    for thisfile in os.listdir('files/texts/wordcounts'):
+        filenum += 1
+        input = pickle.load(open('files/texts/wordcounts/' + thisfile))
+        input.unigramCounts()
+        counts = input.counts["counts"]
+        for item in counts:
+            try: 
+                wordcounts[item] += counts[item]
+            except KeyError:
+                wordcounts[item] = counts[item]
+        
+        if len(wordcounts) > maxMemoryStorage:
                 print "exporting to disk at file number %s" % str(filenum)
                 for key in wordcounts.iterkeys():
                     database.write('%s %s\n' % (key.encode('utf-8'), str(wordcounts[key])))
