@@ -21,9 +21,6 @@ def wordRegex():
 bigregex = wordRegex()
 
 def readDictionaryFile():
-    """
-    imports the wordlists into an easy dict.
-    """
     look = dict()
     for line in open("files/texts/wordlist/wordlist.txt"):
         splat = line.split("\t")
@@ -31,9 +28,6 @@ def readDictionaryFile():
     return look
 
 def readIDfile():
-    """
-    imports the list of IDs into an easy dict
-    """
     for line in open("files/texts/textids"):
         splat = line.split("\t")
         look[splat[1]] = splat[0]
