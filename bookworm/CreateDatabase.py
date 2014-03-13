@@ -535,12 +535,11 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        for line in open("files/metadata/catalog.txt"):
-            fields = line.split()
+        for filename in os.listdir("files/texts/encoded/unigrams"):
             try:
-                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+fields[1]+".txt' INTO TABLE master_bookcounts CHARACTER SET utf8 (wordid,count) SET bookid="+fields[0]+";")
+                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
             except:
-                pass
+                raise
         print "Creating Unigram Indexes"
         db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
 
@@ -555,10 +554,9 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        for line in open("files/metadata/catalog.txt"):
-            fields = line.split()
+        for filename in os.listdir("files/texts/encoded/unigrams"):
             try:
-                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+fields[1]+".txt' INTO TABLE master_bigrams (word1,word2,count) SET bookid="+fields[0]+";")
+                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,word1,word2,count);")
             except:
                 pass
         print "Creating bigram indexes"

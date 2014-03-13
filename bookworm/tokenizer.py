@@ -4,6 +4,7 @@ import regex as re
 import cPickle as pickle
 import random
 import sys
+import os 
 
 def wordRegex():
     #I'm including the code to create the regex, which makes it more readable.
@@ -14,8 +15,10 @@ def wordRegex():
     abbreviation = r"(?:mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\."
     sharps = r"[a-gjxA-GJX]#"
     punctuators = r"[^\p{L}\p{Z}]"
-
-    bigregex = re.compile("|".join([possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
+    """
+    Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms 
+    """
+    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
     return bigregex
 
 bigregex = wordRegex()
@@ -23,14 +26,19 @@ bigregex = wordRegex()
 def readDictionaryFile():
     look = dict()
     for line in open("files/texts/wordlist/wordlist.txt"):
+        line = line.rstrip("\n")
         splat = line.split("\t")
         look[splat[1]] = splat[0]
     return look
 
 def readIDfile():
-    for line in open("files/texts/textids"):
-        splat = line.split("\t")
-        look[splat[1]] = splat[0]
+    files = os.listdir("files/texts/textids/")
+    look = dict()
+    for filename in files:
+        for line in open("files/texts/textids/" + filename):
+            line = line.rstrip("\n")
+            splat = line.split("\t")
+            look[splat[1]] = splat[0]
     return look
 
 class tokenBatches(object):
@@ -39,7 +47,7 @@ class tokenBatches(object):
         self.counts["unigrams"] = dict()
         self.counts["bigrams"]  = dict()
         self.counts["trigrams"] = dict()
-        self.id =  '%030x' % random.randrange(16**30)
+        self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
     def addFile(self,filename):
@@ -62,17 +70,29 @@ class tokenBatches(object):
         outputFile = open("files/texts/unigrams/" + self.id,"w")
         pickle.dump(self,file=outputFile,protocol=-1)
 
-    def encode(self,level):
-
+    def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
         outputFile = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
-        IDfile = readIDfile()
-        dictionary = readDictionaryFile()
         output = []
         for key,value in self.counts[level].iteritems():
-            textid = IDfile[key]
+            try:
+                textid = IDfile[key]
+            except KeyError:
+                continue
             for wordset,count in value.iteritems():
-                wordids = "\t".join([dictionary[word] for word in wordset])
+                skip = False
+                wordList = []
+                for word in wordset:
+                    try:
+                        wordList.append(dictionary[word])
+                    except KeyError:
+                        """
+                        if any of the words to be included is not in the dictionary,
+                        we don't include the whole n-gram in the counts.
+                        """
+                        skip = True
+            if not skip:
+                wordids = "\t".join(wordList)
                 output.append("\t".join([textid,wordids,str(count)]))
                 
         outputFile.write("\n".join(output))        
