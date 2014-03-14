@@ -9,6 +9,7 @@ from codecs import open as codecopen
 import cPickle as pickle
 from tokenizer import *
 
+
 #There are a whole bunch of directories that it wants to be there:
 for directory in ['texts','logs','texts/cleaned','logs','logs/clean','texts/unigrams','logs/unigrams','logs/bigrams','texts/bigrams','texts/encoded','texts/encoded/unigrams','texts/encoded/bigrams','logs/encode2','logs/encode1', 'texts/wordlist']:
     if not os.path.exists("files/" + directory):
@@ -21,9 +22,9 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     logfile = open('files/logs/log.log', 'w')
     database = open('files/texts/wordlist/raw.txt', 'w')
     
-    for thisfile in os.listdir('files/texts/wordcounts'):
+    for thisfile in os.listdir('files/texts/binaries'):
         filenum += 1
-        input = pickle.load(open('files/texts/wordcounts/' + thisfile))
+        input = pickle.load(open('files/texts/binaries/' + thisfile))
         input.unigramCounts()
         counts = input.counts["counts"]
         for item in counts:
@@ -42,7 +43,12 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     #dump vocab for the last time when it hasn't reached the limit.
     print "exporting remaining words at file number %s" % str(filenum)
     for key in wordcounts.iterkeys():
-        database.write('%s %s\n' % (key.encode('utf-8'), str(wordcounts[key])))
+        try:
+            database.write('%s %s\n' % (key.encode("utf-8"), str(wordcounts[key])))
+        except UnicodeDecodeError:
+            key = key.decode("utf-8")
+            print type(key)
+            print "unicode error on " + key.encode("utf-8")
 
     database.close()
 
@@ -76,7 +82,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
 
     try:
         i = 1
-        oldFile = codecopen("files/texts/wordlist/wordlist.txt")
+        oldFile = open("files/texts/wordlist/wordlist.txt")
         for line in oldFile:
             line = line.split('\t')
             wid = int(line[0])
@@ -94,26 +100,25 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
         logfile.write(" No original file to work from: moving on...\n")
     newWords = set()
     logfile.write("writing new ids\n")
-    newlist = codecopen("files/texts/wordlist/complete.txt")
+    newlist = open("files/texts/wordlist/complete.txt","r")
     i = 1
     nextIDtoAssign = max(oldids) + 1
     counts = list()
     for line in newlist:
+        line = line.split(" ")
+        word = line[0]
+        count = line[1]
         try:
-            line = line.split(" ")
-            word = line[0]
-            count = line[1]
-            try:
-                wordid = oldwords[word]
-            except KeyError:
-                wordid = nextIDtoAssign
-                nextIDtoAssign = nextIDtoAssign+1
-            counts.append("\t".join([str(wordid), word.encode("utf-8"), count]))
-            i = i + 1
-            if i > maxDictionaryLength:
-                break
-        except:
-            pass
+            wordid = oldwords[word]
+        except KeyError:
+            wordid = nextIDtoAssign
+            nextIDtoAssign = nextIDtoAssign+1
+        counts.append("\t".join([str(wordid), word, count]))
+            
+        i = i + 1
+        if i > maxDictionaryLength:
+            break
+
     output = open("files/texts/wordlist/newwordlist.txt", "w")
     for count in counts:
         output.write(count) #Should just carry over the newlines from earlier.

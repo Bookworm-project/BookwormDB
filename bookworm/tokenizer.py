@@ -7,11 +7,16 @@ import sys
 import os 
 
 def wordRegex():
+    """
     #I'm including the code to create the regex, which makes it more readable.
+    Note that this uses *unicode*: among other things, that means that it needs to be passed
+    a unicode-decoded string: and that we have to use the "regex" module instead of the "re" module.
+    (See how it says import regex as re up there? Yikes.)
+    """
     MasterExpression = ur"\p{L}+"
     possessive = MasterExpression + ur"'s"
-    numbers = "[\$?]\d+"
-    decimals = "[\$?]\d+\.\d+"
+    numbers = r"(?:[\$])?\d+"
+    decimals = numbers + r"\.\d+"
     abbreviation = r"(?:mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\."
     sharps = r"[a-gjxA-GJX]#"
     punctuators = r"[^\p{L}\p{Z}]"
@@ -64,10 +69,11 @@ class tokenBatches(object):
         self.levels=levels
 
     def addFile(self,filename):
-        tokens = tokenizer(filename.readlines())
+        tokens = tokenizer(open(filename).read())
         #Add trigrams to this list to do trigrams
+        print tokens.string
         for ngrams in self.levels:
-            self.counts[ngrams][filename] = tokenizer.counts(ngrams)
+            self.counts[ngrams][filename] = tokens.counts(ngrams)
 
     def addRow(self,row):
         #row is a piece of text: the first line is the identifier, and the rest is the text.
@@ -80,8 +86,8 @@ class tokenBatches(object):
     def pickleMe(self):
         #Often we'll have to pickle, then create the word counts, then unpickle 
         #to build the database-loadable infrastructure
-        outputFile = open("files/texts/unigrams/" + self.id,"w")
-        pickle.dump(self,file=outputFile,protocol=-1)
+        outputFile = open("files/texts/binaries/" + self.id,"w")
+        pickle.dump(self,file=outputFile,protocol=pickle.HIGHEST_PROTOCOL)
 
     def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
@@ -149,7 +155,7 @@ class tokenizer(object):
     """
     
     def __init__(self,string):
-        self.string=string
+        self.string=string.decode("utf-8")
 
     def tokenize(self):
         """
@@ -189,8 +195,9 @@ def readTextStream():
     tokenBatch = tokenBatches()
     for line in sys.stdin:
         tokenBatch.addRow(line)
-        
-    return tokenBatch
+    print "pickling " + tokenBatch.id
+    tokenBatch.pickleMe()        
+
 
 def loadTextFiles():
     tokenBatch = tokenBatches()
@@ -209,5 +216,5 @@ def WordCounts():
     tokenBatch.writeUnigramCounts()
 
 if __name__=="__main__":
-    WordCounts()
-    #tokenBatch = readTextStream()
+    #WordCounts()
+    readTextStream()
