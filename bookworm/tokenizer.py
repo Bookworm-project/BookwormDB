@@ -42,6 +42,19 @@ def readIDfile():
     return look
 
 class tokenBatches(object):
+    """
+    A tokenBatches is a manager for tokenizers. Each one corresponds to 
+    a reasonable number of texts to read in to memory on a single processor:
+    during the initial loads, there will probably be one per core. It doesn't store the original text, just the unigram and bigram tokenizations from the pickled object in its attached self.counts arrays.
+    
+    It writes out its data using cPickle to a single file: in this way, a batch of several hundred thousand individual files is grouped into a single file.
+    It also has a method that encodes and writes its wordcounts into a tsv file appropriate for reading with mysql, with 3-byte integer encoding for wordid and bookid.
+
+    The pickle writeout happens in between so that there's a chance to build up a vocabular using the tokenBatches.unigramCounts method. If the vocabulary were preset, it could proceed straight to writing out the encoded results.
+
+    The pickle might be slower than simply using a fast csv module: this should eventually be investigated. But it's nice for the pickled version to just keep all the original methods.
+
+    """
     def __init__(self,levels=["unigrams","bigrams"]):
         self.counts = dict()
         self.counts["unigrams"] = dict()
@@ -91,9 +104,9 @@ class tokenBatches(object):
                         we don't include the whole n-gram in the counts.
                         """
                         skip = True
-            if not skip:
-                wordids = "\t".join(wordList)
-                output.append("\t".join([textid,wordids,str(count)]))
+                if not skip:
+                    wordids = "\t".join(wordList)
+                    output.append("\t".join([textid,wordids,str(count)]))
                 
         outputFile.write("\n".join(output))        
      
@@ -122,10 +135,26 @@ class tokenBatches(object):
         outfile.write("\n".join(output))
 
 class tokenizer(object):
+    """
+    A tokenizer is initialized with a single text string.
+
+    It assumes that you have in namespace an object called "bigregex" with
+    identifies words. (This is a performance optimization to avoid compiling the large regex millions of times.)
+
+    the general way to call it is to initialize, and then for each desired set of counts call "tokenizer.counts("bigrams")" (or whatever).
+
+    That returns a dictionary, whose keys are tuples of length 1 for unigrams, 2 for bigrams, etc., and whose values are counts for that ngram. The tuple form should allow faster parsing down the road.
+    
+    """
+    
     def __init__(self,string):
         self.string=string
 
     def tokenize(self):
+        """
+        This tries to return the pre-made tokenization:
+        if that doesn't exist, it creates it.
+        """
         try:
             return self.tokens
         except:
