@@ -11,9 +11,6 @@ from subprocess import call
 # These four libraries define the Bookworm-specific methods.
 from bookworm.MetaParser import *
 from bookworm.CreateDatabase import *
-from bookworm.WordsTableCreate import *
-from bookworm.tokenizeAndEncodeFiles import bookidlist
-
 
 # Pull a dbname from command line input.
 try:
@@ -26,7 +23,7 @@ except:
 try: 
     methods = sys.argv[2:]
 except IndexError:
-    print """Give as a command argument must one of the following:
+    print """Give as a command argument one of the following:
     metadata
     wordcounts
     database
@@ -52,7 +49,6 @@ except:
 dbuser = systemConfigFile.get("client","user")
 dbpassword = systemConfigFile.get("client","password")
 
-
 # Initiate MySQL connection.
 
 class oneClickInstance(object):
@@ -73,23 +69,6 @@ class oneClickInstance(object):
         print "Writing metadata to new catalog file..."
         write_metadata(Bookworm.variables)
 
-    def wordcounts(self):
-        #Things now accomplished in the Makefile.
-
-        # These are imported with ImportNewLibrary
-        CopyDirectoryStructuresFromRawDirectory()
-
-
-        bookidList = bookidlist()
-
-        #These next three steps each take quite a while, but less than they used to.
-        bookidList.createUnigramsAndBigrams()
-
-        print "Creating a master wordlist"
-        WordsTableCreate(maxDictionaryLength=1000000,maxMemoryStorage = 15000000)
-
-        bookidList.encodeAll()
-
     def database(self):
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
         Bookworm.load_word_list()
@@ -97,10 +76,8 @@ class oneClickInstance(object):
         Bookworm.create_bigram_book_counts()
         Bookworm.load_book_list()
 
-
         # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
         Bookworm.create_memory_table_script()
-
 
         #This creates a table in the database that makes the results of field_descriptions accessible through the API.
         Bookworm.loadVariableDescriptionsIntoDatabase()
