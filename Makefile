@@ -27,7 +27,10 @@ clean:
 	rm -rf files/texts/wordlist/*
 
 # The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
-# each of which saves a binary file.
+# each of which saves a binary file. The cat stage at the beginning here could be modified to 
+# check against some list that tracks which texts we have already encoded to allow additions to existing 
+# bookworms to not require a complete rebuild.
+
 files/targets/tokenization: files/texts/input.txt files/targets files/metadata/jsoncatalog_derived.txt
 	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
@@ -45,7 +48,9 @@ files/metadata/jsoncatalog_derived.txt: files/targets
 	#Create metadata files.
 	python OneClick.py $(bookwormName) metadata
 
-#This is the penultimate step: creating 
+# This is the penultimate step: creating a bunch of tsv files 
+# (one for each binary blob) with 3-byte integers for the text
+# and word IDs that MySQL can slurp right up.
 
 # This could be modified to take less space/be faster by using named pipes instead
 # of pre-built files inside the files/targets/encoded files: it might require having
