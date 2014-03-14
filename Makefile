@@ -16,11 +16,17 @@ files/texts/unigrams: files/texts/raw
 	mkdir -p files/targets
 	#sh scripts/copyDirectoryStructures.sh
 
+files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt
+	python OneClick.py $(bookwormName) database
+	touch files/targets/database
 
 files/texts/wordcounts:
 	mkdir files/texts/wordcounts
 
-files/targets/tokenization: files/texts/input.txt files/texts/wordcounts
+files/texts/wordlist:
+	mkdir files/texts/wordlist
+
+files/targets/tokenization: files/texts/input.txt files/texts/wordcounts files/texts/wordlist
 	mkdir -p files/texts/wordcounts
 	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
@@ -32,18 +38,6 @@ files/metadata/jsoncatalog_derived.txt:
 	#Create metadata files.
 	python OneClick.py $(bookwormName) metadata
 
-files/unigrams:
-	find -L files/texts/raw/ -type f | sed 's/.*raw\///;s/.txt$$//' | xargs -P $(threads) -n $(filesPerProcess) perl scripts/makeUnigramsandBigrams.pl
-	#Count the words--this takes a while, and could probably be optimized.
-	#Here it actually encodes unigrams and bigrams.
-	find -L files/texts/raw/ -type f | sed 's/.*raw\///;s/.txt$$//' | xargs -P $(threads) -n $(filesPerProcess) perl scripts/encodeAllTypes.pl
-	#Create database files.
-
-
-files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt files/metadata/jsonatalog_derived.txt
-	python OneClick.py $(bookwormName) database
-	touch files/targets/database
-
 files/targets/encoded: files/targets/tokenization
 	#builds up the encoded lists.
 	find files/texts/wordcounts -type f | parallel python bookworm/encoder.py {} 
@@ -51,10 +45,10 @@ files/targets/encoded: files/targets/tokenization
 
 all: files/targets/database
 
-files/texts/input.txt:
+files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
 	#This will build it from the normal layout.
 	mkfifo files/texts/input.txt
-	cat files/texts/textids/* | awk '{print $2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
+	cat files/texts/textids/* | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
 	#mysql -B rateMyProfessors -e "SELECT ratingName,comment FROM RATINGS" > $@
 
 #Specific junk to pull out.
