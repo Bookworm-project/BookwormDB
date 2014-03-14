@@ -12,11 +12,14 @@ for line in sys.stdin:
 
 
     d = output["date"].split("/")
+    century = "20"
+    if d[0]=="99":
+        century = "19"
     try:
         output["date"] = "-".join(["20" + d[2],d[0],d[1]])
     except:
         pass
 
     output["filename"] = output["ratingName"]
-
+    output["searchstring"] = " ".join(["name","school","comment"])
     print json.dumps(output)
