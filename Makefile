@@ -1,6 +1,10 @@
 #invoke with any of these variables, but particularly by specifying bookwormName: eg, `make bookwormName=OL`
 bookwormName = "OL"
+webDirectory = "/var/www/"
 
+webSite = $(addsuffix bookwormName,webDirectory)
+
+oldFormat: files/texts/input.txt files/targets/database
 all: files/targets/database
 
 #These are all directories that need to be in place for the other scripts to work properly
@@ -31,7 +35,7 @@ clean:
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
 
-files/targets/tokenization: files/texts/input.txt files/targets files/metadata/jsoncatalog_derived.txt
+files/targets/tokenization: files/targets files/metadata/jsoncatalog_derived.txt
 	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
@@ -78,10 +82,16 @@ files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
 	#dynamically. Possibly slower, though.
 	mkfifo files/texts/input.txt
 	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
-	#mysql -B rateMyProfessors -e "SELECT ratingName,comment FROM RATINGS" > $@
+
+
+
+# the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
+files/$(bookwormNames).json: files/targets/database	
+
+$(webDirectory)/$(bookwormName): files/$(bookwormName).json
+	git clone https://github.com/econpy/BookwormGUI $@
+	cp files/*.json $@/static/options.json
 
 #Specific junk to pull out.
 
-files/metadata/jsoncatalog.txt:
-	mysql -B rateMyProfessors -e "SELECT * FROM RATINGS JOIN TEACHERS USING(ID)" | python etc/metadataParsers/RMP.py > $@
 
