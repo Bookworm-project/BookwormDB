@@ -1,54 +1,78 @@
 #invoke with any of these variables, but particularly by specifying bookwormName: eg, `make bookwormName=OL`
-threads = 4
 bookwormName = "OL"
-filesPerProcess = 100
 
 all: files/targets/database
 
-files/texts/unigrams: files/texts/raw
-	mkdir -p files/texts/unigrams
-	mkdir -p files/texts/bigrams
-	mkdir -p files/texts/trigrams
+#These are all directories that need to be in place for the other scripts to work properly
+files/targets: files/texts
+	mkdir -p files/texts/binaries
 	mkdir -p files/texts/encoded
 	mkdir -p files/texts/encoded/unigrams
 	mkdir -p files/texts/encoded/bigrams
 	mkdir -p files/texts/encoded/trigrams
 	mkdir -p files/targets
-	#sh scripts/copyDirectoryStructures.sh
+	mkdir -p files/texts/wordlist
+
+#A "make clean" removes everything created by the bookworm.
+#This can be dangerous
+#It doesn't do a drop database, though, because that could be even more dangerous.
+#But this won't ensure consistency with earlier versions.
+
+clean:
+	rm -rf 
+	find files/texts -maxdepth 1 -type p -delete
+	rm -rf files/texts/encoded
+	rm -rf files/targets/*
+	rm -rf files/texts/binaries/*
+	rm -rf files/texts/wordlist/*
+
+# The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
+# each of which saves a binary file.
+files/targets/tokenization: files/texts/input.txt files/targets files/metadata/jsoncatalog_derived.txt
+	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
+	touch files/targets/tokenization
+
+# The wordlist is an encoding scheme for words: it uses the tokenizations, and should
+# intelligently update an exist vocabulary where necessary.
+
+files/texts/wordlist/wordlist.txt: files/targets/tokenization
+	python bookworm/WordsTableCreate.py
+
+# This invokes OneClick on the metadata file to create a more useful internal version
+# (with parsed dates) and to create a lookup file for textids in files/texts/textids
+
+files/metadata/jsoncatalog_derived.txt: files/targets
+	#Create metadata files.
+	python OneClick.py $(bookwormName) metadata
+
+#This is the penultimate step: creating 
+
+# This could be modified to take less space/be faster by using named pipes instead
+# of pre-built files inside the files/targets/encoded files: it might require having
+# hundreds of blocked processes simultaneously, though, so I'm putting that off for now.
+
+files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist.txt
+	#builds up the encoded lists.
+	find files/texts/binaries -type f | parallel python bookworm/encoder.py {} 
+	touch files/targets/encoded
+
+# The database is the last piece to be built: this invocation of OneClick.py
+# uses the encoded files already written to disk, and loads them into a database.
+# It also throws out a few other useful files at the end into files/
 
 files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt
 	python OneClick.py $(bookwormName) database
 	touch files/targets/database
 
-files/texts/wordcounts:
-	mkdir files/texts/wordcounts
-
-files/texts/wordlist:
-	mkdir files/texts/wordlist
-
-files/targets/tokenization: files/texts/input.txt files/texts/wordcounts files/texts/wordlist
-	mkdir -p files/texts/wordcounts
-	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
-	touch files/targets/tokenization
-
-files/texts/wordlist/wordlist.txt:
-	python bookworm/WordsTableCreate.py
-
-files/metadata/jsoncatalog_derived.txt:
-	#Create metadata files.
-	python OneClick.py $(bookwormName) metadata
-
-files/targets/encoded: files/targets/tokenization
-	#builds up the encoded lists.
-	find files/texts/wordcounts -type f | parallel python bookworm/encoder.py {} 
-	touch files/targets/encoded
-
-all: files/targets/database
+# input.txt is standard format for bringing in data. The old standard was a bunch of individual files in folders:
+# this creates a named pipe that will transparently convert an old-format bookworm into a new one.
+# There is not yet, but should be, a method to do the same for a zipped archive. (and/or a .tar.gz archive).
 
 files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
 	#This will build it from the normal layout.
+	#dynamically. Possibly slower, though.
 	mkfifo files/texts/input.txt
-	cat files/texts/textids/* | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
+	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
 	#mysql -B rateMyProfessors -e "SELECT ratingName,comment FROM RATINGS" > $@
 
 #Specific junk to pull out.
@@ -56,5 +80,3 @@ files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
 files/metadata/jsoncatalog.txt:
 	mysql -B rateMyProfessors -e "SELECT * FROM RATINGS JOIN TEACHERS USING(ID)" | python etc/metadataParsers/RMP.py > $@
 
-clean:
-	rm files/texts/input.txt
