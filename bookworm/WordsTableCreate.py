@@ -95,7 +95,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
                 return
         oldFile.close()
 
-    #To work perfectly, this would have to keep track of all the words that have been added, and also update the database with the counts from the old books for each of them. That's hard. Currently, a new word will be added if the new set of texts AND the old one has it in its top 1m words; BUT it will be only added into the database among the new texts, not the old ones. In a few cases defeats the point of updating the old list at all, since we can't see the origins, but at least new people will show up eventually.
+    #To work perfectly, this would have to keep track of all the words that have been added, and also update the database with the counts from the old books for each of them. That's hard. Currently, a new word will be added if the new set of texts AND the old one has it in its top 1m words; BUT it will be only added into the database among the new texts, not the old ones. In a few cases that defeats the point of updating the old list at all, since we can't see the origins, but at least new people will show up eventually.
     except:
         logfile.write(" No original file to work from: moving on...\n")
     newWords = set()
