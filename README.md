@@ -104,13 +104,22 @@ Presidio/
 
 ```
 
+
+#### Raw Text files:
+
+These can be input in one of two ways.
+The first is as a directory of files:
+
 *  `files/texts/raw`
 This folder should contain a uniquely named .txt file for every item in your collection of texts 
 that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key
 should include the full path to the file.
 
-*  `files/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
+The second, which will be faster in most cases, is as a *single file*. In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
 
+#### Metadata about each file.
+
+*  `files/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
 
 Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`.
 
@@ -120,6 +129,8 @@ Included in the [congress_api](http://github.com/econpy/congress_api) repo is a 
 cd ../congress_api
 python congress_parser.py
 ```
+
+#### Metadata about the metadata!
 
 Now create a file in the `files/metadata/` folder called `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`. For this demo, copy the following JSON object into `field_descriptions.json`:
 
