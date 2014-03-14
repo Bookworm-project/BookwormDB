@@ -16,7 +16,11 @@ files/texts/unigrams: files/texts/raw
 	mkdir -p files/targets
 	#sh scripts/copyDirectoryStructures.sh
 
-files/targets/tokenization: files/texts/input.txt
+
+files/texts/wordcounts:
+	mkdir files/texts/wordcounts
+
+files/targets/tokenization: files/texts/input.txt files/texts/wordcounts
 	mkdir -p files/texts/wordcounts
 	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
@@ -58,3 +62,5 @@ files/texts/input.txt:
 files/metadata/jsoncatalog.txt:
 	mysql -B rateMyProfessors -e "SELECT * FROM RATINGS JOIN TEACHERS USING(ID)" | python etc/metadataParsers/RMP.py > $@
 
+clean:
+	rm files/texts/input.txt
