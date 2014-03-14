@@ -98,6 +98,7 @@ Presidio/
  -- files/
   | -- texts/
   |  | raw  <--- contains texts files or a folder of text files
+  |  | input.txt <----- (alternate method: a single file with all texts, preceded by their id.)
   | -- metadata/
   |  | -- jsoncatalog.txt
   |  | -- field_descriptions.json
