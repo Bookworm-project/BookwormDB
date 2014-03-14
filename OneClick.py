@@ -37,13 +37,16 @@ except IndexError:
 #Use the client listed in the my.cnf file for access
 
 systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
+
 try:
     systemConfigFile.read(["/etc/mysql/my.cnf"]);
-    #The error isn't thrown until you try to read the damned thing.
+    #The error isn't thrown until you try to read the damned thing,
+    #So we just try that here.
     dbuser = systemConfigFile.get("client","user")
 
 except:
-    #It's here on my Mac. But doing this could get ugly.
+    #It's here on my Mac. But doing this could get ugly as we try for more
+    #over time.
     systemConfigFile.read(["/etc/my.cnf"])
 
 dbuser = systemConfigFile.get("client","user")
@@ -51,7 +54,6 @@ dbpassword = systemConfigFile.get("client","password")
 
 
 # Initiate MySQL connection.
-
 
 class oneClickInstance(object):
     #The instance has methods corresponding to what you want to make: they should be passed in, in the order you want them
@@ -63,7 +65,7 @@ class oneClickInstance(object):
     def metadata(self):
         print "Parsing field_descriptions.json"
         ParseFieldDescs()
-        print "Parsing jsoncatalog.json"
+        print "Parsing jsoncatalog.txt"
         ParseJSONCatalog()
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
 
