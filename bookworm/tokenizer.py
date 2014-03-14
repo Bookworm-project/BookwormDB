@@ -126,6 +126,7 @@ class tokenBatches(object):
 
     def writeUnigramCounts(self):
         print "joining up counts"
+        self.unigramCounts()
         outfile = open("files/texts/wordlist/raw-" + self.id + ".txt","w")
         output = []
         print self.counts.keys()
