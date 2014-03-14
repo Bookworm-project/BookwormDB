@@ -554,11 +554,11 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        for filename in os.listdir("files/texts/encoded/unigrams"):
+        for filename in os.listdir("files/texts/encoded/bigrams"):
             try:
-                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,word1,word2,count);")
+                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bigrams CHARACTER SET utf8 (bookid,word1,word2,count);")
             except:
-                pass
+                raise
         print "Creating bigram indexes"
         db.query("ALTER TABLE master_bigrams ENABLE KEYS")
 
