@@ -149,16 +149,16 @@ Now create a file in the `files/metadata/` folder called `field_descriptions.jso
 Everything should now be in place and we are ready to build the database.
 
 ## Running ##
-The structure of the arguments needed by `OneClick.py` to build the database are the following:
+The structure of the arguments needed by the Makefile to build the database are the following:
 
 ```
-python OneClick.py dbname dbuser dbpassword
+make TARGET (arguments)
 ```
 
 Here, that would look like this:
 
 ```
-python OneClick.py bookwormcongress foobar mysecret
+make all bookwormName=bookwormcongress
 ```
 
 The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
