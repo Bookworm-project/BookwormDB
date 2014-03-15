@@ -166,16 +166,15 @@ The database **bookwormcongress** will be created if it does not exist. Both **d
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
 ### General Workflow ###
-For reference, the general workflow of OneClick.py is the following:
+For reference, the general workflow of the Makefile is the following:
 
+5. Build the directory structure in `files/texts/`.
 1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.txt`.
 2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
-3. Initialize connection to the MySQL database.
 4. Create metadata catalog files in `files/metadata/`.
-5. Build the directory structure in `files/texts/`.
-6. Clean and tokenize unigrams and bigrams.
-7. Create a table with all words.
-8. Encode unigrams and bigrams.
+6. Tokenize unigrams and bigrams and save them to binary files.
+7. Create a table with all words from the binaries.
+8. Encode unigrams and bigrams from the binaries into `files/encoded`
 9. Load data into MySQL database.
 10. Create temporary MySQL table and .json file that will be used by the web app.
 11. Create API settings.
