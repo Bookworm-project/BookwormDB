@@ -98,19 +98,29 @@ Presidio/
  -- files/
   | -- texts/
   |  | raw  <--- contains texts files or a folder of text files
+  |  | input.txt <----- (alternate method: a single file with all texts, preceded by their id.)
   | -- metadata/
   |  | -- jsoncatalog.txt
   |  | -- field_descriptions.json
 
 ```
 
+
+#### Raw Text files:
+
+These can be input in one of two ways.
+The first is as a directory of files:
+
 *  `files/texts/raw`
 This folder should contain a uniquely named .txt file for every item in your collection of texts 
 that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key
 should include the full path to the file.
 
-*  `files/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
+The second, which will be faster in most cases, is as a *single file*. In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
 
+#### Metadata about each file.
+
+*  `files/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
 
 Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`.
 
@@ -120,6 +130,8 @@ Included in the [congress_api](http://github.com/econpy/congress_api) repo is a 
 cd ../congress_api
 python congress_parser.py
 ```
+
+#### Metadata about the metadata!
 
 Now create a file in the `files/metadata/` folder called `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`. For this demo, copy the following JSON object into `field_descriptions.json`:
 
@@ -137,16 +149,16 @@ Now create a file in the `files/metadata/` folder called `field_descriptions.jso
 Everything should now be in place and we are ready to build the database.
 
 ## Running ##
-The structure of the arguments needed by `OneClick.py` to build the database are the following:
+The structure of the arguments needed by the Makefile to build the database are the following:
 
 ```
-python OneClick.py dbname dbuser dbpassword
+make TARGET (arguments)
 ```
 
 Here, that would look like this:
 
 ```
-python OneClick.py bookwormcongress foobar mysecret
+make all bookwormName=bookwormcongress
 ```
 
 The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
@@ -154,16 +166,15 @@ The database **bookwormcongress** will be created if it does not exist. Both **d
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
 ### General Workflow ###
-For reference, the general workflow of OneClick.py is the following:
+For reference, the general workflow of the Makefile is the following:
 
+5. Build the directory structure in `files/texts/`.
 1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.txt`.
 2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
-3. Initialize connection to the MySQL database.
 4. Create metadata catalog files in `files/metadata/`.
-5. Build the directory structure in `files/texts/`.
-6. Clean and tokenize unigrams and bigrams.
-7. Create a table with all words.
-8. Encode unigrams and bigrams.
+6. Tokenize unigrams and bigrams and save them to binary files.
+7. Create a table with all words from the binaries.
+8. Encode unigrams and bigrams from the binaries into `files/encoded`
 9. Load data into MySQL database.
 10. Create temporary MySQL table and .json file that will be used by the web app.
 11. Create API settings.
