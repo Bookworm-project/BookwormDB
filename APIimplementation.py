@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 
 import sys
 import json
@@ -389,7 +389,7 @@ class userquery:
                 n=0
                 for word in array:
                     n = n+1
-                    selectString =  "(SELECT " + self.word_field + " FROM wordsheap WHERE " + where_from_hash({"casesens":[word]})
+                    selectString =  "(SELECT " + self.word_field + " FROM wordsheap WHERE " + where_from_hash({"casesens":[word]}) + ")"
                     try:
                         locallimits['words'+str(n) + "." + self.word_field] += [selectString]
                     except KeyError:
@@ -399,7 +399,7 @@ class userquery:
                 limits.append(where_from_hash(locallimits,escapeStrings=False))
                 #XXX for backward compatability
                 self.words_searched = phrase
-            self.wordswhere = '(' + ' OR '.join(limits) + '))'
+            self.wordswhere = "( " + ' OR '.join(limits) + ")"
 
         wordlimits = dict()
 

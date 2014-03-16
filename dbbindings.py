@@ -1,5 +1,5 @@
+#!/usr/bin/python
 #!/usr/bin/env python
-#!/usr/local/bin/python
 
 
 #So we load in the terms that allow the API implementation to happen for now.
