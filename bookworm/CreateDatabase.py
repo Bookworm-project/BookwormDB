@@ -373,6 +373,9 @@ def write_metadata(variables, limit=float("inf")):
             mainfields.append(to_unicode(myfield))
         try:
             catalogtext = '%s\n' % '\t'.join(mainfields)
+        except TypeError:
+            xstr = lambda s: '' if s is None else s
+            catalogtext = '%s\n' % '\t'.join([xstr(field) for field in mainfields])
         except:
             print mainfields
             raise
@@ -709,8 +712,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
                                          }
                                         ]
         except:
-            print "Not enough info for a default search"
-            raise
+            print "WARNING: Not enough info for a default search (like, no time variable maybe?)--likely to be some big problems with your bookworm."
         output['ui_components'] = ui_components
         outfile = open('files/%s.json' % dbname, 'w')
         outfile.write(json.dumps(output))
