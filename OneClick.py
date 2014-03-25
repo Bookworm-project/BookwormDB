@@ -69,11 +69,8 @@ class oneClickInstance(object):
         print "Writing metadata to new catalog file..."
         write_metadata(Bookworm.variables)
 
-    def database(self):
+    def database_metadata(self):
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
-        Bookworm.load_word_list()
-        Bookworm.create_unigram_book_counts()
-        Bookworm.create_bigram_book_counts()
         Bookworm.load_book_list()
 
         # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
@@ -90,6 +87,16 @@ class oneClickInstance(object):
 
         Bookworm.jsonify_data() # Create the dbname.json file in the root directory.
         Bookworm.create_API_settings()
+
+    def database_wordcounts(self):
+        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+        Bookworm.load_word_list()
+        Bookworm.create_unigram_book_counts()
+        Bookworm.create_bigram_book_counts()
+
+    def database(self):
+        self.database_wordcounts()
+        self.database_metadata()
 
 
 if __name__=="__main__":
