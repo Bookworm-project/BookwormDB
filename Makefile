@@ -29,6 +29,8 @@ clean:
 	rm -rf files/targets/*
 	rm -rf files/texts/binaries/*
 	rm -rf files/texts/wordlist/*
+	rm -f files/metadata/jsoncatalog_derived.txt
+	rm -f files/metadata/field_descriptions_derived.json
 
 # The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
 # each of which saves a binary file. The cat stage at the beginning here could be modified to 
@@ -36,7 +38,7 @@ clean:
 # bookworms to not require a complete rebuild.
 
 files/targets/tokenization: files/targets files/metadata/jsoncatalog_derived.txt
-	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
+	cat files/texts/input.txt | parallel --no-notice --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
 # The wordlist is an encoding scheme for words: it uses the tokenizations, and should
@@ -77,11 +79,11 @@ files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt
 # this creates a named pipe that will transparently convert an old-format bookworm into a new one.
 # There is not yet, but should be, a method to do the same for a zipped archive. (and/or a .tar.gz archive).
 
-files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
+#files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
 	#This will build it from the normal layout.
 	#dynamically. Possibly slower, though.
-	mkfifo files/texts/input.txt
-	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
+	#mkfifo files/texts/input.txt
+	#cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
 
 
 
