@@ -4,8 +4,9 @@ webDirectory = "/var/www/"
 
 webSite = $(addsuffix bookwormName,webDirectory)
 
-oldFormat: files/texts/input.txt files/targets/database
 all: files/targets/database
+
+oldFormat: files/texts/input.txt files/targets/database
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: files/texts

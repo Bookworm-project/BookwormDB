@@ -15,7 +15,7 @@ class DB:
         self.conn = None
 
     def connect(self):
-        #These scripts run as the Bookworm _Administrator_ on this machine.
+        #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf", use_unicode='True', charset='utf8', db='', local_infile=1)
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
@@ -257,6 +257,10 @@ class dataField:
 
         self.idCode = "%s__id" % self.field
         return returnt
+
+    def updateVariableDescriptionTable(self):
+        self.memoryCode = self.fastLookupTableIfNecessary()
+        code = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description,fastCode) VALUES ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','','%(memoryCode)s') """ % self.__dict__
 
 
 def splitMySQLcode(string):
@@ -623,10 +627,12 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
               anchor VARCHAR(255),
               alias VARCHAR(255),
               status VARCHAR(255),
-              description VARCHAR(5000))""")
+              description VARCHAR(5000),
+              memoryCode VARCHAR(5000))
+              """)
+
         for variable in self.variables:
-            code = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description) VALUES ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','') """ %variable.__dict__
-            db.query(code)
+            db.query(variable.updateVariableDescriptionTable())
 
     def create_memory_table_script(self,run=True):
         ###This is the part that has to run on every startup. Now we make a SQL code that can just run on its own, stored in the root directory.
@@ -637,11 +643,20 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
 
         for variable in [variable for variable in self.variables if variable.datatype=="categorical"]:
             """
-            All the categorical variables get a lookup table
+            All the categorical variables get a lookup table;
+            we store the create code in the databse;
             """
-            a = variable.fastLookupTableIfNecessary("MEMORY")
-            print a
-            commands.append(variable.fastLookupTableIfNecessary())
+            variable.updateVariableDescriptionTable();
+
+        """
+        Then we pull the code from the database.
+        The database, if the Bookworm has already been created,
+        may have some entries not included in the variable table here.
+        """
+        a = bookworm.db.query("SELECT memoryCode FROM masterVariableTable").fetchall();
+        for row in a:
+            commands.append(a[0])
+
             
         commands.append("""
         CREATE TABLE tmp

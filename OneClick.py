@@ -87,6 +87,28 @@ class oneClickInstance(object):
 
         Bookworm.jsonify_data() # Create the dbname.json file in the root directory.
         Bookworm.create_API_settings()
+        
+    def addCategorical(self):
+        """
+        Reads a categorical variable from a .tsv file.
+        First column is an existing anchor:
+        Second column is the new data that's being inserted.
+        That file MUST have as its first row.
+        """
+        file = open(sys.argv[2])
+        
+        if len(sys.argv) > 2:
+            unique = eval(sys.argv[3])
+        else:
+            unique = True
+        
+        firstTwo = file.readline().split("\t")
+        
+
+        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+        definition = dict()
+        definition["field"]
+
 
     def database_wordcounts(self):
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
