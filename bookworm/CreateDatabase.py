@@ -8,6 +8,8 @@ import json
 import os
 import decimal
 
+import warnings
+warnings.filterwarnings('ignore', 'Table .* already exists')
 	
 class DB:
     def __init__(self, dbname):
@@ -35,9 +37,13 @@ class DB:
             cursor = self.conn.cursor()
             cursor.execute(sql)
         except:
-            self.connect()
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
+            try:
+                self.connect()
+                cursor = self.conn.cursor()
+                cursor.execute(sql)
+            except:
+                print "\n" + sql + "\n"
+                raise
         return cursor
 
 
@@ -126,6 +132,37 @@ class dataField:
         else:
             return None
 
+    def buildDiskTable(self,fileLocation="default"):
+        if fileLocation == "default":
+            fileLocation = "files/metadata/" + dfield.field + ".txt"
+
+        db = self.dbToPutIn
+        dfield = self;
+
+        print "Making a SQL table to hold the data for " + dfield.field
+        
+        q1 = """DROP TABLE IF EXISTS """       + dfield.field + "Disk"
+        print "\n" + q1 + "\n"
+        db.query(q1)
+        db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
+        """ + self.anchor + """ MEDIUMINT, 
+        """ + dfield.slowSQL(withIndex=True) + """
+        );""")
+        db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
+        loadcode = """LOAD DATA LOCAL INFILE '""" + fileLocation +  """' INTO TABLE """ + dfield.field + """Disk
+               FIELDS ESCAPED BY '';"""
+        db.query(loadcode)
+        cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
+        print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
+        db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
+    
+    def buildLookupTable(self):
+        dfield = self;
+        lookupCode = dfield.buildIdTable();
+        lookupCode = lookupCode + dfield.fastSQLTable()
+        for query in splitMySQLcode(lookupCode):
+            dfield.dbToPutIn.query(query)
+
     def fastLookupTableIfNecessary(self, engine="MEMORY"):
 
         """
@@ -150,7 +187,7 @@ class dataField:
         #setting engine to another value will create these tables on disk.
         returnt = ""
         self.engine = engine
-        if self.unique:
+        if self.unique and self.anchor=="bookid":
             pass #when it has to be part of a larger set
         if not self.unique and self.datatype == 'categorical':
             self.setIntType()
@@ -163,6 +200,7 @@ class dataField:
                    """ % self.__dict__
         if self.datatype == 'categorical' and self.unique:
             pass
+        
         return returnt
 
     def jsonDict(self):
@@ -260,8 +298,8 @@ class dataField:
 
     def updateVariableDescriptionTable(self):
         self.memoryCode = self.fastLookupTableIfNecessary()
-        code = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description,fastCode) VALUES ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','','%(memoryCode)s') """ % self.__dict__
-
+        code = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description,memoryCode) VALUES ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','','%(memoryCode)s') """ % self.__dict__
+        return code
 
 def splitMySQLcode(string):
     """
@@ -412,18 +450,23 @@ class BookwormSQLDatabase:
     it fits chronologically in the bookworm-creation sequence.
     """
 
-    def __init__(self,dbname,dbuser,dbpassword):
+    def __init__(self,dbname,dbuser,dbpassword,readVariableFile=True):
         self.dbname = dbname
         #dbuser and dbpassword can just be pulled from "etc/mysql/my.cnf", perhaps.
         self.dbuser = dbuser
         self.dbpassword = dbpassword
-        try:
-            variablefile = open("files/metadata/field_descriptions_derived.json", 'r')
-        except:
-            raise
+
         self.db = DB(dbname)
-        variables = json.loads(variablefile.read())
-        self.variables = [dataField(variable,self.db) for variable in variables]
+
+        if readVariableFile:
+            variablefile = open("files/metadata/field_descriptions_derived.json", 'r')
+            variables = json.loads(variablefile.read())
+            self.variables = [dataField(variable,self.db) for variable in variables]
+        else:
+            #For when you just want the connection, and will supply the variables natively
+            self.variables = []
+
+
 
     def create_database(self):
         dbname = self.dbname
@@ -484,31 +527,14 @@ class BookwormSQLDatabase:
         db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
         db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
 
-        #And then make the ones that are distinct:
-        alones = [variable for variable in self.variables if not variable.unique]
+        for variable in self.variables:
+            if not variable.unique:
+                variable.buildDiskTable()
 
-        for dfield in alones:
-            print "Making a SQL table to hold the data for " + dfield.field
-            db.query("""DROP TABLE IF EXISTS """       + dfield.field + "Disk")
-            db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
-            bookid MEDIUMINT, 
-            """ +dfield.slowSQL(withIndex=True) + """
-            );""")
-            db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
-            loadcode = """LOAD DATA LOCAL INFILE 'files/metadata/""" + dfield.field +  """.txt' INTO TABLE """ + dfield.field + """Disk
-                   FIELDS ESCAPED BY '';"""
-            db.query(loadcode)
-            cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
-            print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
-            db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
-        
-        needingLookups = [variable for variable in self.variables if variable.datatype=="categorical"]
+        for variable in self.variables:
+            if variable.datatype=="categorical":
+                variable.buildLookupTable()
 
-        for dfield in needingLookups:
-            print "Building a lookup table for " + dfield.field
-            #First make the id table
-            for query in splitMySQLcode(dfield.buildIdTable()):
-                dfield.dbToPutIn.query(query)
 
     def load_word_list(self):
         db = self.db
@@ -634,7 +660,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         for variable in self.variables:
             db.query(variable.updateVariableDescriptionTable())
 
-    def create_memory_table_script(self,run=True):
+    def create_memory_table_script(self,run=True,write=True):
         ###This is the part that has to run on every startup. Now we make a SQL code that can just run on its own, stored in the root directory.
         
         commands = ["USE " + self.dbname + ";"]
@@ -646,16 +672,16 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
             All the categorical variables get a lookup table;
             we store the create code in the databse;
             """
-            variable.updateVariableDescriptionTable();
+            self.db.query(variable.updateVariableDescriptionTable());
 
         """
         Then we pull the code from the database.
         The database, if the Bookworm has already been created,
         may have some entries not included in the variable table here.
         """
-        a = bookworm.db.query("SELECT memoryCode FROM masterVariableTable").fetchall();
-        for row in a:
-            commands.append(a[0])
+        existingCreateCodes = self.db.query("SELECT memoryCode FROM masterVariableTable").fetchall();
+        for row in existingCreateCodes:
+            commands.append(row[0])
 
             
         commands.append("""
@@ -679,14 +705,15 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         for variable in [variable for variable in self.variables if not variable.unique]:
             commands.append(variable.fastSQLTable("MEMORY"))
 
-        SQLcreateCode = open('files/createTables.SQL', 'w')
-        for line in commands:
-        #Write them out so they can be put somewhere to run automatically on startup:
-            try:
-                SQLcreateCode.write('%s\n' % line)
-            except:
-                print line
-                raise
+        if write:
+            SQLcreateCode = open('files/createTables.SQL', 'w')
+            for line in commands:
+            #Write them out so they can be put somewhere to run automatically on startup:
+                try:
+                    SQLcreateCode.write('%s\n' % line)
+                except:
+                    print line
+                    raise
         if run:
             for line in commands:
                 for query in splitMySQLcode(line):
@@ -767,3 +794,33 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
                 z = cursor.execute(query)
+
+    def addCategoricalFromFile(self,filename,unique=False):
+        file = open(filename)
+        firstTwo = file.readline().split("\t")
+        name = firstTwo[1].rstrip("\n")
+        anchor = firstTwo[0]
+        definition = {"field":name,"datatype":"categorical","type":"character","unique":False}
+
+        #Currently the anchortype has to be a MediumInt.
+        #That's extremely inefficient.
+        anchorType = "MEDIUMINT"
+        
+        thisField = dataField(definition,
+                              self.db,
+                              anchorType,
+                              anchor=firstTwo[0],
+                              table=definition["field"]+"Disk",
+                              fasttab=definition["field"] + "Heap")
+
+        thisField.buildDiskTable(fileLocation=filename)
+
+        thisField.buildLookupTable()
+
+        self.db.query(thisField.updateVariableDescriptionTable())
+
+        query = "SELECT memoryCode FROM masterVariableTable WHERE name='%s'" % (name)
+        print query;
+        commands = self.db.query(query).fetchall()[0][0];
+        for query in splitMySQLcode(commands):
+            self.db.query(query)

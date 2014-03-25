@@ -39,7 +39,7 @@ clean:
 # bookworms to not require a complete rebuild.
 
 files/targets/tokenization: files/targets files/metadata/jsoncatalog_derived.txt
-	cat files/texts/input.txt | parallel --no-notice --block 10M --pipe python bookworm/tokenizer.py
+	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
 # The wordlist is an encoding scheme for words: it uses the tokenizations, and should

@@ -57,7 +57,7 @@ class oneClickInstance(object):
 
     def __init__(self):
         pass
-
+    
     def metadata(self):
         print "Parsing field_descriptions.json"
         ParseFieldDescs()
@@ -73,12 +73,11 @@ class oneClickInstance(object):
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
         Bookworm.load_book_list()
 
-        # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
-        Bookworm.create_memory_table_script()
-
         #This creates a table in the database that makes the results of field_descriptions accessible through the API.
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
+        # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
+        Bookworm.create_memory_table_script()
 
         print "adding cron job to automatically reload memory tables on launch"
         print "(this assumes this machine is the MySQL server, which need not be the case)"
@@ -88,26 +87,22 @@ class oneClickInstance(object):
         Bookworm.jsonify_data() # Create the dbname.json file in the root directory.
         Bookworm.create_API_settings()
         
-    def addCategorical(self):
+    def addCategoricalFromFile(self):
         """
         Reads a categorical variable from a .tsv file.
         First column is an existing anchor:
         Second column is the new data that's being inserted.
         That file MUST have as its first row.
         """
-        file = open(sys.argv[2])
-        
-        if len(sys.argv) > 2:
-            unique = eval(sys.argv[3])
+        file = sys.argv[3]
+        #If it's not unique to the key, you need to pass "False" as an argument.
+        if len(sys.argv) > 4:
+            unique = eval(sys.argv[4])
         else:
             unique = True
         
-        firstTwo = file.readline().split("\t")
-        
-
-        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
-        definition = dict()
-        definition["field"]
+        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword,readVariableFile=False)
+        Bookworm.addCategoricalFromFile(file,unique=unique)
 
 
     def database_wordcounts(self):
