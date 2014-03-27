@@ -133,11 +133,12 @@ class dataField:
             return None
 
     def buildDiskTable(self,fileLocation="default"):
+        db = self.dbToPutIn
+        dfield = self;
+
         if fileLocation == "default":
             fileLocation = "files/metadata/" + dfield.field + ".txt"
 
-        db = self.dbToPutIn
-        dfield = self;
 
         print "Making a SQL table to hold the data for " + dfield.field
         
