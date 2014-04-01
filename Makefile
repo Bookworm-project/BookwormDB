@@ -67,9 +67,8 @@ files/metadata/jsoncatalog_derived.txt:
 # hundreds of blocked processes simultaneously, though, so I'm putting that off for now.
 
 files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist.txt
-	#builds up the encoded lists. Currently does it on every single file in binaries:
-	#would be better if it only worked on those that don't exist yet.
-	find files/texts/binaries -type f | parallel python bookworm/encoder.py {} 
+	#builds up the encoded lists that don't exist yet.
+	find files/texts/binaries -type f | parallel -m python bookworm/encoder.py {} 
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
