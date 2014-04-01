@@ -24,7 +24,12 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     
     for thisfile in os.listdir('files/texts/binaries'):
         filenum += 1
-        input = pickle.load(open('files/texts/binaries/' + thisfile))
+        try:
+            input = pickle.load(open('files/texts/binaries/' + thisfile))
+        except:
+            print "error loading pickle"
+            print thisfile
+            print "\n\n"
         input.unigramCounts()
         counts = input.counts["counts"]
         for item in counts:
