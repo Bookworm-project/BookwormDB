@@ -1,9 +1,9 @@
-all: ~/Presidio/files/metadata/jsoncatalog.txt ~/Presidio/files/texts/input.txt
+all: ../../../files/metadata/jsoncatalog.txt ../../../files/texts/input.txt
 clean:
-	rm ~/Presidio/files/metadata/jsoncatalog.txt ~/Presidio/files/texts/input.txt
+	rm ../../../files/metadata/jsoncatalog.txt ../../../files/texts/input.txt
 
-~/Presidio/files/metadata/jsoncatalog.txt:
+../../../files/metadata/jsoncatalog.txt:
 	mysql -B rateMyProfessors -e "SELECT * FROM RATINGS JOIN TEACHERS USING(ID)" | python RMP.py > $@
 
-~/Presidio/files/texts/input.txt:
+../../../files/texts/input.txt:
 	mysql -B rateMyProfessors -e "SELECT ratingName,comment FROM RATINGS" > $@
