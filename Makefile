@@ -41,7 +41,7 @@ clean:
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
 
-files/targets/tokenization: files/targets files/metadata/jsoncatalog_derived.txt
+files/targets/tokenization: files/metadata/jsoncatalog_derived.txt
 	$(textStream) | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
@@ -54,7 +54,7 @@ files/texts/wordlist/wordlist.txt: files/targets/tokenization
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
 
-files/metadata/jsoncatalog_derived.txt: files/targets
+files/metadata/jsoncatalog_derived.txt:
 	#Create metadata files.
 	python OneClick.py $(bookwormName) metadata
 
