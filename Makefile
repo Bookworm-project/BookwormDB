@@ -35,6 +35,8 @@ clean:
 	rm -rf files/targets/*
 	rm -rf files/texts/binaries/*
 	rm -rf files/texts/wordlist/*
+	rm -f files/metadata/jsoncatalog_derived.txt
+	rm -f files/metadata/field_descriptions_derived.json
 
 # The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
 # each of which saves a binary file. The cat stage at the beginning here could be modified to 
@@ -88,7 +90,6 @@ files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt
 	#dynamically. Possibly slower, though.
 #	mkfifo files/texts/input.txt
 #	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
-
 
 
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
