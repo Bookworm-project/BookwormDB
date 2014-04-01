@@ -69,7 +69,8 @@ class dataField:
 
         if self.datatype == "categorical":
             self.type = "character"
-            #This will catch a common sort of mistake, but also coerce any categorical data to have fewer than 255 characters.
+            #This will catch a common sort of mistake (calling it text), but also coerce any categorical data to have fewer than 255 characters.
+            #This is worth it b/c a more than 255-character field will take *forever* to build.
             self.fastField = "%s__id" % self.field
             self.alias = self.fastField
             self.status = "public"
