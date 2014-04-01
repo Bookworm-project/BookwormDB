@@ -1,6 +1,12 @@
 #invoke with any of these variables, but particularly by specifying bookwormName: eg, `make bookwormName=OL`
-bookwormName = "OL"
-webDirectory = "/var/www/"
+bookwormName="OL"
+webDirectory="/var/www/"
+
+#The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
+#The important thing, I think, is that it not insert EOF markers into the middle of your stream.
+
+textStream="cat files/texts/input.txt"
+
 
 webSite = $(addsuffix bookwormName,webDirectory)
 
@@ -23,9 +29,9 @@ files/targets: files/texts
 #But this won't ensure consistency with earlier versions.
 
 clean:
-	rm -rf 
+	#Remove inputs.txt if it's a pipe.
 	find files/texts -maxdepth 1 -type p -delete
-	rm -rf files/texts/encoded
+	rm -rf files/texts/encoded/*
 	rm -rf files/targets/*
 	rm -rf files/texts/binaries/*
 	rm -rf files/texts/wordlist/*
@@ -36,7 +42,7 @@ clean:
 # bookworms to not require a complete rebuild.
 
 files/targets/tokenization: files/targets files/metadata/jsoncatalog_derived.txt
-	cat files/texts/input.txt | parallel --block 10M --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block 10M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
 # The wordlist is an encoding scheme for words: it uses the tokenizations, and should
@@ -61,7 +67,8 @@ files/metadata/jsoncatalog_derived.txt: files/targets
 # hundreds of blocked processes simultaneously, though, so I'm putting that off for now.
 
 files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist.txt
-	#builds up the encoded lists.
+	#builds up the encoded lists. Currently does it on every single file in binaries:
+	#would be better if it only worked on those that don't exist yet.
 	find files/texts/binaries -type f | parallel python bookworm/encoder.py {} 
 	touch files/targets/encoded
 
@@ -77,21 +84,22 @@ files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt
 # this creates a named pipe that will transparently convert an old-format bookworm into a new one.
 # There is not yet, but should be, a method to do the same for a zipped archive. (and/or a .tar.gz archive).
 
-files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
+#files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
 	#This will build it from the normal layout.
 	#dynamically. Possibly slower, though.
-	mkfifo files/texts/input.txt
-	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
+#	mkfifo files/texts/input.txt
+#	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
 
 
 
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
+# I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
+
 files/$(bookwormNames).json: files/targets/database	
 
 $(webDirectory)/$(bookwormName): files/$(bookwormName).json
 	git clone https://github.com/econpy/BookwormGUI $@
 	cp files/*.json $@/static/options.json
 
-#Specific junk to pull out.
 
 
