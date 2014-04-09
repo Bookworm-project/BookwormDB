@@ -137,7 +137,7 @@ Now create a file in the `files/metadata/` folder called `field_descriptions.jso
 
 ```json
 [
-    {"field":"date","datatype":"time","type":"numeric","unique":true,"derived":[{"resolution":"month"}]},
+    {"field":"date","datatype":"time","type":"integer","unique":true,"derived":[{"resolution":"month"}]},
     {"field":"searchstring","datatype":"searchstring","type":"text","unique":true},
     {"field":"enacted","datatype":"categorical","type":"text","unique":false},
     {"field":"sponsor_state","datatype":"categorical","type":"text","unique":false},
