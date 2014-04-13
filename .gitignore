@@ -3,7 +3,9 @@ old/*
 APIkeys
 #*
 .#*
+.DS_Store
 *.cgi
 migration.py
 shipping.py
 bookworm
+genderizer*

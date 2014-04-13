@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 
 import sys
 import json
@@ -407,10 +407,11 @@ class userquery:
                         locallimits['words'+str(n) + ".wordid"] = [selectString]
                     self.max_word_length = max(self.max_word_length,n)
 
-                limits.append(where_from_hash(locallimits,quotesep="",comp = " IN "))
+                #Strings have already been escaped, so don't need to be escaped again.
+                limits.append(where_from_hash(locallimits,quotesep="",comp = " IN ",escapeStrings=False))
                 #XXX for backward compatability
                 self.words_searched = phrase
-            self.wordswhere = '(' + ' OR '.join(limits) + ')'
+            self.wordswhere = "( " + ' OR '.join(limits) + ")"
 
         wordlimits = dict()
 
@@ -773,7 +774,7 @@ class userquery:
                 except IndexError:
                     pass
                 newarray.append(string)
-        #Arxiv is messier, requiring a whole different URL interface: http://search.arxiv.org:8081/paper.jsp?r=1204.3352&qs=network
+        #Arxiv is messier, requiring a whole different URL interface: http://search.arxiv.org:8081/paper.jsp?r=1204.3352&qs=netwokr
         else:
             newarray = returnarray
         return newarray
@@ -948,14 +949,14 @@ def to_unicode(obj, encoding='utf-8'):
         obj = unicode(str(obj),encoding)
     return obj
 
-def where_from_hash(myhash,joiner=" AND ",comp = " = ",quotesep=None):
+def where_from_hash(myhash,joiner=" AND ",comp = " = ",escapeStrings=True):
     whereterm = []
     #The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
-    #For more complicated bits, it gets all recursive until the bits are in terms of list.
+    #For more complicated bits, it gets all recursive until the bits are all in terms of list.
     for key in myhash.keys():
         values = myhash[key]
         if isinstance(values,basestring) or isinstance(values,int) or isinstance(values,float):
-            #This is just error handling. You can pass a single value instead of a list if you like, and it will just convert it 
+            #This is just human-being handling. You can pass a single value instead of a list if you like, and it will just convert it 
             #to a list for you.
             values = [values]
         #Or queries are special, since the default is "AND". This toggles that around for a subportion.
@@ -969,19 +970,29 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = ",quotesep=None):
             for operation in values.keys():
                 whereterm.append(where_from_hash({key:values[operation]},comp=operations[operation],joiner=joiner))
         elif isinstance(values,list):
-            #and this is where the magic actually happens
+            #and this is where the magic actually happens: the cases where the key is a string, and the target is a list.
             if isinstance(values[0],dict):
+                # If it's a list of dicts, then there's one thing that happens. Currently all types are assumed to be the same:
+                # you couldn't pass in, say {"year":[{"$gte":1900},1898]} to catch post-1898 years except for 1899. Not that you
+                # should need to.
                 for entry in values:
                     whereterm.append(where_from_hash(entry))
             else:
-                if quotesep is None:
+                #Note that about a third of the code is spent on escaping strings.
+                if escapeStrings:
                     if isinstance(values[0],basestring):
                         quotesep="'"
                     else:
                         quotesep = ""
+                    def escape(value): return MySQLdb.escape_string(to_unicode(value))
+                else:
+                    def escape(value): return to_unicode(value)
+                    quotesep=""
+                    
                 #Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
-                #Obviously that's no great loss, but there might be something I'm missing that would be.
-                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+to_unicode(value)+quotesep+") " for value in values])+ ") ")
+                #Obviously that's no great loss, but there might be something I'm missing that would be desire a similar format somehow.
+                #(In cases where the same book could have two different years associated with it)
+                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+escape(value)+quotesep+") " for value in values])+ ") ")
     return "(" + joiner.join(whereterm) + ")"
     #This works pretty well, except that it requires very specific sorts of terms going in, I think.
 
