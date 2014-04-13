@@ -372,6 +372,10 @@ class userquery:
         self.wordswhere = " TRUE "
         self.max_word_length = 0
         limits = []
+        """
+        "unigram" or "bigram" can be used as an alias for "word" in the search_limits field.
+        """
+
         for gramterm in ['unigram','bigram']:
             if gramterm in self.limits.keys() and not "word" in self.limits.keys():
                 self.limits['word'] = self.limits[gramterm]
@@ -386,17 +390,24 @@ class userquery:
             for phrase in self.limits['word']:
                 locallimits = dict()
                 array = phrase.split(" ")
-                n=0
+                n = 0
                 for word in array:
-                    n = n+1
-                    selectString =  "(SELECT " + self.word_field + " FROM wordsheap WHERE casesens='" + word + "')"
+                    n += 1
+                    searchingFor = word
+                    if self.word_field=="stem":
+                        from nltk import PorterStemmer
+                        searchingFor = PorterStemmer().stem_word(searchingFor)
+                    if self.word_field=="case_insensitive":
+                        searchingFor = searchingFor.lower()
+
+                    selectString =  "(SELECT wordid FROM wordsheap WHERE %s = '%s')" %(self.word_field,searchingFor)
                     try:
-                        locallimits['words'+str(n) + "." + self.word_field] += [selectString]
+                        locallimits['words'+str(n) + ".wordid"] += [selectString]
                     except KeyError:
-                        locallimits['words'+str(n) + "." + self.word_field] = [selectString]
+                        locallimits['words'+str(n) + ".wordid"] = [selectString]
                     self.max_word_length = max(self.max_word_length,n)
 
-                limits.append(where_from_hash(locallimits,quotesep=""))
+                limits.append(where_from_hash(locallimits,quotesep="",comp = " IN "))
                 #XXX for backward compatability
                 self.words_searched = phrase
             self.wordswhere = '(' + ' OR '.join(limits) + ')'
@@ -414,6 +425,7 @@ class userquery:
         if len(wordlimits.keys()) > 0:
             self.wordswhere = where_from_hash(wordlimits)
 
+        return self.wordswhere
 
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
