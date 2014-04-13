@@ -408,7 +408,7 @@ class userquery:
                     self.max_word_length = max(self.max_word_length,n)
 
                 #Strings have already been escaped, so don't need to be escaped again.
-                limits.append(where_from_hash(locallimits,quotesep="",comp = " IN ",escapeStrings=False))
+                limits.append(where_from_hash(locallimits,comp = " IN ",escapeStrings=False))
                 #XXX for backward compatability
                 self.words_searched = phrase
             self.wordswhere = "( " + ' OR '.join(limits) + ")"
