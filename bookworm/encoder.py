@@ -13,8 +13,13 @@ def encodeFiles(array):
             input = pickle.load(open(thisfile))
         except ValueError:
             print "unable to unpicked " + thisfile + "... dangerously just " + \
-                "skipping, some texts will be lost"
+                "skipping, some texts may be lost"
             continue
+        except cPickle.UnpicklingError:
+            print ""
+            print thisfile
+            print ""
+            raise
         for level in input.levels:
             input.encode(level,IDfile,dictionary)
 
