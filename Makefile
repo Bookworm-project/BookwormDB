@@ -34,9 +34,11 @@ clean:
 	rm -rf files/texts/encoded/*
 	rm -rf files/targets/*
 	rm -rf files/texts/binaries/*
+	mkdir -p files/texts/binaries/completed
 	rm -rf files/texts/wordlist/*
 	rm -f files/metadata/jsoncatalog_derived.txt
 	rm -f files/metadata/field_descriptions_derived.json
+
 
 # The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
 # each of which saves a binary file. The cat stage at the beginning here could be modified to 
@@ -70,7 +72,7 @@ files/metadata/jsoncatalog_derived.txt:
 
 files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist.txt
 	#builds up the encoded lists that don't exist yet.
-	find files/texts/binaries -type f | parallel -m python bookworm/encoder.py {} 
+	find files/texts/binaries -type f -maxdepth 1 | parallel -m python bookworm/encoder.py {} 
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
