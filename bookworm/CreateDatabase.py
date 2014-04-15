@@ -311,8 +311,10 @@ def splitMySQLcode(string):
     output = ['%s;\n' % query for query in string.split(';') if re.search(r"\w", query)]
     return output
 
-class variableSet:
 
+
+
+class variableSet:
     def __init__(self, jsonDefinition, anchorField='bookid'):
         self.variables = [dataField(item) for item in jsonDefinition]
         self.anchorField = anchorField
@@ -329,6 +331,10 @@ class variableSet:
     def uniques(self):
         return [variable for variable in self.variables if variable.unique]
 
+
+
+
+    
 class textids(dict):
     """
     This class is a dictionary that maps file-locations (which can be many characters long)
@@ -798,6 +804,10 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
                 z = cursor.execute(query)
 
     def addCategoricalFromFile(self,filename,unique=False):
+        """
+        Useful, but still a bit of a hack--should be a special method of adding a group
+        that automatically creates the json file.
+        """
         file = open(filename)
         firstTwo = file.readline().split("\t")
         name = firstTwo[1].rstrip("\n")
