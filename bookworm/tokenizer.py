@@ -28,19 +28,19 @@ def wordRegex():
 
 bigregex = wordRegex()
 
-def readDictionaryFile():
+def readDictionaryFile(prefix=""):
     look = dict()
-    for line in open("files/texts/wordlist/wordlist.txt"):
+    for line in open(prefix + "files/texts/wordlist/wordlist.txt"):
         line = line.rstrip("\n")
         splat = line.split("\t")
         look[splat[1]] = splat[0]
     return look
 
-def readIDfile():
-    files = os.listdir("files/texts/textids/")
+def readIDfile(prefix=""):
+    files = os.listdir(prefix + "files/texts/textids/")
     look = dict()
     for filename in files:
-        for line in open("files/texts/textids/" + filename):
+        for line in open(prefix + "files/texts/textids/" + filename):
             line = line.rstrip("\n")
             splat = line.split("\t")
             look[splat[1]] = splat[0]
