@@ -151,7 +151,13 @@ class tokenBatches(object):
         counts =  self.counts["counts"]
         for word in counts:
             output.append(" ".join([word,str(counts[word])]))
-        outfile.write("\n".join(output))
+
+        toWrite = "\n".join(output)
+        try:
+            outfile.write(toWrite)
+        except UnicodeEncodeError:
+            print "warning, bad unicode"
+            outfile.write(toWrite.encode("utf-8",'ignore'))
 
 class tokenizer(object):
     """
