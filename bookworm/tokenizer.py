@@ -169,8 +169,12 @@ class tokenizer(object):
     """
     
     def __init__(self,string):
-        self.string=string.decode("utf-8")
-
+        try:
+            self.string=string.decode("utf-8")
+        except UnicodeDecodeError:
+            print string + " not recognized as valid unicode"
+            self.string = ""
+            
     def tokenize(self):
         """
         This tries to return the pre-made tokenization:
