@@ -16,6 +16,7 @@ all: files/targets files/targets/database
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: files/texts
 	mkdir -p files/texts/binaries
+	mkdir -p files/texts/binaries/completed
 	mkdir -p files/texts/encoded
 	mkdir -p files/texts/encoded/unigrams
 	mkdir -p files/texts/encoded/bigrams
@@ -46,7 +47,7 @@ clean:
 # bookworms to not require a complete rebuild.
 
 files/targets/tokenization: files/metadata/jsoncatalog_derived.txt
-	$(textStream) | parallel --block 10M --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block 30M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
 # The wordlist is an encoding scheme for words: it uses the tokenizations, and should
