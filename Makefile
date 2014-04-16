@@ -73,7 +73,7 @@ files/metadata/jsoncatalog_derived.txt:
 
 files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist.txt
 	#builds up the encoded lists that don't exist yet.
-	find files/texts/binaries -type f -maxdepth 1 | parallel -m python bookworm/encoder.py {} 
+	find files/texts/binaries -maxdepth 1 -type f | parallel -m python bookworm/encoder.py {} 
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
