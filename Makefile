@@ -8,10 +8,8 @@ webDirectory="/var/www/"
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
 textStream=scripts/justPrintInputTxt.sh
-
 webSite = $(addsuffix bookwormName,webDirectory)
 
-oldFormat: files/texts/input.txt files/targets/database
 all: files/targets files/targets/database
 
 #These are all directories that need to be in place for the other scripts to work properly
