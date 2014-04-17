@@ -3,6 +3,8 @@
 bookwormName="OL"
 webDirectory="/var/www/"
 
+
+
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
 textStream=scripts/justPrintInputTxt.sh
@@ -46,7 +48,7 @@ clean:
 # bookworms to not require a complete rebuild.
 
 files/targets/tokenization: files/metadata/jsoncatalog_derived.txt
-	$(textStream) | parallel --block 30M --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block 20M --pipe python bookworm/tokenizer.py
 	touch files/targets/tokenization
 
 # The wordlist is an encoding scheme for words: it uses the tokenizations, and should
@@ -79,20 +81,16 @@ files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist
 # uses the encoded files already written to disk, and loads them into a database.
 # It also throws out a few other useful files at the end into files/
 
-files/targets/database: files/targets/encoded files/texts/wordlist/wordlist.txt
-	python OneClick.py $(bookwormName) database
-	touch files/targets/database
+files/targets/database: files/targets/database_metadata files/targets/database_wordcounts
+	touch $@
 
-# input.txt is standard format for bringing in data. The old standard was a bunch of individual files in folders:
-# this creates a named pipe that will transparently convert an old-format bookworm into a new one.
-# There is not yet, but should be, a method to do the same for a zipped archive. (and/or a .tar.gz archive).
+files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt
+	python OneClick.py $(bookwormName) database_metadata
+	touch $@
 
-#files/texts/input.txt: files/metadata/jsoncatalog_derived.txt
-	#This will build it from the normal layout.
-	#dynamically. Possibly slower, though.
-#	mkfifo files/texts/input.txt
-#	cat files/texts/textids/* | perl -ne "print unless m/[']/g" | awk '{print $$2}' | xargs -n 1 bash scripts/singleFileFromDirectories.sh > $@ &
-
+files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wordlist.txt
+	python OneClick.py $(bookwormName) database_wordcounts
+	touch $@
 
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
 # I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
