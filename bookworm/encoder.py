@@ -15,11 +15,12 @@ def encodeFiles(array):
             print "unable to unpicked " + thisfile + "... dangerously just " + \
                 "skipping, some texts may be lost"
             continue
-        except cPickle.UnpicklingError:
+        except:
             print ""
+            print "Some problem: fix if the following file should be unpicklable"
             print thisfile
             print ""
-            raise
+            continue
         for level in input.levels:
             input.encode(level,IDfile,dictionary)
 

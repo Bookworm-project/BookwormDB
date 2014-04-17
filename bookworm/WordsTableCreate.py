@@ -30,6 +30,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
             print "error loading pickle"
             print thisfile
             print "\n\n"
+            continue
         input.unigramCounts()
         counts = input.counts["counts"]
         for item in counts:
