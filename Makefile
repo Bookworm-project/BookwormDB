@@ -7,7 +7,6 @@ webDirectory="/var/www/"
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
 textStream=scripts/justPrintInputTxt.sh
 
-
 webSite = $(addsuffix bookwormName,webDirectory)
 
 oldFormat: files/texts/input.txt files/targets/database

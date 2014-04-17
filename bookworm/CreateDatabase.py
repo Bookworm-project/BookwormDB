@@ -286,10 +286,8 @@ class dataField:
         self.setIntType()
 
         returnt = "DROP TABLE IF EXISTS tmp;\n\n"
-        try:
-            returnt += "CREATE TABLE tmp ENGINE=MEMORY SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
-        except _mysql_exceptions.OperationalError:
-            returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
+
+        returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
             
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
