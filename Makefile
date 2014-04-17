@@ -8,10 +8,8 @@ webDirectory="/var/www/"
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
 textStream=scripts/justPrintInputTxt.sh
-
 webSite = $(addsuffix bookwormName,webDirectory)
 
-oldFormat: files/texts/input.txt files/targets/database
 all: files/targets files/targets/database
 
 #These are all directories that need to be in place for the other scripts to work properly
@@ -81,10 +79,10 @@ files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist
 # uses the encoded files already written to disk, and loads them into a database.
 # It also throws out a few other useful files at the end into files/
 
-files/targets/database: files/targets/database_metadata files/targets/database_wordcounts
+files/targets/database: files/targets/database_wordcounts files/targets/database_metadata 
 	touch $@
 
-files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt
+files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts
 	python OneClick.py $(bookwormName) database_metadata
 	touch $@
 
