@@ -81,10 +81,10 @@ files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist
 # uses the encoded files already written to disk, and loads them into a database.
 # It also throws out a few other useful files at the end into files/
 
-files/targets/database: files/targets/database_metadata files/targets/database_wordcounts
+files/targets/database: files/targets/database_wordcounts files/targets/database_metadata 
 	touch $@
 
-files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt
+files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts
 	python OneClick.py $(bookwormName) database_metadata
 	touch $@
 
