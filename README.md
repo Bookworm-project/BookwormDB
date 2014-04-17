@@ -216,6 +216,7 @@ For reference, the general workflow of the Makefile is the following:
 * python 2.7 (with modules):
  * ntlk (recommended, to be required)
  * numpy
+ * regex (to handle complicated Unicode regular expressions for tokenization: `easy_install regex`)
  
 * parallel (GNU parallel, in versions available from apt-get or homebrew)
 * MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality)
