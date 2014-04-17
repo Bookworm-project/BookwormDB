@@ -192,7 +192,7 @@ make all bookwormName=YOURBOOKWORMNAMEHERE
 > make all bookwormName=bookwormcongress
 > ```
 
-The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
+> The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
@@ -209,3 +209,17 @@ For reference, the general workflow of the Makefile is the following:
 9. Load data into MySQL database.
 10. Create temporary MySQL table and .json file that will be used by the web app.
 11. Create API settings.
+
+
+# Dependencies #
+
+* python 2.7 (with modules):
+ * ntlk (recommended, to be required)
+ * numpy
+ 
+* parallel (GNU parallel, in versions available from apt-get or homebrew)
+* MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality)
+* Apache or other webserver (for front end).
+ 
+
+
