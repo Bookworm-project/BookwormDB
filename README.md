@@ -4,6 +4,15 @@ metadata and lexical data in the original source.
 
 Technically, it is a set of Python and Perl scripts that leaves behind a MySQL database.
 
+
+Which version to use
+---------------------
+
+The "master" branch is more backwards-compatible, but the "dev" branch tends to be significantly faster both for creation and
+for querying. "Master" exists primarily as an internal scheme to support legacy installations; there has not been a "stable" 
+release to date, so neither is guaranteed to be more stable than the other. Most new installations should use "dev."
+
+
 ## Related projects
 
 This is closely tied to two other projects. 
@@ -12,11 +21,6 @@ To query the database created here programatically, you should use the Bookworm 
 
 Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app"), which runs
 on top of the API. 
-
-
-The "master" branch is more backwards-compatible, but the "dev" branch tends to be significantly faster both for creation and
-for querying. "Master" exists primarily as an internal scheme to support legacy installations; there has not been a "stable" 
-release to date, so neither is guaranteed to be more stable than the other. Most new installations should use "dev."
 
 
 ## Bookworms ##
