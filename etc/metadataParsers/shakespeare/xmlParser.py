@@ -16,7 +16,7 @@ def parse(paper):
     return out
 
 
-def descend(thisNode,stackOfTags=[],seenSoFar={},depth=1):
+def descend(thisNode,stackOfTags=[],seenSoFar=dict(),depth=1):
     """
     A recursive function to go down the XML tree.
     The tricky part is that some metadata is stored in the text: in particular, 
@@ -40,13 +40,7 @@ def descend(thisNode,stackOfTags=[],seenSoFar={},depth=1):
         # 1 is an element node: 9, also covered, is the main document root here.
         children = thisNode.childNodes
         for child in children:
-            l1 = len(stackOfTags)
             seenSoFar = descend(child,stackOfTags,seenSoFar,depth+1)
-            l2 = len(stackOfTags)
-            if l2-l1>0:
-                #There seems to be some sort of namespace issue here.
-                #God knows: but this works.
-                stackOfTags.pop()
 
     if thisNode.nodeType==3:
         #3 is a text node: that's when we really dump out some text.
@@ -81,7 +75,7 @@ class xmlParser(object):
         self.dom = parseString(self.string)
 
     def markup(self):
-        all = descend(self.dom)
+        all = descend(self.dom,stackOfTags=[],seenSoFar=dict(),depth=1)
         returnable = []
         for key in all:
             line = dict(key)
@@ -110,11 +104,16 @@ class xmlParser(object):
             jsonout.write(json.dumps(item) + "\n")
             textout.write(ID + "\t" + re.sub("[\n\r]","",item["textString"]) + "\n")
             i += 1
+        jsonout.close()
+        textout.close()
 
 if __name__=="__main__":
+    jsonout = open("../../../files/metadata/jsoncatalog.txt","w")
+    textout = open("../../../files/texts/input.txt","w")
+    jsonout.close()
+    textout.close()
+
     for filename in os.listdir("../../../files/raw"):
         print filename
         dom = xmlParser("../../../files/raw/" + filename)
         dom.printOut()
-#        break
-
