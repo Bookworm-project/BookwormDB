@@ -79,10 +79,12 @@ class tokenBatches(object):
         #row is a piece of text: the first line is the identifier, and the rest is the text.
         parts = row.split("\t",1)
         filename = parts[0]
-        tokens = tokenizer(parts[1])
-        for ngrams in self.levels:
-            self.counts[ngrams][filename] = tokens.counts(ngrams)
-
+        try:
+            tokens = tokenizer(parts[1])
+            for ngrams in self.levels:
+                self.counts[ngrams][filename] = tokens.counts(ngrams)
+        except IndexError:
+            print "Found no tab in the input for \n" + filename + "\n...skipping row"
     
             
     def pickleMe(self):
