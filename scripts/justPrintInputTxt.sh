@@ -5,6 +5,5 @@
 if [ -f files/texts/input.txt ]; then
    cat files/texts/input.txt
 else
-    echo "hi"
     find files/texts/raw/ -name "*.txt" | perl -pe 's/files\/texts\/raw\/(.*).txt/$1/g' | xargs -I filename bash scripts/singleFileFromDirectories.sh filename
 fi
