@@ -18,6 +18,7 @@ files/targets: files/texts
 	mkdir -p files/texts/encoded/unigrams
 	mkdir -p files/texts/encoded/bigrams
 	mkdir -p files/texts/encoded/trigrams
+	mkdir -p files/texts/encoded/completed
 	mkdir -p files/targets
 	mkdir -p files/texts/wordlist
 
@@ -40,7 +41,7 @@ clean:
 # The wordlist is an encoding scheme for words: it tokenizes in parallel, and should
 # intelligently update an exist vocabulary where necessary.
 
-files/texts/wordlist/wordlist.txt: files/targets
+files/texts/wordlist/wordlist.txt:
 	$(textStream) | parallel --block 20M --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
 
 # This invokes OneClick on the metadata file to create a more useful internal version

@@ -62,9 +62,8 @@ class tokenBatches(object):
     """
     def __init__(self,levels=["unigrams","bigrams"]):
         self.counts = dict()
-        self.counts["unigrams"] = dict()
-        self.counts["bigrams"]  = dict()
-        self.counts["trigrams"] = dict()
+        for level in levels:
+            self.counts[level] = dict()
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
@@ -84,7 +83,7 @@ class tokenBatches(object):
             for ngrams in self.levels:
                 self.counts[ngrams][filename] = tokens.counts(ngrams)
         except IndexError:
-            print "Found no tab in the input for \n" + filename + "\n...skipping row"
+            print "\nFound no tab in the input for '" + filename + "'...skipping row\n"
 
 
     def encode(self,level,IDfile,dictionary):
@@ -109,6 +108,8 @@ class tokenBatches(object):
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
                         """
+                        if level=="unigrams":
+                            print "'%s' not in dictionary, skipping" % word
                         skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
@@ -185,7 +186,7 @@ def getAlreadySeenList(folder):
 def encodeTextStream():
     IDfile = readIDfile()
     dictionary = readDictionaryFile()
-    seen = getAlreadySeenList("files/texts/binaries/completed")
+    seen = getAlreadySeenList("files/texts/encoded/completed")
     tokenBatch = tokenBatches()
     for line in sys.stdin:
         filename = line.split("\t",1)[0]
