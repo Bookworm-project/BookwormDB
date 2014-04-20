@@ -1,7 +1,6 @@
 #! /usr/bin/python
 
 import regex as re
-import cPickle as pickle
 import random
 import sys
 import os 
@@ -58,8 +57,8 @@ class tokenBatches(object):
     The pickle writeout happens in between so that there's a chance to build up a vocabular using the tokenBatches.unigramCounts method. If the vocabulary were preset, it could proceed straight to writing out the encoded results.
 
     The pickle might be slower than simply using a fast csv module: this should eventually be investigated. But it's nice for the pickled version to just keep all the original methods.
-
     """
+    
     def __init__(self,levels=["unigrams","bigrams"]):
         self.counts = dict()
         for level in levels:
@@ -195,6 +194,10 @@ def encodeTextStream():
             tokenBatch.addRow(line)
     for level in tokenBatch.levels:
         tokenBatch.encode(level,IDfile,dictionary)
+
+    written = open("files/texts/completed/" + tokenBatch.ID,"w")
+    for file in tokenBatch['unigrams'].keys():
+        written.write(file + "\n")
 
 if __name__=="__main__":
     encodeTextStream()
