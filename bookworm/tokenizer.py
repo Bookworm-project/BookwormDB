@@ -85,23 +85,8 @@ class tokenBatches(object):
                 self.counts[ngrams][filename] = tokens.counts(ngrams)
         except IndexError:
             print "Found no tab in the input for \n" + filename + "\n...skipping row"
-    
-            
-    def pickleMe(self):
-        #Often we'll have to pickle, then create the word counts, then unpickle 
-        #to build the database-loadable infrastructure
 
-        outputFile = open("files/texts/binaries/" + self.id,"w")
-        
-        outputFile = open("files/texts/binaries/" + self.id,"w")
-        pickle.dump(self,file=outputFile,protocol=pickle.HIGHEST_PROTOCOL)
 
-        #Write to a file of seen files so it won't be re-loaded
-        #when the database is recreated.
-        seenfile = open("files/texts/binaries/completed/" + self.id,"w")
-        for filename in self.counts["unigrams"].keys():
-            seenfile.write(filename + "\n")
-        
     def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
         outputFile = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
@@ -130,36 +115,6 @@ class tokenBatches(object):
                     output.append("\t".join([textid,wordids,str(count)]))
                 
         outputFile.write("\n".join(output))        
-
-            
-    def unigramCounts(self,withDelete=False):
-        if not "counts" in self.counts:
-            self.counts["counts"] = dict()
-        for documentNum in self.counts["unigrams"].keys():
-            document = self.counts["unigrams"][documentNum]
-            for key in document.keys():
-                word = key[0]
-                try:
-                    self.counts["counts"][word] += document[key]
-                except KeyError:
-                    self.counts["counts"][word]  = document[key]
-            if withDelete:
-                del self.counts["unigrams"][documentNum]
-
-    def writeUnigramCounts(self):
-        self.unigramCounts()
-        outfile = open("files/texts/wordlist/raw-" + self.id + ".txt","w")
-        output = []
-        counts =  self.counts["counts"]
-        for word in counts:
-            output.append(" ".join([word,str(counts[word])]))
-
-        toWrite = "\n".join(output)
-        try:
-            outfile.write(toWrite)
-        except UnicodeEncodeError:
-            print "warning, bad unicode"
-            outfile.write(toWrite.encode("utf-8",'ignore'))
 
 class tokenizer(object):
     """
@@ -224,19 +179,21 @@ def getAlreadySeenList(folder):
     seen = set([])
     for file in files:
         for line in open(folder+"/" + file):
-            seen.add(line.rstrip())
+            seen.add(line.rstrip("\n"))
     return seen
 
-def readTextStream():
+def encodeTextStream():
+    IDfile = readIDfile()
+    dictionary = readDictionaryFile()
     seen = getAlreadySeenList("files/texts/binaries/completed")
     tokenBatch = tokenBatches()
     for line in sys.stdin:
+        filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
-        if line not in seen:
+        if filename not in seen:
             tokenBatch.addRow(line)
-    print "pickling " + tokenBatch.id
-    tokenBatch.writeUnigramCounts()
-    tokenBatch.pickleMe()        
+    for level in tokenBatch.levels:
+        tokenBatch.encode(level,IDfile,dictionary)
 
 if __name__=="__main__":
-    readTextStream()
+    encodeTextStream()

@@ -14,8 +14,6 @@ all: files/targets files/targets/database
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: files/texts
-	mkdir -p files/texts/binaries
-	mkdir -p files/texts/binaries/completed
 	mkdir -p files/texts/encoded
 	mkdir -p files/texts/encoded/unigrams
 	mkdir -p files/texts/encoded/bigrams
@@ -32,28 +30,18 @@ clean:
 	#Remove inputs.txt if it's a pipe.
 	find files/texts -maxdepth 1 -type p -delete
 	rm -rf files/texts/encoded/*
-	rm -rf files/targets/*
-	rm -rf files/texts/binaries/*
-	mkdir -p files/texts/binaries/completed
-	rm -rf files/texts/wordlist/*
+	rm -rf files/targets
+	rm -rf files/texts/wordlist
 	rm -f files/metadata/jsoncatalog_derived.txt
 	rm -f files/metadata/field_descriptions_derived.json
 
 
-# The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
-# each of which saves a binary file. The cat stage at the beginning here could be modified to 
-# check against some list that tracks which texts we have already encoded to allow additions to existing 
-# bookworms to not require a complete rebuild.
 
-files/targets/tokenization: files/metadata/jsoncatalog_derived.txt
-	$(textStream) | parallel --block 20M --pipe python bookworm/tokenizer.py
-	touch files/targets/tokenization
-
-# The wordlist is an encoding scheme for words: it uses the tokenizations, and should
+# The wordlist is an encoding scheme for words: it tokenizes in parallel, and should
 # intelligently update an exist vocabulary where necessary.
 
-files/texts/wordlist/wordlist.txt: files/targets/tokenization
-	python bookworm/WordsTableCreate.py
+files/texts/wordlist/wordlist.txt: files/targets
+	$(textStream) | parallel --block 20M --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
 
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
@@ -70,9 +58,14 @@ files/metadata/jsoncatalog_derived.txt:
 # of pre-built files inside the files/targets/encoded files: it might require having
 # hundreds of blocked processes simultaneously, though, so I'm putting that off for now.
 
-files/targets/encoded:  files/targets/tokenization files/texts/wordlist/wordlist.txt
+# The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
+# each of which saves a binary file. The cat stage at the beginning here could be modified to 
+# check against some list that tracks which texts we have already encoded to allow additions to existing 
+# bookworms to not require a complete rebuild.
+
+files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt
 	#builds up the encoded lists that don't exist yet.
-	find files/texts/binaries -maxdepth 1 -type f | parallel -m python bookworm/encoder.py {} 
+	$(textStream) | parallel --block 20M --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
