@@ -94,7 +94,7 @@ class tokenBatches(object):
             try:
                 textid = IDfile[key]
             except KeyError:
-                print "Warning: file " + key + " not found in jsoncatalog.txt"
+                sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt\n")
                 continue
             for wordset,count in value.iteritems():
                 skip = False
@@ -108,7 +108,7 @@ class tokenBatches(object):
                         we don't include the whole n-gram in the counts.
                         """
                         if level=="unigrams":
-                            print "'%s' not in dictionary, skipping" % word
+                            sys.stderr.write("'%s' not in dictionary, skipping\n" % word)
                         skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
@@ -195,8 +195,8 @@ def encodeTextStream():
     for level in tokenBatch.levels:
         tokenBatch.encode(level,IDfile,dictionary)
 
-    written = open("files/texts/completed/" + tokenBatch.ID,"w")
-    for file in tokenBatch['unigrams'].keys():
+    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+    for file in tokenBatch.counts['unigrams'].keys():
         written.write(file + "\n")
 
 if __name__=="__main__":
