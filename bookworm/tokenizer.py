@@ -1,7 +1,6 @@
 #! /usr/bin/python
 
 import regex as re
-import cPickle as pickle
 import random
 import sys
 import os 
@@ -58,13 +57,12 @@ class tokenBatches(object):
     The pickle writeout happens in between so that there's a chance to build up a vocabular using the tokenBatches.unigramCounts method. If the vocabulary were preset, it could proceed straight to writing out the encoded results.
 
     The pickle might be slower than simply using a fast csv module: this should eventually be investigated. But it's nice for the pickled version to just keep all the original methods.
-
     """
+    
     def __init__(self,levels=["unigrams","bigrams"]):
         self.counts = dict()
-        self.counts["unigrams"] = dict()
-        self.counts["bigrams"]  = dict()
-        self.counts["trigrams"] = dict()
+        for level in levels:
+            self.counts[level] = dict()
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
@@ -84,7 +82,7 @@ class tokenBatches(object):
             for ngrams in self.levels:
                 self.counts[ngrams][filename] = tokens.counts(ngrams)
         except IndexError:
-            print "Found no tab in the input for \n" + filename + "\n...skipping row"
+            print "\nFound no tab in the input for '" + filename + "'...skipping row\n"
 
 
     def encode(self,level,IDfile,dictionary):
@@ -96,7 +94,7 @@ class tokenBatches(object):
             try:
                 textid = IDfile[key]
             except KeyError:
-                print "Warning: file " + key + " not found in jsoncatalog.txt"
+                sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt\n")
                 continue
             for wordset,count in value.iteritems():
                 skip = False
@@ -109,6 +107,8 @@ class tokenBatches(object):
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
                         """
+                        if level=="unigrams":
+                            sys.stderr.write("'%s' not in dictionary, skipping\n" % word)
                         skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
@@ -185,7 +185,7 @@ def getAlreadySeenList(folder):
 def encodeTextStream():
     IDfile = readIDfile()
     dictionary = readDictionaryFile()
-    seen = getAlreadySeenList("files/texts/binaries/completed")
+    seen = getAlreadySeenList("files/texts/encoded/completed")
     tokenBatch = tokenBatches()
     for line in sys.stdin:
         filename = line.split("\t",1)[0]
@@ -194,6 +194,10 @@ def encodeTextStream():
             tokenBatch.addRow(line)
     for level in tokenBatch.levels:
         tokenBatch.encode(level,IDfile,dictionary)
+
+    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+    for file in tokenBatch.counts['unigrams'].keys():
+        written.write(file + "\n")
 
 if __name__=="__main__":
     encodeTextStream()

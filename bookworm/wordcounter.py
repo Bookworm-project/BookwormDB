@@ -11,9 +11,8 @@ def exportToDisk(wordcounts,diskFile,keepThreshold=5):
             try:
                 diskFile.write('%s %s\n' % (key.encode('utf-8'), str(wordcounts[key])))
             except UnicodeDecodeError:
-                key = key.decode("utf-8")
-                print type(key)
-                print "unicode error on " + key.encode("utf-8")
+                print "Error decoding '" + key + "' from Unicode"
+                
         else:
             commonwords[key] = wordcounts[key]
     return commonwords
