@@ -3,16 +3,15 @@
 from tokenizer import *
 import sys
 import subprocess
+import timeit
 
 def exportToDisk(wordcounts,diskFile,keepThreshold=5):
     commonwords = dict()
     for key in wordcounts.iterkeys():
         if wordcounts[key] < keepThreshold:
-            try:
-                diskFile.write('%s %s\n' % (key.encode('utf-8'), str(wordcounts[key])))
-            except UnicodeDecodeError:
-                print "Error decoding '" + key + "' from Unicode"
-                
+            key = key
+            output = key + " " + str(wordcounts[key]) + "\n"
+            diskFile.write(output)
         else:
             commonwords[key] = wordcounts[key]
     return commonwords
@@ -20,24 +19,34 @@ def exportToDisk(wordcounts,diskFile,keepThreshold=5):
     
 
 def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
-    wordcounts = dict()
-    database = open('files/texts/wordlist/raw.txt', 'w')
-
+    database = open('files/texts/wordlist/raw.txt','w')
+    start_time = timeit.default_timer()
+    n = 1
+    #When flushing the dictionary to disk, they are kept in memory if there count is
+    #greater than keepThreshold to avoid overhead reinitializing and rewriting.
     keepThreshold=2
-    for item in sys.stdin:
-        item = item.rstrip("\n")
-        try: 
-            wordcounts[item] += 1
-        except KeyError:
-            wordcounts[item] = 1
 
-        while len(wordcounts) > maxMemoryStorage:
-            print "exporting to disk at file number %s"
-            wordcounts = exportToDisk(wordcounts,diskFile=database,keepThreshold=keepThreshold)
-            if len(wordcounts) > maxMemoryStorage:
-                #If that's not enough to get down to a small dictionary,
-                #try again with a new higher limit.
-                keepThreshold = keepThreshold*2
+    wordcounts = dict()
+    for row in sys.stdin:
+        for item in row.split(" "):
+            n+=1
+            if n % 10000000==0:
+                elapsed = timeit.default_timer() - start_time
+                print str(len(wordcounts)) + " entries at " + str(n) + " words---" + str(elapsed) + " seconds since last print"
+                start_time = timeit.default_timer()
+            item = item.rstrip("\n")
+            try: 
+                wordcounts[item] += 1
+            except KeyError:
+                wordcounts[item] = 1
+
+            while len(wordcounts) > maxMemoryStorage:
+                print "exporting to disk..."
+                wordcounts = exportToDisk(wordcounts,diskFile=database,keepThreshold=keepThreshold)
+                if len(wordcounts) > maxMemoryStorage:
+                    #If that's not enough to get down to a small dictionary,
+                    #try again with a new higher limit.
+                    keepThreshold = keepThreshold*2
 
     #Write all remaining items to disk
     nothing = exportToDisk(wordcounts,diskFile=database,keepThreshold=float("inf"))
