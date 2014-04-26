@@ -138,9 +138,12 @@ class tokenizer(object):
         try:
             self.string=string.decode("utf-8")
         except UnicodeDecodeError:
-            print string + " not recognized as valid unicode"
-            self.string = ""
-            
+            print "WARNING: string can't be decoded as unicode skipping and moving on"
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            print string
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            self.string="BADDATA"
+
     def tokenize(self):
         """
         This tries to return the pre-made tokenization:
