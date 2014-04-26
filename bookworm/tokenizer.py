@@ -155,7 +155,14 @@ class tokenizer(object):
     """
     
     def __init__(self,string):
-        self.string=string.decode("utf-8")
+        try:
+            self.string=string.decode("utf-8")
+        except UnicodeDecodeError:
+            print "WARNING: string can't be decoded as unicode skipping and moving on"
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            print string
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            self.string="BADDATA"
 
     def tokenize(self):
         """
