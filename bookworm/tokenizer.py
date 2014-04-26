@@ -10,7 +10,7 @@ def wordRegex():
     """
     #I'm including the code to create the regex, which makes it more readable.
     Note that this uses *unicode*: among other things, that means that it needs to be passed
-    a unicode-decoded string: and that we have to use the "regex" module instead of the "re" module.
+    a unicode-decoded string: and that we have to use the "regex" module instead of the "re" module. Python3 will make this, perhaps, easier.
     (See how it says import regex as re up there? Yikes.)
     """
     MasterExpression = ur"\p{L}+"
@@ -28,19 +28,19 @@ def wordRegex():
 
 bigregex = wordRegex()
 
-def readDictionaryFile():
+def readDictionaryFile(prefix=""):
     look = dict()
-    for line in open("files/texts/wordlist/wordlist.txt"):
+    for line in open(prefix + "files/texts/wordlist/wordlist.txt"):
         line = line.rstrip("\n")
         splat = line.split("\t")
         look[splat[1]] = splat[0]
     return look
 
-def readIDfile():
-    files = os.listdir("files/texts/textids/")
+def readIDfile(prefix=""):
+    files = os.listdir(prefix + "files/texts/textids/")
     look = dict()
     for filename in files:
-        for line in open("files/texts/textids/" + filename):
+        for line in open(prefix + "files/texts/textids/" + filename):
             line = line.rstrip("\n")
             splat = line.split("\t")
             look[splat[1]] = splat[0]
@@ -79,24 +79,39 @@ class tokenBatches(object):
         #row is a piece of text: the first line is the identifier, and the rest is the text.
         parts = row.split("\t",1)
         filename = parts[0]
-        tokens = tokenizer(parts[1])
-        for ngrams in self.levels:
-            self.counts[ngrams][filename] = tokens.counts(ngrams)
-
+        try:
+            tokens = tokenizer(parts[1])
+            for ngrams in self.levels:
+                self.counts[ngrams][filename] = tokens.counts(ngrams)
+        except IndexError:
+            print "Found no tab in the input for \n" + filename + "\n...skipping row"
+    
+            
     def pickleMe(self):
         #Often we'll have to pickle, then create the word counts, then unpickle 
         #to build the database-loadable infrastructure
+
+        outputFile = open("files/texts/binaries/" + self.id,"w")
+        
         outputFile = open("files/texts/binaries/" + self.id,"w")
         pickle.dump(self,file=outputFile,protocol=pickle.HIGHEST_PROTOCOL)
 
+        #Write to a file of seen files so it won't be re-loaded
+        #when the database is recreated.
+        seenfile = open("files/texts/binaries/completed/" + self.id,"w")
+        for filename in self.counts["unigrams"].keys():
+            seenfile.write(filename + "\n")
+        
     def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
         outputFile = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
         output = []
+        print "encoding " + level + " for " + self.id
         for key,value in self.counts[level].iteritems():
             try:
                 textid = IDfile[key]
             except KeyError:
+                print "Warning: file " + key + " not found in jsoncatalog.txt"
                 continue
             for wordset,count in value.iteritems():
                 skip = False
@@ -115,7 +130,8 @@ class tokenBatches(object):
                     output.append("\t".join([textid,wordids,str(count)]))
                 
         outputFile.write("\n".join(output))        
-     
+
+            
     def unigramCounts(self,withDelete=False):
         if not "counts" in self.counts:
             self.counts["counts"] = dict()
@@ -131,22 +147,28 @@ class tokenBatches(object):
                 del self.counts["unigrams"][documentNum]
 
     def writeUnigramCounts(self):
-        print "joining up counts"
         self.unigramCounts()
         outfile = open("files/texts/wordlist/raw-" + self.id + ".txt","w")
         output = []
-        print self.counts.keys()
         counts =  self.counts["counts"]
         for word in counts:
             output.append(" ".join([word,str(counts[word])]))
-        outfile.write("\n".join(output))
+
+        toWrite = "\n".join(output)
+        try:
+            outfile.write(toWrite)
+        except UnicodeEncodeError:
+            print "warning, bad unicode"
+            outfile.write(toWrite.encode("utf-8",'ignore'))
 
 class tokenizer(object):
     """
     A tokenizer is initialized with a single text string.
 
-    It assumes that you have in namespace an object called "bigregex" with
-    identifies words. (This is a performance optimization to avoid compiling the large regex millions of times.)
+    It assumes that you have in namespace an object called "bigregex" which
+    identifies words.
+
+    (I'd define it here, but it's a performance optimization to avoid compiling the large regex millions of times.)
 
     the general way to call it is to initialize, and then for each desired set of counts call "tokenizer.counts("bigrams")" (or whatever).
 
@@ -198,30 +220,26 @@ class tokenizer(object):
                 count[gram] = 1
         return count
 
+def getAlreadySeenList(folder):
+    #Load in a list of what's already been translated for that level.
+    #Returns a set.
+    files = os.listdir(folder)
+    seen = set([])
+    for file in files:
+        for line in open(folder+"/" + file):
+            seen.add(line.rstrip())
+    return seen
+
 def readTextStream():
+    seen = getAlreadySeenList("files/texts/binaries/completed")
     tokenBatch = tokenBatches()
     for line in sys.stdin:
-        tokenBatch.addRow(line)
+        line = line.rstrip("\n")
+        if line not in seen:
+            tokenBatch.addRow(line)
     print "pickling " + tokenBatch.id
+    tokenBatch.writeUnigramCounts()
     tokenBatch.pickleMe()        
 
-
-def loadTextFiles():
-    tokenBatch = tokenBatches()
-    for filename in sys.argv:
-        tokenBatch.addFile(filename)
-    
-def WordCounts():
-    tokenBatch = tokenBatches(levels=["unigrams"])
-    i = 1
-    for line in sys.stdin:
-        i += 1
-        if i % 1000 == 0:
-            print str(i)
-        tokenBatch.addRow(line)
-        tokenBatch.unigramCounts(withDelete=True)
-    tokenBatch.writeUnigramCounts()
-
 if __name__=="__main__":
-    #WordCounts()
     readTextStream()

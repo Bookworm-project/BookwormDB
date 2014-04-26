@@ -50,7 +50,6 @@ dbuser = systemConfigFile.get("client","user")
 dbpassword = systemConfigFile.get("client","password")
 
 # Initiate MySQL connection.
-
 class oneClickInstance(object):
     #The instance has methods corresponding to what you want to make: they should be passed in, in the order you want them
     #to be run.
@@ -94,12 +93,17 @@ class oneClickInstance(object):
         Second column is the new data that's being inserted.
         That file MUST have as its first row.
         """
-        file = sys.argv[3]
-        #If it's not unique to the key, you need to pass "False" as an argument.
         if len(sys.argv) > 4:
-            unique = eval(sys.argv[4])
+            unique = eval(sys.argv.pop())
         else:
             unique = True
+
+        if len(sys.argv)==4:
+            file = sys.argv.pop()
+        else:
+            print "you must supply exactly one argument to 'addCategoricalFromFile'"
+        #If it's not unique to the key, you need to pass "False" as an argument.
+
         
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword,readVariableFile=False)
         Bookworm.addCategoricalFromFile(file,unique=unique)

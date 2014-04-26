@@ -147,7 +147,7 @@ class dataField:
         print "\n" + q1 + "\n"
         db.query(q1)
         db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
-        """ + self.anchor + """ MEDIUMINT, 
+        """ + self.anchor + """ MEDIUMINT UNSIGNED, 
         """ + dfield.slowSQL(withIndex=True) + """
         );""")
         db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
@@ -286,7 +286,9 @@ class dataField:
         self.setIntType()
 
         returnt = "DROP TABLE IF EXISTS tmp;\n\n"
-        returnt += "CREATE TABLE tmp ENGINE=MEMORY SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
+
+        returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
+            
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
                       %(field)s VARCHAR (255), INDEX (%(field)s), %(field)s__count MEDIUMINT);\n\n""" % self.__dict__
@@ -308,11 +310,17 @@ def splitMySQLcode(string):
     MySQL code can only be executed one command at a time, and fails if it has any empty slots
     So as a convenience wrapper, I'm just splitting it and returning an array.
     """
-    output = ['%s;\n' % query for query in string.split(';') if re.search(r"\w", query)]
+    try:
+        output = ['%s;\n' % query for query in string.split(';') if re.search(r"\w", query)]
+    except AttributeError:
+        #Occurs when the field is completely empty
+        output = []
     return output
 
-class variableSet:
 
+
+
+class variableSet:
     def __init__(self, jsonDefinition, anchorField='bookid'):
         self.variables = [dataField(item) for item in jsonDefinition]
         self.anchorField = anchorField
@@ -329,6 +337,10 @@ class variableSet:
     def uniques(self):
         return [variable for variable in self.variables if variable.unique]
 
+
+
+
+    
 class textids(dict):
     """
     This class is a dictionary that maps file-locations (which can be many characters long)
@@ -495,7 +507,7 @@ class BookwormSQLDatabase:
     def load_book_list(self):
         db = self.db
         print "Making a SQL table to hold the catalog data"
-        mysqlfields = ["bookid MEDIUMINT, PRIMARY KEY(bookid)", "filename VARCHAR(255)", "nwords INT"]
+        mysqlfields = ["bookid MEDIUMINT UNSIGNED, PRIMARY KEY(bookid)", "filename VARCHAR(255)", "nwords INT"]
         for variable in [variable for variable in self.variables if variable.unique]:
             createstring = variable.slowSQL(withIndex=True)
             mysqlfields.append(createstring)
@@ -524,7 +536,7 @@ class BookwormSQLDatabase:
         #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
 
         #This here stores the number of words in between catalog updates, so that the full word counts only have to be done once since they're time consuming.
-        db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT, PRIMARY KEY (bookid), nwords INT);")
+        db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT UNSIGNED, PRIMARY KEY (bookid), nwords INT);")
         db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
         db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
         db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
@@ -583,9 +595,9 @@ class BookwormSQLDatabase:
         print "Making a SQL table to hold the bigram counts"
         db.query("""DROP TABLE IF EXISTS master_bigrams""")
         db.query("""CREATE TABLE IF NOT EXISTS master_bigrams (
-        bookid MEDIUMINT NOT NULL, 
-        word1 MEDIUMINT NOT NULL, INDEX (word1,word2,bookid,count),    
-        word2 MEDIUMINT NOT NULL,     
+        bookid MEDIUMINT UNSIGNED NOT NULL, 
+        word1 MEDIUMINT UNSIGNED NOT NULL, INDEX (word1,word2,bookid,count),    
+        word2 MEDIUMINT UNSIGNED NOT NULL,     
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
@@ -798,6 +810,10 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
                 z = cursor.execute(query)
 
     def addCategoricalFromFile(self,filename,unique=False):
+        """
+        Useful, but still a bit of a hack--should be a special method of adding a group
+        that automatically creates the json file.
+        """
         file = open(filename)
         firstTwo = file.readline().split("\t")
         name = firstTwo[1].rstrip("\n")

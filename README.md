@@ -2,7 +2,7 @@
 set of files and their metadata into an efficient and easily queryable database that can make full use of all the
 metadata and lexical data in the original source.
 
-Technically, it is a set of Python and Perl scripts that leaves behind a MySQL database.
+A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]
 
 ## Related projects
 
@@ -31,6 +31,7 @@ Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms b
 
 ## Getting Started ##
 ### Required MySQL Database ###
+
 At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
 
 For example, create a user `foobar` with password `mysecret` and full access to all databases from `localhost`:
@@ -41,7 +42,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-However, ideally there should be 2 MySQL users. The first user would have the ability to create new databases (i.e. GRANT ALL) and the second would only be able to select data from databases (i.e. GRANT SELECT).
+However, ideally there should be 2 MySQL users. The first user would have the ability to create new databases (i.e. GRANT ALL) and the second would only be able to select data from databases (i.e. GRANT SELECT). This is for security: your data is safer if the web user can't modify it at all.
 
 The first user would be the one defined above. The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 
 
@@ -65,22 +66,34 @@ password = 'mysecret'
 ```
 With these settings in place, you're ready to begin building a Bookworm.
 
-# Demo #
-Here we'll look at how to use Presidio by going through a demo where we will look at [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day. The goal is to provide everything needed to build a Bookworm using publically available data.
+Walkthrough
+===========
+
+These are some instructions on how to build a bookworm. 
+
+> Indented bits tell you how to build on specific bookworm using [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day.
+> The goal is to provide everything needed to build a Bookworm using publically available data.
+
+This should 
 
 ## Get the Data ##
-First we need to download the latest data. I've put together a script in another repo that will download everything you'll need. Clone that repo and run `get_and_unzip_data.py` to fetch and unzip the data:
 
-```
-git clone git://github.com/econpy/congress_api
-cd congress_api
-python get_and_unzip_data.py
-```
+First off, you need a collection of texts to analyze. Ideally this should be more than 1000 individual texts, with some year (or other time) description.
 
-This will take a few minutes depending on your Internet connection and the speed of your computer. The `get_and_unzip_data.py` script simply downloads and unzips all the files in parallel using [multiprocessing](http://docs.python.org/2/library/multiprocessing.html "multiprocessing"). NOTE: Once fully unzipped, the files will take up just under 3GB of disk space.
+> To download the congress data, Matt Nicklay has put together a script in another repo that will download everything you'll need. Clone that repo and run `get_and_unzip_data.py` to fetch and unzip the data:
+
+> ```
+> git clone git://github.com/econpy/congress_api
+> cd congress_api
+> python get_and_unzip_data.py
+> ```
+
+> This will take a few minutes depending on your Internet connection and the speed of your computer. The `get_and_unzip_data.py` script simply downloads and unzips all the files in parallel using [multiprocessing](http://docs.python.org/2/library/multiprocessing.html "multiprocessing"). NOTE: Once fully unzipped, the files will take up just under 3GB of disk space.
+
 
 ## Prep to Build Bookworm ##
-Now clone this repo and make a few directories where we'll put some files:
+
+If you haven't already, clone this repo and make a few directories where we'll put some files:
 
 ```
 git clone git://github.com/bmschmidt/Presidio
@@ -91,13 +104,13 @@ mkdir files && mkdir files/{metadata,texts,texts/raw}
 ### Required Files ###
 
 To build a bookworm, files are required in three places. Relative to the root directory (which will be called `Presidio` 
-if you clone this repo directly), they are all in a subdirectory called `files`.
+if you clone this repo directly), they are all in a subdirectory called `files`. When you've built them all, it will look like this:
 
 ```
 Presidio/
  -- files/
   | -- texts/
-  |  | raw  <--- contains texts files or a folder of text files
+  |  | raw  <--- contains texts files or hierarchical folders of text files
   |  | input.txt <----- (alternate method: a single file with all texts, preceded by their id.)
   | -- metadata/
   |  | -- jsoncatalog.txt
@@ -106,7 +119,7 @@ Presidio/
 ```
 
 
-#### Raw Text files:
+#### Required files 1: Raw Text files:
 
 These can be input in one of two ways.
 The first is as a directory of files:
@@ -118,50 +131,68 @@ should include the full path to the file.
 
 The second, which will be faster in most cases, is as a *single file*. In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
 
-#### Metadata about each file.
+By changing the makefile, you can also do some more complex substitutions. (See the metadata parsers for an example of a Bookworm that directly reads hierarchical, bzipped directories without decompressing first).
 
-*  `files/metadata/jsoncatalog.txt` with one JSON object per line. All JSON objects must have the same keys. There should be no new line or tab characters in this file.
+> To build the congress API, Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`. Included in the [congress_api](http://github.com/econpy/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and all the .txt files: Run it as follows:
 
-Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`.
 
-Included in the [congress_api](http://github.com/econpy/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and all the .txt files.
+> ```
+> cd ../congress_api
+> python congress_parser.py
+> ```
 
-```
-cd ../congress_api
-python congress_parser.py
-```
+#### Required files 2: Metadata about each file.
 
-#### Metadata about the metadata!
+*  `files/metadata/jsoncatalog.txt` with one JSON object per line. The keys represent shared metadata for each file: the values represent the entry for that particular document. There should be no new line or tab characters in this file.
 
-Now create a file in the `files/metadata/` folder called `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`. For this demo, copy the following JSON object into `field_descriptions.json`:
+In addition to the metadata you choose, two fields are required:
 
-```json
-[
-    {"field":"date","datatype":"time","type":"integer","unique":true,"derived":[{"resolution":"month"}]},
-    {"field":"searchstring","datatype":"searchstring","type":"text","unique":true},
-    {"field":"enacted","datatype":"categorical","type":"text","unique":false},
-    {"field":"sponsor_state","datatype":"categorical","type":"text","unique":false},
-    {"field":"cosponsors_state","datatype":"categorical","type":"text","unique":false},
-    {"field":"chamber","datatype":"categorical","type":"text","unique":false}
-    ]
-```
+1. A `searchstring` field that contains valid HTML which will be served to the user to identify the text.
+   * This can be a link, or simply a description of the field. If you have a URL where the text can be read, it's best to include it inside an <a> tag: otherwise, you can just put in any text field you want in the process of creating the jsoncatalog.txt file: something like author and title is good.
+  
+2. A `filename` field that includes a unique identifier for the document (linked to the filename or the identifier, depending on your input format).
 
-Everything should now be in place and we are ready to build the database.
+> Congress users have already created this file in the previous step.
+
+#### Required Files 3: Metadata about the metadata.
+
+Now create a file in the `files/metadata/` folder called `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`.
+
+Currently, you **do** have to include a `searchstring` definition in this, but **should not** include a filename definition.
+
+> For the Congress demo, copy the following JSON object into `files/metadata/field_descriptions.json`:
+
+> ```json
+> [
+>    {"field":"date","datatype":"time","type":"numeric","unique":true,"derived":[{"resolution":"month"}]},
+>    {"field":"searchstring","datatype":"searchstring","type":"text","unique":true},
+>    {"field":"enacted","datatype":"categorical","type":"text","unique":false},
+>    {"field":"sponsor_state","datatype":"categorical","type":"text","unique":false},
+>    {"field":"cosponsors_state","datatype":"categorical","type":"text","unique":false},
+>    {"field":"chamber","datatype":"categorical","type":"text","unique":false}
+>    ]
+> ```
+
+> Everything should now be in place and we are ready to build the database.
 
 ## Running ##
-The structure of the arguments needed by the Makefile to build the database are the following:
+
+For a first run, you just want to use `make` to create the entire database (if you want to rebuild parts of a large bookworm--the metadata, for example--that is also possible.)
+
+**You must specify the bookworm name you are creating, or the makefile will place it in `OL`.
 
 ```
-make TARGET (arguments)
+make all bookwormName=YOURBOOKWORMNAMEHERE
 ```
 
-Here, that would look like this:
 
-```
-make all bookwormName=bookwormcongress
-```
+> For the demo, that would look like this:
 
-The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
+> ```
+> make all bookwormName=bookwormcongress
+> ```
+
+> The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
@@ -173,8 +204,23 @@ For reference, the general workflow of the Makefile is the following:
 2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
 4. Create metadata catalog files in `files/metadata/`.
 6. Tokenize unigrams and bigrams and save them to binary files.
-7. Create a table with all words from the binaries.
+7. Create a table with all words from the binaries, and save the million most common for regular use.
 8. Encode unigrams and bigrams from the binaries into `files/encoded`
 9. Load data into MySQL database.
 10. Create temporary MySQL table and .json file that will be used by the web app.
 11. Create API settings.
+
+
+# Dependencies #
+
+* python 2.7 (with modules):
+ * ntlk (recommended, to be required)
+ * numpy
+ * regex (to handle complicated Unicode regular expressions for tokenization: `easy_install regex`)
+ 
+* parallel (GNU parallel, in versions available from apt-get or homebrew)
+* MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality)
+* Apache or other webserver (for front end).
+ 
+
+

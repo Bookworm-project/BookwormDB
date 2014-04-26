@@ -3,7 +3,7 @@ all: ../../../files/texts/input.text
 
 
 ../../../files/texts/input.text:
-	python XMLparser.py
+	python xmlParser.py
 
 ../../../files:
 	mkdir -p ../../../files
