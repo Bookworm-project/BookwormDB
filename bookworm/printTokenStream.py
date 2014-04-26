@@ -1,5 +1,6 @@
 import sys
 from tokenizer import *
+import warnings
 
 for row in sys.stdin:
     parts = row.split("\t",1)
@@ -7,7 +8,7 @@ for row in sys.stdin:
     try:
         tokens = tokenizer(parts[1])
     except IndexError:
-        print "Found no tab in the input for \n" + filename + "\n...skipping row"
+        warn("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
         continue
-    for token in tokens.tokenize():
-        print token
+    out= u" ".join(tokens.tokenize())
+    print out.encode("utf-8")
