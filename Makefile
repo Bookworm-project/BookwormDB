@@ -36,13 +36,11 @@ clean:
 	rm -f files/metadata/jsoncatalog_derived.txt
 	rm -f files/metadata/field_descriptions_derived.json
 
-
-
 # The wordlist is an encoding scheme for words: it tokenizes in parallel, and should
 # intelligently update an exist vocabulary where necessary.
 
 files/texts/wordlist/wordlist.txt:
-	$(textStream) | parallel --block 20M --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+	$(textStream) | parallel --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
 
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
@@ -66,7 +64,7 @@ files/metadata/jsoncatalog_derived.txt:
 
 files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt
 	#builds up the encoded lists that don't exist yet.
-	$(textStream) | parallel --block 20M --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block 100M --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
