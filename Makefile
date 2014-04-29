@@ -10,7 +10,10 @@ webDirectory="/var/www/"
 textStream=scripts/justPrintInputTxt.sh
 webSite = $(addsuffix bookwormName,webDirectory)
 
-all: files/targets files/targets/database
+all: bookworm.cnf files/targets files/targets/database
+
+bookworm.cnf:
+	python makeConfiguration.py
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: files/texts
