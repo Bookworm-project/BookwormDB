@@ -21,3 +21,6 @@ oldfiles
 files
 
 startup.sh
+extensions
+bookworm.cnf
+.#
