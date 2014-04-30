@@ -47,10 +47,10 @@ class oneClickInstance(object):
         print "Parsing jsoncatalog.txt"
         ParseJSONCatalog()
         Bookworm = BookwormSQLDatabase()
+        Bookworm.variableSet.writeMetadata()
 
         # This creates helper files in the /metadata/ folder.
         print "Writing metadata to new catalog file..."
-        Bookworm.variableSet.writeMetadata()
 
     def database_metadata(self):
         Bookworm = BookwormSQLDatabase(dbname)
