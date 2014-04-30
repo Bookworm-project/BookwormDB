@@ -93,6 +93,17 @@ class oneClickInstance(object):
         Bookworm = BookwormSQLDatabase()
         Bookworm.importNewFile(file,anchorField="bookid",jsonDefinition=fieldDescriptions)
 
+    def supplementMetadataFromTSV(self):
+        from bookworm.convertTSVtoJSONarray import convertToJSON
+        Bookworm = BookwormSQLDatabase()
+        filename = sys.argv.pop()
+        #The anchor MUST be the first column
+        anchor = open(filename).readline().split("\t")[0]
+        print ("anchoring to " + anchor)
+        convertToJSON(filename)
+        #Should this be specifiable here?
+        fieldDescriptions = None
+        Bookworm.importNewFile("tmp.txt",anchorField=anchor,jsonDefinition=fieldDescriptions)
 
     def database_wordcounts(self):
         Bookworm = BookwormSQLDatabase()

@@ -501,16 +501,19 @@ class variableSet:
     
             #We always lead with the bookid and the filename.
             #Unicode characters in filenames may cause problems?
-            filename = to_unicode(entry['filename'])
+            if self.anchorField=="bookid":
+                self.anchorField="filename"
+
+            filename = to_unicode(entry[self.anchorField])
             try:
-                bookid = bookids[entry['filename']]
+                bookid = bookids[entry[self.anchorField]]
             except KeyError:
                 if self.tableName=="catalog":
-                    bookid = bookids.bump(entry['filename'])
+                    bookid = bookids.bump(entry[self.anchorField])
                 else:
                     #If the key isn't in the name table, we have no use for this entry.
                     continue
-            mainfields = [str(bookid),to_unicode(entry['filename'])]
+            mainfields = [str(bookid),to_unicode(entry[self.anchorField])]
             #First, pull the unique variables and write them to the 'catalog' table
             for var in [variable for variable in variables if variable.unique]:
                 myfield = entry.get(var.field, "")
