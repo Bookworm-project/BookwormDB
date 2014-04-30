@@ -17,7 +17,6 @@ def exportToDisk(wordcounts,diskFile,keepThreshold=5):
     return commonwords
     print "export done"
     
-
 def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     database = open('files/texts/wordlist/raw.txt','w')
     start_time = timeit.default_timer()
@@ -53,17 +52,18 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     database.close()
     sortWordlist(maxDictionaryLength=maxDictionaryLength)
 
-def sortWordlist(maxDictionaryLength):
+def sortWordlist(maxDictionaryLength=1000000):
 
     print("Sorting full word counts\n")
     #This LC_COLLATE here seems to be extremely necessary, because otherwise alphabetical order isn't preserved across different orderings.
-    subprocess.call(["export LC_COLLATE='C'; sort -k1 files/texts/wordlist/raw.txt > files/texts/wordlist/sorted.txt"], shell=True)
+    subprocess.call(["export LC_COLLATE='C';export LC_ALL='C'; sort -k1 files/texts/wordlist/raw.txt > files/texts/wordlist/sorted.txt"], shell=True)
     
     print("Collapsing word counts\n")
+    
     #This is in perl, using bignum, because it's possible to get integer overflows on a really huge text set (like Google ngrams).
 
     subprocess.call(["""
-         perl -ne '
+           perl -ne '
            BEGIN {use bignum; $last=""; $count=0} 
            if ($_ =~ m/(.*) (\d+)/) {
             if ($last ne $1 & $last ne "") {
@@ -73,7 +73,7 @@ def sortWordlist(maxDictionaryLength):
            $count += $2
            } END {print "$last $count\n"}' files/texts/wordlist/sorted.txt > files/texts/wordlist/counts.txt"""], shell=True) 
 
-    subprocess.call(["sort -nrk2 files/texts/wordlist/counts.txt > files/texts/wordlist/complete.txt"], shell=True)
+    subprocess.call(["export LC_ALL='C';export LC_COLLATE='C';sort -nrk2 files/texts/wordlist/counts.txt > files/texts/wordlist/complete.txt"], shell=True)
     # logfile.write("Including the old words first\n")
     oldids = set()
     oldids.add(0)
@@ -134,3 +134,4 @@ def sortWordlist(maxDictionaryLength):
 
 if __name__=="__main__":
     WordsTableCreate()
+
