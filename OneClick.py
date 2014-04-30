@@ -14,14 +14,8 @@ from bookworm.CreateDatabase import *
 
 # Pull a dbname from command line input.
 try:
-    dbname = sys.argv[1]
-
-except:
-    print "You must give the name of the Bookworm you wish to create"
-    raise
-
-try: 
-    methods = sys.argv[2:]
+    methods = sys.argv[1:]
+    
 except IndexError:
     print """Give as a command argument one of the following:
     metadata
@@ -33,21 +27,11 @@ except IndexError:
 
 #Use the client listed in the my.cnf file for access
 
-systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
-
-try:
-    systemConfigFile.read(["/etc/mysql/my.cnf"]);
-    #The error isn't thrown until you try to read the damned thing,
-    #So we just try that here.
-    dbuser = systemConfigFile.get("client","user")
-
-except:
-    #It's here on my Mac. But doing this could get ugly as we try for more
-    #over time.
-    systemConfigFile.read(["/etc/my.cnf"])
-
-dbuser = systemConfigFile.get("client","user")
-dbpassword = systemConfigFile.get("client","password")
+config = ConfigParser.ConfigParser(allow_no_value=True)
+config.read(["bookworm.cnf"])
+dbuser = config.get("client","user")
+dbpassword = config.get("client","password")
+dbname = config.get("client","database")
 
 # Initiate MySQL connection.
 class oneClickInstance(object):
@@ -62,20 +46,22 @@ class oneClickInstance(object):
         ParseFieldDescs()
         print "Parsing jsoncatalog.txt"
         ParseJSONCatalog()
-        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+        Bookworm = BookwormSQLDatabase()
 
         # This creates helper files in the /metadata/ folder.
         print "Writing metadata to new catalog file..."
-        write_metadata(Bookworm.variables)
+        Bookworm.variableSet.writeMetadata()
 
     def database_metadata(self):
-        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+        Bookworm = BookwormSQLDatabase(dbname)
         Bookworm.load_book_list()
 
-        #This creates a table in the database that makes the results of field_descriptions accessible through the API.
+        # This creates a table in the database that makes the results of
+        # field_descriptions accessible through the API, and updates the 
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
-        # This needs to be run if the database resets. It builds a temporary MySQL table and the GUI will not work if this table is not built.
+        # This needs to be run if the database resets. It builds a
+        # temporary MySQL table and the GUI will not work if this table is not built.
         Bookworm.create_memory_table_script()
 
         print "adding cron job to automatically reload memory tables on launch"
@@ -93,12 +79,12 @@ class oneClickInstance(object):
         Second column is the new data that's being inserted.
         That file MUST have as its first row.
         """
-        if len(sys.argv) > 4:
+        if len(sys.argv) > 3:
             unique = eval(sys.argv.pop())
         else:
             unique = True
 
-        if len(sys.argv)==4:
+        if len(sys.argv)==3:
             file = sys.argv.pop()
         else:
             print "you must supply exactly one argument to 'addCategoricalFromFile'"
@@ -110,7 +96,7 @@ class oneClickInstance(object):
 
 
     def database_wordcounts(self):
-        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword)
+        Bookworm = BookwormSQLDatabase()
         Bookworm.load_word_list()
         Bookworm.create_unigram_book_counts()
         Bookworm.create_bigram_book_counts()

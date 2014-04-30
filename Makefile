@@ -1,13 +1,14 @@
-#invoke with any of these variables, but particularly by specifying bookwormName: eg, `make bookwormName=OL`
+#invoke with any of these variable: eg, `make`
 
-bookwormName="OL"
+textStream=scripts/justPrintInputTxt.sh
+
 webDirectory="/var/www/"
-
+bookwormName=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 
 
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
-textStream=scripts/justPrintInputTxt.sh
+
 webSite = $(addsuffix bookwormName,webDirectory)
 
 all: bookworm.cnf files/targets files/targets/database
@@ -40,7 +41,9 @@ clean:
 	rm -f files/metadata/field_descriptions_derived.json
 
 # The wordlist is an encoding scheme for words: it tokenizes in parallel, and should
-# intelligently update an exist vocabulary where necessary.
+# intelligently update an exist vocabulary where necessary. It takes about half the time
+# just to build this: any way to speed it up is a huge deal.
+# The easiest thing to do, of course, is simply use an Ngrams or other wordlist.
 
 files/texts/wordlist/wordlist.txt:
 	$(textStream) | parallel --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
@@ -50,7 +53,7 @@ files/texts/wordlist/wordlist.txt:
 
 files/metadata/jsoncatalog_derived.txt:
 	#Create metadata files.
-	python OneClick.py $(bookwormName) metadata
+	python OneClick.py metadata
 
 # This is the penultimate step: creating a bunch of tsv files 
 # (one for each binary blob) with 3-byte integers for the text
@@ -78,21 +81,16 @@ files/targets/database: files/targets/database_wordcounts files/targets/database
 	touch $@
 
 files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts
-	python OneClick.py $(bookwormName) database_metadata
+	python OneClick.py database_metadata
 	touch $@
 
 files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wordlist.txt
-	python OneClick.py $(bookwormName) database_wordcounts
+	python OneClick.py database_wordcounts
 	touch $@
 
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
 # I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
 
-files/$(bookwormNames).json: files/targets/database	
-
 $(webDirectory)/$(bookwormName): files/$(bookwormName).json
 	git clone https://github.com/econpy/BookwormGUI $@
 	cp files/*.json $@/static/options.json
-
-
-
