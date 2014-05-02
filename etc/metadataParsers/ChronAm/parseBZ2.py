@@ -2,17 +2,6 @@ import tarfile
 import os
 import re
 
-try:
-	os.makedirs("../../../files/texts/")
-except OSError:
-	pass
-
-output=open("../../../files/texts/input.txt","w")
-
-input="downloads/batch_az_manzanita_ver01.tar.bz2"
-
-
-
 class tarball(object):
 	def __init__(self,filename):
 		self.input = tarfile.open(filename)
@@ -39,3 +28,5 @@ for file in extractor:
 	print file
 
 
+
+    
