@@ -64,6 +64,6 @@ for metadata in allMyKeys:
 
 myOutput = [output for output in myOutput if output["field"] != "filename"]
 
-#output = open("files/metadata/field_descriptions.json","w")
+output = open("files/metadata/field_descriptions.json","w")
 
-#output.write(json.dumps(myOutput))
+output.write(json.dumps(myOutput))
