@@ -86,7 +86,6 @@ class BookwormSQLDatabase:
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
     def importNewFile(self,originFile,anchorField,jsonDefinition):
-        #self.setVariables("extensions/geotagger/metadata.txt",anchorField="bookid",jsonDefinition=None);
         self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition);
         self.load_book_list()
         self.variableSet.updateMasterVariableTable()

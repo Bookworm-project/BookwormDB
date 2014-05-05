@@ -47,10 +47,10 @@ class oneClickInstance(object):
         print "Parsing jsoncatalog.txt"
         ParseJSONCatalog()
         Bookworm = BookwormSQLDatabase()
+        Bookworm.variableSet.writeMetadata()
 
         # This creates helper files in the /metadata/ folder.
         print "Writing metadata to new catalog file..."
-        Bookworm.variableSet.writeMetadata()
 
     def database_metadata(self):
         Bookworm = BookwormSQLDatabase(dbname)
@@ -71,8 +71,8 @@ class oneClickInstance(object):
 
         Bookworm.jsonify_data() # Create the dbname.json file in the root directory.
         Bookworm.create_API_settings()
-        
-    def addCategoricalFromFile(self):
+
+    def supplementMetadataFromTSV(self):
         """
         A lightweight way to add metadata linked to elements.
         Reads a categorical variable from a .tsv file.
@@ -80,28 +80,24 @@ class oneClickInstance(object):
         Second column is the new data that's being inserted.
         That file MUST have as its first row.
         """
-        if len(sys.argv) > 3:
-            #If there are multiple entries for each element, you can specify 'unique'
-            # by typing "False" as the last entry.
-            unique = eval(sys.argv.pop())
-        else:
-            unique = True
 
-        if len(sys.argv)==3:
-            file = sys.argv.pop()
-        else:
-            print "you must supply exactly one argument to 'addCategoricalFromFile'"
-        #If it's not unique to the key, you need to pass "False" as an argument.
-
-        
-        Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword,readVariableFile=False)
-        Bookworm.addCategoricalFromFile(file,unique=unique)
+        from bookworm.convertTSVtoJSONarray import convertToJSON
+        Bookworm = BookwormSQLDatabase()
+        filename = sys.argv.pop()
+        #The anchor MUST be the first column
+        anchor = open(filename).readline().split("\t")[0]
+        print ("anchoring to " + anchor)
+        #this writes it to a new table called "tmp.txt"
+        convertToJSON(filename)
+        #Should this be specifiable here?
+        fieldDescriptions = None
+        Bookworm.importNewFile("tmp.txt",anchorField=anchor,jsonDefinition=fieldDescriptions)
 
     def addCategoricalFromJSON(self):
         """
         This is a more powerful method to import a json dictionary of the same form
         as jsoncatalog.txt. (More powerful because it lets you use a combination of
-        files, )
+        files, arrays instead of single elements, and a specification for each element.)
         """
 
         if len(sys.argv) > 3:
@@ -122,7 +118,8 @@ class oneClickInstance(object):
             print "you must supply exactly one argument to 'addCategoricalFromFile'"
 
         Bookworm=BookwormSQLDatabase()
-        Bookworm.addCategoricalFromFile(file,unique=unique)
+        Bookworm.importNewFile(file,anchorField=anchor,jsonDefinition=field_descriptions)
+
 
     def database_wordcounts(self):
         """
