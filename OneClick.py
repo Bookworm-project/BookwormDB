@@ -12,18 +12,18 @@ from subprocess import call
 from bookworm.MetaParser import *
 from bookworm.CreateDatabase import *
 
-# Pull a dbname from command line input.
+# Pull a method from command line input.
 try:
-    methods = sys.argv[1:]
+    methods = sys.argv[1]
     
 except IndexError:
     print """Give as a command argument one of the following:
     metadata
     wordcounts
     database
-    Doing all of them.
     """
-    methods = ["metadata","wordcounts","database"]
+    methods = []
+    #methods = ["metadata","wordcounts","database"]
 
 #Use the client listed in the my.cnf file for access
 
@@ -74,12 +74,15 @@ class oneClickInstance(object):
         
     def addCategoricalFromFile(self):
         """
+        A lightweight way to add metadata linked to elements.
         Reads a categorical variable from a .tsv file.
         First column is an existing anchor:
         Second column is the new data that's being inserted.
         That file MUST have as its first row.
         """
         if len(sys.argv) > 3:
+            #If there are multiple entries for each element, you can specify 'unique'
+            # by typing "False" as the last entry.
             unique = eval(sys.argv.pop())
         else:
             unique = True
@@ -94,8 +97,19 @@ class oneClickInstance(object):
         Bookworm = BookwormSQLDatabase(dbname,dbuser,dbpassword,readVariableFile=False)
         Bookworm.addCategoricalFromFile(file,unique=unique)
 
+    def addCategoricalFromJSON(self):
+        """
+        This is a more powerful method to import a json dictionary of the same form
+        as jsoncatalog.txt. (More powerful because it lets you use a combination of
+        files, )
+        """
+        Bookworm=BookwormSQLDatabase()
 
     def database_wordcounts(self):
+        """
+        Builds the wordcount components of the database. This will die
+        if you can't connect to the database server.
+        """
         Bookworm = BookwormSQLDatabase()
         Bookworm.load_word_list()
         Bookworm.create_unigram_book_counts()
