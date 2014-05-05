@@ -103,7 +103,26 @@ class oneClickInstance(object):
         as jsoncatalog.txt. (More powerful because it lets you use a combination of
         files, )
         """
+
+        if len(sys.argv) > 3:
+            #If there are multiple entries for each element, you can specify 'unique'
+            # by typing "False" as the last entry.
+            field_descriptions = sys.argv.pop()
+        else:
+            field_descriptions = None
+            print "guessing at field descriptions for the import"
+        """
+        The anchor should be intuited, not named.
+        """
+        anchor = sys.argv.pop()
+        
+        if len(sys.argv)==3:
+            file = sys.argv.pop()
+        else:
+            print "you must supply exactly one argument to 'addCategoricalFromFile'"
+
         Bookworm=BookwormSQLDatabase()
+        Bookworm.addCategoricalFromFile(file,unique=unique)
 
     def database_wordcounts(self):
         """
