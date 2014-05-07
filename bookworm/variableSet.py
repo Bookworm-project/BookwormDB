@@ -6,6 +6,7 @@ import json
 import os
 import decimal
 import re
+from MySQLdb import escape_string
 
 def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
@@ -109,13 +110,18 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
 class dataField:
     """
     This define a class that supports a data field from a json definition.
-    We'll use this to spit out appropriate sql code and JSON objects where needed.
+    We'll use this to spit out appropriate sql code and JSON where needed.
     The 'definition' here means the user-generated array (submitted in json but
     parsed out before this) described in the Bookworm interface.
-    This knows whether it's unique, whether it should treat itself as a date, and so forth.
+    This knows whether it's unique, whether it should treat itself as a date, etc.
+
+    The complicated bits are about allowing fast lookups for arbitrary-length
+    character lookups: for a variable like "country," it will also create
+    the new field "country__id" and the table "countryLookup" to allow
+    faster joins on the main database
     """
 
-    def __init__(self, definition, dbToPutIn, anchorType="MEDIUMINT", anchor="bookid",table="catalog",fasttab="fastcat"):
+    def __init__(self, definition, dbToPutIn, anchorType="MEDIUMINT UNSIGNED", anchor="bookid",table="catalog",fasttab="fastcat"):
         #anchorType should be derived from somewhere.
         self.anchorType = anchorType
         self.anchor = anchor
@@ -128,16 +134,20 @@ class dataField:
         self.alias = self.field
         self.status = "hidden"
 
-        #The table it's stored in will be either 'catalog', or a new table named after the variable. For now, at least. (later the anchor should get used).
+        #The table it's stored in will be either 'catalog', or a new
+        #table named after the variable. For now, at least. (later the anchor should get used).
 
         self.fastField = self.field
-
+        self.finalTable = fasttab
         if self.datatype == "categorical":
             self.type = "character"
-            #This will catch a common sort of mistake (calling it text), but also coerce any categorical data to have fewer than 255 characters.
+            #This will catch a common sort of mistake (calling it text),
+            #but also coerce any categorical data to have fewer than 255 characters.
             #This is worth it b/c a more than 255-character field will take *forever* to build.
             self.fastField = "%s__id" % self.field
             self.alias = self.fastField
+            #If it's a categorical variable, it will be found in a lookup table.
+            self.finalTable = self.field + "Lookup"
             self.status = "public"
 
         if self.datatype == "time":
@@ -153,7 +163,10 @@ class dataField:
             self.outputloc = "files/metadata/%s.txt" % self.field
 
     def slowSQL(self, withIndex=False):
-        #This returns something like """author VARCHAR(255)""", a small definition string with an index, potentially.
+        """
+        This returns something like "author VARCHAR(255)",
+        a small definition string with an index, potentially.
+        """
         mysqltypes = {
                       "character": "VARCHAR(255)",
                       "integer": "INT",
@@ -179,9 +192,12 @@ class dataField:
         return createstring
 
     def fastSQL(self):
-        #This creates code to go in a memory table: it assumes that the disk tables are already there, and that a connection cursor is active.
-        #Memory tables in MySQL don't suppor the VARCHAR (they just take up all 255 characters or whatever); thus, it has to be stored this other way
-
+        """
+        This creates code to go in a memory table: it assumes that the disk
+        tables are already there, and that a connection cursor is active.
+        Memory tables in MySQL don't suppor the VARCHAR (they just take up all
+        255 characters or whatever); thus, it has to be stored this other way.
+        """
         if self.datatype != 'etc':
             if self.type == "character":
                 self.setIntType()
@@ -196,12 +212,14 @@ class dataField:
             return None
 
     def buildDiskTable(self,fileLocation="default"):
+        """
+        Builds a disk table for a nonunique variable.
+        """
         db = self.dbToPutIn
         dfield = self;
 
         if fileLocation == "default":
             fileLocation = "files/metadata/" + dfield.field + ".txt"
-
 
         print "Making a SQL table to hold the data for " + dfield.field
 
@@ -209,17 +227,23 @@ class dataField:
         print "\n" + q1 + "\n"
         db.query(q1)
         db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
-        """ + self.anchor + """ MEDIUMINT UNSIGNED,
+        """ + self.anchor + " " +  self.anchorType + """,
         """ + dfield.slowSQL(withIndex=True) + """
         );""")
         db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
-        loadcode = """LOAD DATA LOCAL INFILE '""" + fileLocation +  """' INTO TABLE """ + dfield.field + """Disk
+        loadcode = """LOAD DATA LOCAL INFILE '""" + fileLocation +  """'
+               INTO TABLE """ + dfield.field + """Disk
                FIELDS ESCAPED BY '';"""
         db.query(loadcode)
-        cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
-        print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
+        #cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
+        #print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
+    def buildIDTable(self):
+        IDcode = self.buildIdTable()
+        for query in splitMySQLcode(IDcode):
+            self.dbToPutIn.query(query)
+        
     def buildLookupTable(self):
         dfield = self;
         lookupCode = dfield.buildIdTable();
@@ -269,8 +293,10 @@ class dataField:
 
     def jsonDict(self):
         """
-        #This builds a JSON dictionary that can be loaded into outside bookworm in the "options.json" file.
-        It's probably a bad design decision; newer version
+        DEPRECATED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        #This builds a JSON dictionary that can be loaded into outside
+        bookworm in the "options.json" file.
+        It's a bad design decision; newer version
         just load this directly from the database.
         """
         mydict = dict()
@@ -367,10 +393,22 @@ class dataField:
         code = """INSERT IGNORE INTO masterVariableTable
         (dbname,     name,      type,       tablename,     anchor,      alias,     status,description)
            VALUES
-        ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','') """ % self.__dict__
-
-        return code
-
+        ('%(field)s','%(field)s','%(type)s','%(finalTable)s','%(anchor)s','%(alias)s','%(status)s','') """ % self.__dict__
+        self.dbToPutIn.query(code)
+        if self.datatype=="categorical":
+            #Variable Info
+            code = """
+            INSERT IGNORE INTO masterVariableTable
+                    (dbname,     name,      type,       tablename,
+                      anchor,      alias,     status,description)
+           VALUES
+                    ('%(field)s__id','%(field)s','lookup','%(fasttab)s',
+                    '%(anchor)s','%(alias)s','hidden','') """ % self.__dict__
+            self.dbToPutIn.query(code)
+            #Separate Table Info
+            code = self.fastLookupTableIfNecessary()
+            #print code
+            self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
 
 class variableSet:
     def __init__(self,
@@ -422,6 +460,7 @@ class variableSet:
                 if type(entry[key])==list:
                     unique=False
                 else:
+                    #Treat it for counting sake as a single element list.
                     entry[key] = [entry[key]]
                 for value in entry[key]:
                     try:
@@ -449,7 +488,7 @@ class variableSet:
 
     def notUniques(self):
         return [variable for variable in self.variables if not variable.unique]
-    
+
     def anchorLookupDictionary(self):
         db = self.db
         anchor = self.anchorField
@@ -593,11 +632,7 @@ class variableSet:
             db.query("""DROP TABLE IF EXISTS %s """ % self.tableName)
             createcode = """CREATE TABLE IF NOT EXISTS %s (
                 """ %self.tableName + ",\n".join(mysqlfields) + ") ENGINE=MYISAM;"
-            try:
-                db.query(createcode)
-            except:
-                print(createcode)
-                raise
+            db.query(createcode)
             #Never have keys before a LOAD DATA INFILE
             db.query("ALTER TABLE %s DISABLE KEYS" % self.tableName)
             print "loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName
@@ -609,7 +644,7 @@ class variableSet:
             }
             if self.tableName=="catalog":
                 loadEntries["anchorFields"] = "bookid,filename"
-                
+
             loadcode = """LOAD DATA LOCAL INFILE '%(catLoc)s'
                        INTO TABLE %(tabName)s FIELDS ESCAPED BY ''
                        (%(anchorFields)s,%(otherFields)s)""" % loadEntries
@@ -623,13 +658,12 @@ class variableSet:
             if self.tableName=="catalog":
                 self.createNwordsFile()
 
-        for variable in self.variables:
-            if not variable.unique:
-                variable.buildDiskTable()
+        for variable in self.notUniques():
+            variable.buildDiskTable()
 
         for variable in self.variables:
             if variable.datatype=="categorical":
-                variable.buildLookupTable()
+                variable.buildIDTable()
 
     def uniqueVariableFastSetup(self):
         fileCommand = """DROP TABLE IF EXISTS tmp;
@@ -637,61 +671,35 @@ class variableSet:
         (""" + self.fastAnchor + """ MEDIUMINT, PRIMARY KEY (""" + self.fastAnchor + """),
         """ +",\n".join([variable.fastSQL() for variable in self.variables if (variable.unique and variable.fastSQL() is not None)]) + """
         ) ENGINE=MEMORY;\n"""
-        #Also update the wordcounts for each text.
+
         fileCommand += "INSERT INTO tmp SELECT " + self.fastAnchor + ", " + ",".join([variable.fastField for variable in self.variables if variable.unique and variable.fastSQL() is not None]) + " FROM %s " % self.tableName + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";\n"
         fileCommand += "DROP TABLE IF EXISTS %s;\n" % self.fastName
-        fileCommand += "RENAME TABLE tmp TO %s;\n" % self.fastName
+        fileCommand += "RENAME TABLE tmp TO %s;\n" % self.fastName        
         return fileCommand
 
+    
     def updateMasterVariableTable(self):
         for variable in self.variables:
             """
             All the categorical variables get a lookup table;
             we store the create code in the databse;
             """
-            self.db.query(variable.updateVariableDescriptionTable());
+            variable.updateVariableDescriptionTable();
 
-        inCatalog = [variable for variable in self.variables if variable.unique]
+        inCatalog = self.uniques()
         if len(inCatalog) > 0 and self.tableName!="catalog":
-            #catalog has separate rules handled in CreateDatabase.py
+            #catalog has separate rules handled in CreateDatabase.py; so this builds
+            #the big rectangular table otherwise.
             fileCommand = self.uniqueVariableFastSetup()
-            print fileCommand
-            self.db.query("UPDATE masterVariableTable SET memoryCode='%s' WHERE dbname='%s';" % (fileCommand,inCatalog[0].field))
-
-    def updateMemoryTables(self,run=True,write=True):
-        ###This is the part that has to run on every startup. Now we make a SQL code that can just run on its own, stored in the root directory.
-
-        commands = ["USE " + self.dbname + ";"]
-        commands.append("DROP TABLE IF EXISTS tmp;");
-
-        """
-        Then we pull the code from the database.
-        The database, if the Bookworm has already been created,
-        may have some entries not included in the variable table here.
-        """
-        #so we may be losing a few of those here.
-
-        for variable in self.variables:
-            commands.append(variable.fastSQLTable("MEMORY"))
-
-        if write:
-            SQLcreateCode = open('files/createTables.SQL', 'w')
-            for line in commands:
-            #Write them out so they can be put somewhere to run automatically on startup:
-                try:
-                    SQLcreateCode.write('%s\n' % line)
-                except:
-                    print line
-                    raise
-        if run:
-            for line in commands:
-                for query in splitMySQLcode(line):
-                    self.db.query(query)
-        return commands
-
+            parentTab = self.db.query("SELECT ").fetchall()[0][0]
+            self.db.query("INSERT IGNORE INTO TABLE masterTableTable VALUES ('%s','%s','%s')") % (self.fastName,parentTab,fileCommand)
 
 class selfDictionary():
-    """Stupid little hack"""
+    """
+    Stupid little hack.
+    Looks like a dictionary, but just returns itself.
+    Used in cases where we don't actually need the dictionary.
+    """
     def __init__(self):
         pass
     def __getitem__(self,string):

@@ -151,7 +151,7 @@ class BookwormSQLDatabase:
         db = self.db
         db.query("""DROP TABLE IF EXISTS master_bookcounts""")
         print "Making a SQL table to hold the unigram counts"
-        db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
+        db.query("""CREATE TABLE master_bookcounts (
         bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
         wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
         count MEDIUMINT UNSIGNED NOT NULL);""")
@@ -169,7 +169,7 @@ class BookwormSQLDatabase:
         db = self.db
         print "Making a SQL table to hold the bigram counts"
         db.query("""DROP TABLE IF EXISTS master_bigrams""")
-        db.query("""CREATE TABLE IF NOT EXISTS master_bigrams (
+        db.query("""CREATE TABLE master_bigrams (
         bookid MEDIUMINT UNSIGNED NOT NULL,
         word1 MEDIUMINT UNSIGNED NOT NULL, INDEX (word1,word2,bookid,count),
         word2 MEDIUMINT UNSIGNED NOT NULL,
@@ -184,53 +184,6 @@ class BookwormSQLDatabase:
         print "Creating bigram indexes"
         db.query("ALTER TABLE master_bigrams ENABLE KEYS")
 
-    def deriveImplicitVariables(self):
-        """
-        After create time, it might make sense to add in some new fields by hand to the database. This slurps those up in the defined table scheme.
-        The code was taken from that doing the same thing in API implementation: they could be merged together somehow.
-        This will never be done on a new creation, because all the relevant data should be created by "loadVariableDescriptionsIntoDatabase"
-        The sort order on the query is doing a *lot* of work here.
-        """
-        db = self.db
-        m = db.query("""SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN
-INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' AND TABLE_NAME != 'masterVariableTable' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY="PRI" DESC,COLUMN_KEY="MUL" DESC;
-""" %self.db.__dict__)
-
-        columnNames = m.fetchall()
-        previous = None
-        allEntries = {}
-        anchor = "bookid" #while reading through, dynamically remember what the local header is
-        knownAliases = {}
-
-        #Go through the columns: for each variable, if it's not the primary key, post to a table about what is.
-        for databaseColumn in columnNames:
-            thisEntry = {}
-            if databaseColumn[1]=='wordsheap':
-                print databaseColumn
-                print previous
-            if previous != databaseColumn[1]:
-                if databaseColumn[3]=='PRI':
-                    parent = databaseColumn[2] #If the first element is a primary key, it becomes the parent for the table
-                else:
-                    parent = 'bookid'
-            previous = databaseColumn[1]
-            thisEntry['anchor'] = parent
-            thisEntry['name']   = databaseColumn[2]
-            if databaseColumn[3] != 'PRI': #if it's a primary key, this isn't the right place to find it: we want the table it's a minor player in.
-                thisEntry['tablename'] = databaseColumn[1]
-                allEntries[thisEntry['name']] = thisEntry
-            if re.search('__id\*?$',databaseColumn[2]):
-                knownAliases[re.sub('__id','',databaseColumn[2])]=databaseColumn[2]
-
-        for field in allEntries.iterkeys():
-            data = allEntries[field]
-            #The alias is either set in the previous code block, or is just the name.
-            data['alias'] = knownAliases.setdefault(data['name'],data['name'])
-            query = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description)
-                        VALUES
-                        ('%(name)s','%(name)s',NULL,'%(tablename)s','%(anchor)s','%(alias)s','private','')""" %data
-            db.query(query)
-
     def loadVariableDescriptionsIntoDatabase(self):
         """
         This adds a description of files to the master variable table:
@@ -238,6 +191,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         where it will be executed on startup for all eternity.
         """
         db = self.db
+        db.query("DROP TABLE IF EXISTS masterVariableTable")
         m = db.query("""
             CREATE TABLE IF NOT EXISTS masterVariableTable
               (dbname VARCHAR(255), PRIMARY KEY (dbname),
@@ -258,12 +212,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
               """)
         self.addFilesToMasterVariableTable()
         self.addWordsToMasterVariableTable()
-        for variable in self.variableSet.variables:
-            db.query(variable.updateVariableDescriptionTable())
-
-    def create_memory_table_script(self,run=False,write=True):
-        self.variableSet.updateMemoryTables()
-        self.reloadMemoryTables()
+        self.variableSet.updateMasterVariableTable()
 
     def reloadMemoryTables(self):
         existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
@@ -356,13 +305,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         api_info = {
                     "HOST": "10.102.15.45",
                     "database": self.dbname,
-                    "fastcat": "fastcat",
-                    "fullcat": "catalog",
-                    "fastword": "wordsheap",
                     "read_default_file": "/etc/mysql/my.cnf",
-                    "fullword": "words",
-                    "separateDataTables": [variable.field for variable in self.variableSet.variables if not (variable.unique or variable.type=="etc") ],
-                    "read_url_head": "arxiv.culturomics.org"
                    }
         addCode = json.dumps(api_info)
         print addCode

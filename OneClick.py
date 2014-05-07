@@ -15,7 +15,7 @@ from bookworm.CreateDatabase import *
 # Pull a method from command line input.
 try:
     methods = [sys.argv[1]]
-    
+
 except IndexError:
     print """Give as a command argument one of the following:
     metadata
@@ -35,12 +35,13 @@ dbname = config.get("client","database")
 
 # Initiate MySQL connection.
 class oneClickInstance(object):
-    #The instance has methods corresponding to what you want to make: they should be passed in, in the order you want them
+    #The instance has methods corresponding to what you want to make:
+    #they should be passed in, in the order you want them
     #to be run.
 
     def __init__(self):
         pass
-    
+
     def metadata(self):
         print "Parsing field_descriptions.json"
         ParseFieldDescs()
@@ -57,12 +58,12 @@ class oneClickInstance(object):
         Bookworm.load_book_list()
 
         # This creates a table in the database that makes the results of
-        # field_descriptions accessible through the API, and updates the 
+        # field_descriptions accessible through the API, and updates the
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
         # This needs to be run if the database resets. It builds a
         # temporary MySQL table and the GUI will not work if this table is not built.
-        Bookworm.create_memory_table_script()
+        Bookworm.reloadMemoryTables()
 
         print "adding cron job to automatically reload memory tables on launch"
         print "(this assumes this machine is the MySQL server, which need not be the case)"
@@ -73,7 +74,7 @@ class oneClickInstance(object):
         Bookworm.create_API_settings()
 
         Bookworm.grantPrivileges()
-        
+
     def supplementMetadataFromTSV(self):
         """
         A lightweight way to add metadata linked to elements.
@@ -94,7 +95,7 @@ class oneClickInstance(object):
         #Should this be specifiable here?
         fieldDescriptions = None
         Bookworm.importNewFile("tmp.txt",anchorField=anchor,jsonDefinition=fieldDescriptions)
-        
+
 
     def supplementMetadataFromJSON(self):
         """
@@ -114,7 +115,7 @@ class oneClickInstance(object):
         The anchor should be intuited, not named.
         """
         anchor = sys.argv.pop()
-        
+
         if len(sys.argv)==3:
             filename = sys.argv.pop()
         else:
@@ -134,7 +135,7 @@ class oneClickInstance(object):
         Bookworm.create_unigram_book_counts()
         Bookworm.create_bigram_book_counts()
 
-        
+
     def database(self):
         self.database_wordcounts()
         self.database_metadata()
