@@ -60,11 +60,13 @@ class DB:
         return cursor
 
 class BookwormSQLDatabase:
-    
+
     """
     This class gives interactions methods to a MySQL database storing Bookworm data.
-    Although the primary methods are about loading data already created into the SQL database, it has a few other operations
-    that write out text files needed by the API and the web front end: I take it as logical to do those here, since that how
+    Although the primary methods are about loading data already created
+    into the SQL database, it has a few other operations
+    that write out text files needed by the API and the web front end:
+    I take it as logical to do those here, since that how
     it fits chronologically in the bookworm-creation sequence.
     """
 
@@ -75,13 +77,21 @@ class BookwormSQLDatabase:
             self.dbname = config.get("client","database")
         else:
             self.dbname = dbname
-        self.username=config.get("client","user")
-        self.password=config.get("client","password")
         self.conn = None
 
         self.db = DB(dbname=self.dbname)
         self.setVariables(originFile=variableFile)
 
+    def grantPrivileges(self):
+        #Grants select-only privileges to a non-admin mysql user for the API to
+        #query with (safer).
+        config = ConfigParser.ConfigParser(allow_no_value=True)
+        config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
+        username=config.get("client","user")
+        password=config.get("client","password")
+        self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
+        
+    
     def setVariables(self,originFile,anchorField="bookid",jsonDefinition="files/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
@@ -116,7 +126,7 @@ class BookwormSQLDatabase:
         print "Making a SQL table to hold the words"
         db.query("""DROP TABLE IF EXISTS words""")
         db.query("""CREATE TABLE IF NOT EXISTS words (
-        wordid MEDIUMINT, 
+        wordid MEDIUMINT,
         word VARCHAR(255), INDEX (word),
         count BIGINT UNSIGNED,
         casesens VARBINARY(255),
@@ -125,7 +135,7 @@ class BookwormSQLDatabase:
 
         db.query("ALTER TABLE words DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
-        db.query("""LOAD DATA LOCAL INFILE 'files/texts/wordlist/wordlist.txt' 
+        db.query("""LOAD DATA LOCAL INFILE 'files/texts/wordlist/wordlist.txt'
                    INTO TABLE words
                    CHARACTER SET binary
                    (wordid,word,count) """)
@@ -136,14 +146,14 @@ class BookwormSQLDatabase:
     def load_book_list(self):
         self.variableSet.writeMetadata()
         self.variableSet.loadMetadata()
-    
+
     def create_unigram_book_counts(self):
         db = self.db
         db.query("""DROP TABLE IF EXISTS master_bookcounts""")
         print "Making a SQL table to hold the unigram counts"
         db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
         bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
-        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),    
+        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
@@ -160,9 +170,9 @@ class BookwormSQLDatabase:
         print "Making a SQL table to hold the bigram counts"
         db.query("""DROP TABLE IF EXISTS master_bigrams""")
         db.query("""CREATE TABLE IF NOT EXISTS master_bigrams (
-        bookid MEDIUMINT UNSIGNED NOT NULL, 
-        word1 MEDIUMINT UNSIGNED NOT NULL, INDEX (word1,word2,bookid,count),    
-        word2 MEDIUMINT UNSIGNED NOT NULL,     
+        bookid MEDIUMINT UNSIGNED NOT NULL,
+        word1 MEDIUMINT UNSIGNED NOT NULL, INDEX (word1,word2,bookid,count),
+        word2 MEDIUMINT UNSIGNED NOT NULL,
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
@@ -216,7 +226,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
             data = allEntries[field]
             #The alias is either set in the previous code block, or is just the name.
             data['alias'] = knownAliases.setdefault(data['name'],data['name'])
-            query = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description) 
+            query = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description)
                         VALUES
                         ('%(name)s','%(name)s',NULL,'%(tablename)s','%(anchor)s','%(alias)s','private','')""" %data
             db.query(query)
@@ -237,8 +247,14 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
               anchor VARCHAR(255),
               alias VARCHAR(255),
               status VARCHAR(255),
-              description VARCHAR(5000),
-              memoryCode VARCHAR(5000))
+              description VARCHAR(5000)
+              ) ENGINE=MYISAM;
+              """)
+        tableTable = db.query("""
+            CREATE TABLE IF NOT EXISTS masterTableTable
+              (tablename VARCHAR(255), PRIMARY KEY (tablename),
+              dependsOn VARCHAR(255),
+              memoryCode VARCHAR(20000)) ENGINE=MYISAM;
               """)
         self.addFilesToMasterVariableTable()
         self.addWordsToMasterVariableTable()
@@ -248,17 +264,24 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
     def create_memory_table_script(self,run=False,write=True):
         self.variableSet.updateMemoryTables()
         self.reloadMemoryTables()
-        
+
     def reloadMemoryTables(self):
-        existingCreateCodes = self.db.query("SELECT memoryCode FROM masterVariableTable").fetchall();
-        commands = []
+        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
         for row in existingCreateCodes:
-            #This should check to see if the table already has enough lines,
-            #and not run the force if it does.
-            commands.append(row[0])
-        for line in commands:
-            for query in splitMySQLcode(line):
-                self.db.query(query)        
+            """
+            For each table, it checks to see if the table is currently populated; if not,
+            it runs the stored code to repopulate the table. (It checks length because
+            memory tables are emptied on a restart).
+            """
+            tablename = row[0]
+            try:
+                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename))
+                currentLength = cursor.fetchall()[0][0]
+            except:
+                currentLength = 0
+            if currentLength==0:
+                for query in splitMySQLcode(row[1]):
+                    self.db.query(query)
 
     def addFilesToMasterVariableTable(self):
         fileCommand = """DROP TABLE IF EXISTS tmp;
@@ -270,20 +293,19 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         fileCommand += "INSERT INTO tmp SELECT bookid,nwords, " + ",".join([variable.fastField for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None]) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
         fileCommand += "DROP TABLE IF EXISTS fastcat;"
         fileCommand += "RENAME TABLE tmp TO fastcat;"
-        self.db.query("""INSERT IGNORE INTO masterVariableTable VALUES
-                   ('bookid','bookid','etc','fastcat','bookid',
-                   'bookid','hidden','','""" + fileCommand + """')""")
-        
+        self.db.query("""INSERT IGNORE INTO masterTableTable VALUES
+                   ('fastcat','fastcat','""" + fileCommand + """')""")
+
     def addWordsToMasterVariableTable(self):
         wordCommand = "DROP TABLE IF EXISTS tmp;"
         wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
         wordCommand += "INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens,LOWER(word) FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;"
         wordCommand += "DROP TABLE IF EXISTS wordsheap;"
         wordCommand += "RENAME TABLE tmp TO wordsheap;"
-        query = """INSERT IGNORE INTO masterVariableTable
-                   VALUES ('unigram','unigram','etc','wordsheap','wordid',
-                   'wordid','hidden','','""" + MySQLdb.escape_string(wordCommand) + """')"""
+        query = """INSERT IGNORE INTO masterTableTable
+                   VALUES ('wordsheap','wordsheap','""" + MySQLdb.escape_string(wordCommand) + """')"""
         self.db.query(query)
+        
     def jsonify_data(self):
         variables = self.variableSet.variables
         dbname = self.dbname
@@ -354,7 +376,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         words = cursor.fetchall()
         for local in words:
             word = ''.join(local) #Could probably take the first element of the tuple as well?
-            #Apostrophes have the save stem as the word, if they're included        
+            #Apostrophes have the save stem as the word, if they're included
             word = word.replace("'s","")
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
@@ -374,7 +396,7 @@ INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(
         #Currently the anchortype has to be a MediumInt.
         #That's extremely inefficient.
         anchorType = "MEDIUMINT"
-        
+
         thisField = dataField(definition,
                               self.db,
                               anchorType,

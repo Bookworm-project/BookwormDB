@@ -14,7 +14,7 @@ from bookworm.CreateDatabase import *
 
 # Pull a method from command line input.
 try:
-    methods = sys.argv[1]
+    methods = [sys.argv[1]]
     
 except IndexError:
     print """Give as a command argument one of the following:
@@ -72,6 +72,8 @@ class oneClickInstance(object):
         Bookworm.jsonify_data() # Create the dbname.json file in the root directory.
         Bookworm.create_API_settings()
 
+        Bookworm.grantPrivileges()
+        
     def supplementMetadataFromTSV(self):
         """
         A lightweight way to add metadata linked to elements.
@@ -92,15 +94,16 @@ class oneClickInstance(object):
         #Should this be specifiable here?
         fieldDescriptions = None
         Bookworm.importNewFile("tmp.txt",anchorField=anchor,jsonDefinition=fieldDescriptions)
+        
 
-    def addCategoricalFromJSON(self):
+    def supplementMetadataFromJSON(self):
         """
         This is a more powerful method to import a json dictionary of the same form
         as jsoncatalog.txt. (More powerful because it lets you use a combination of
         files, arrays instead of single elements, and a specification for each element.)
         """
 
-        if len(sys.argv) > 3:
+        if len(sys.argv) > 4:
             #If there are multiple entries for each element, you can specify 'unique'
             # by typing "False" as the last entry.
             field_descriptions = sys.argv.pop()
@@ -113,12 +116,12 @@ class oneClickInstance(object):
         anchor = sys.argv.pop()
         
         if len(sys.argv)==3:
-            file = sys.argv.pop()
+            filename = sys.argv.pop()
         else:
             print "you must supply exactly one argument to 'addCategoricalFromFile'"
-
+            raise
         Bookworm=BookwormSQLDatabase()
-        Bookworm.importNewFile(file,anchorField=anchor,jsonDefinition=field_descriptions)
+        Bookworm.importNewFile(filename,anchorField=anchor,jsonDefinition=field_descriptions)
 
 
     def database_wordcounts(self):
@@ -131,6 +134,7 @@ class oneClickInstance(object):
         Bookworm.create_unigram_book_counts()
         Bookworm.create_bigram_book_counts()
 
+        
     def database(self):
         self.database_wordcounts()
         self.database_metadata()

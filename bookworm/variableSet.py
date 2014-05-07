@@ -32,15 +32,21 @@ class textids(dict):
     """
     This class is a dictionary that maps file-locations (which can be many characters long)
     to bookids (which are 3-byte integers).
-    It's critically important to keep the already-existing data valid; so it doesn't overwrite the
-    old stuff, instead it makes sure this python dictionary is always aligned with the text files on
-    disk. As a result, additions to it always have to be made through the 'bump' method rather than
-    ordinary assignment (since I, Ben, didn't know how to reset the default hash assignment to include
+    It's critically important to keep the already-existing data valid;
+    so it doesn't overwrite the
+    old stuff, instead it makes sure this python dictionary is always aligned with
+    the text files on
+    disk. As a result, additions to it always have to be made through the 'bump'
+    method rather than
+    ordinary assignment (since I, Ben, didn't know how to reset the default hash
+    assignment to include
     this): and it has to be closed at the end to ensure the file is up-to-date at the end.
+
+    Create a dictionary, and initialize it with all the bookids we already have.
+    And make it so that any new entries are also written to disk, so that they are kept permanently.
+
     """
 
-    #Create a dictionary, and initialize it with all the bookids we already have.
-    #And make it so that any new entries are also written to disk, so that they are kept permanently.
     def __init__(self):
         try:
             subprocess.call(['mkdir','files/texts/textids'])
@@ -55,26 +61,26 @@ class textids(dict):
                 numbers.append(int(parts[0]))
         self.new = open('files/texts/textids/new', 'a')
         self.max = max(numbers)
-    
+
     def bump(self,newFileName):
         self.max = self.max + 1
         writing = self.new
         writing.write('%s\t%s\n' % (str(self.max), newFileName.encode('utf-8')))
         self[newFileName] = self.max
         return self.max
-    
+
     def close(self):
         self.new.close()
 
-        
+
 def guessBasedOnNameAndContents(metadataname,dictionary):
     """
-    
+
     """
-    description = {"field":metadataname,"datatype":"etc","type":"text","unique":True}
+    description = {"field":metadataname,"datatype":"etc","type":"character","unique":True}
 
     example = dictionary.keys()[0]
-    
+
     if type(example)==int:
         description["type"] = "integer"
     if type(example)==list:
@@ -104,7 +110,7 @@ class dataField:
     """
     This define a class that supports a data field from a json definition.
     We'll use this to spit out appropriate sql code and JSON objects where needed.
-    The 'definition' here means the user-generated array (submitted in json but 
+    The 'definition' here means the user-generated array (submitted in json but
     parsed out before this) described in the Bookworm interface.
     This knows whether it's unique, whether it should treat itself as a date, and so forth.
     """
@@ -117,7 +123,7 @@ class dataField:
         for key in definition.iterkeys():
             vars(self)[key] = definition[key]
         self.dbToPutIn = dbToPutIn
-        
+
         #ordinarily, a column has no alias other than itself.
         self.alias = self.field
         self.status = "hidden"
@@ -154,8 +160,11 @@ class dataField:
                       "text": "VARCHAR(5000)",
                       "decimal": "DECIMAL (9,4)"
                      }
+        # Indexing both the field and against the anchor for fast memory table creation.
         indexstring = ", INDEX (%(field)s), INDEX (%(anchor)s, %(field)s " % self.__dict__
         #need to specify fixed prefix length on text strings: (http://dev.mysql.com/doc/refman/5.0/en/create-index.html)
+        # If it's a text field, we need to curtail the index at 255 characters
+        # or else indexes start timing out or eating up all the memory.
         indextypes = {
                       "character": "%s)" % indexstring,
                       "integer": "%s)" % indexstring,
@@ -171,8 +180,8 @@ class dataField:
 
     def fastSQL(self):
         #This creates code to go in a memory table: it assumes that the disk tables are already there, and that a connection cursor is active.
-        #Memory tables DON'T SUPPORT VARCHAR (not at a good rate); thus, it has to be stored this other way
-        
+        #Memory tables in MySQL don't suppor the VARCHAR (they just take up all 255 characters or whatever); thus, it has to be stored this other way
+
         if self.datatype != 'etc':
             if self.type == "character":
                 self.setIntType()
@@ -195,12 +204,12 @@ class dataField:
 
 
         print "Making a SQL table to hold the data for " + dfield.field
-        
+
         q1 = """DROP TABLE IF EXISTS """       + dfield.field + "Disk"
         print "\n" + q1 + "\n"
         db.query(q1)
         db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
-        """ + self.anchor + """ MEDIUMINT UNSIGNED, 
+        """ + self.anchor + """ MEDIUMINT UNSIGNED,
         """ + dfield.slowSQL(withIndex=True) + """
         );""")
         db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
@@ -210,7 +219,7 @@ class dataField:
         cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
         print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
-    
+
     def buildLookupTable(self):
         dfield = self;
         lookupCode = dfield.buildIdTable();
@@ -231,7 +240,7 @@ class dataField:
             self.maxlength = max([self.maxlength,1])
             return("""DROP TABLE IF EXISTS tmp;
                    CREATE TABLE tmp (%(field)s__id %(intType)s ,PRIMARY KEY (%(field)s__id),
-                         %(field)s VARCHAR (%(maxlength)s) ) ENGINE=%(engine)s 
+                         %(field)s VARCHAR (%(maxlength)s) ) ENGINE=%(engine)s
                     SELECT %(field)s__id,%(field)s FROM %(field)s__id;
                    DROP TABLE IF EXISTS %(field)sLookup;
                    RENAME TABLE tmp to %(field)sLookup;
@@ -251,17 +260,17 @@ class dataField:
                    CREATE TABLE tmp (%(anchor)s %(anchorType)s , INDEX (%(anchor)s),%(field)s__id %(intType)s ) ENGINE=%(engine)s;
                    INSERT INTO tmp SELECT %(anchor)s ,%(field)s__id FROM %(field)s__id JOIN %(field)sDisk USING (%(field)s);
                    DROP TABLE IF EXISTS %(field)sheap;
-                   RENAME TABLE tmp TO %(field)sheap;      
+                   RENAME TABLE tmp TO %(field)sheap;
                    """ % self.__dict__
         if self.datatype == 'categorical' and self.unique:
             pass
-        
+
         return returnt
 
     def jsonDict(self):
         """
         #This builds a JSON dictionary that can be loaded into outside bookworm in the "options.json" file.
-        It's probably a bad design decision; newer version 
+        It's probably a bad design decision; newer version
         just load this directly from the database.
         """
         mydict = dict()
@@ -282,7 +291,7 @@ class dataField:
             results = cursor.fetchall()[0]
             mydict['range'] = [results[0], results[1]]
             mydict['initial'] = [results[0], results[1]]
-    
+
         if self.datatype == "categorical":
             mydict['dbfield'] = self.field + "__id"
             #Find all the variables used more than 20 times from the database, and build them into something json-usable.
@@ -326,11 +335,11 @@ class dataField:
         """
         This builds an integer crosswalk ID table with a field that stores categorical
         information in the fewest number of bytes. This is important because it can take
-        significant amounts of time to group across categories if they are large: 
-        for example, with 4 million newspaper articles, on one server a GROUP BY with 
+        significant amounts of time to group across categories if they are large:
+        for example, with 4 million newspaper articles, on one server a GROUP BY with
         a 12-byte VARCHAR field takes 5.5 seconds, but a GROUP BY with a 3-byte MEDIUMINT
         field corresponding exactly to that takes 2.2 seconds on the exact same data.
-        That sort of query is included in every single bookworm 
+        That sort of query is included in every single bookworm
         search multiple times, so it's necessary to optimize. Plus, it means we can save space on memory storage
         in important ways as well.
         """
@@ -341,12 +350,12 @@ class dataField:
         returnt = "DROP TABLE IF EXISTS tmp;\n\n"
 
         returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
-            
+
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
                       %(field)s VARCHAR (255), INDEX (%(field)s), %(field)s__count MEDIUMINT);\n\n""" % self.__dict__
-        returnt += """INSERT INTO %(field)s__id (%(field)s,%(field)s__count) 
-                      SELECT %(field)s,count FROM tmp LEFT JOIN %(field)s__id USING (%(field)s) WHERE %(field)s__id.%(field)s__id IS NULL 
+        returnt += """INSERT INTO %(field)s__id (%(field)s,%(field)s__count)
+                      SELECT %(field)s,count FROM tmp LEFT JOIN %(field)s__id USING (%(field)s) WHERE %(field)s__id.%(field)s__id IS NULL
                       ORDER BY count DESC;\n\n""" % self.__dict__
         returnt += """DROP TABLE tmp;\n\n"""
 
@@ -355,7 +364,11 @@ class dataField:
 
     def updateVariableDescriptionTable(self):
         self.memoryCode = self.fastLookupTableIfNecessary()
-        code = """INSERT IGNORE INTO masterVariableTable (dbname,name,type,tablename,anchor,alias,status,description,memoryCode) VALUES ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','','%(memoryCode)s') """ % self.__dict__
+        code = """INSERT IGNORE INTO masterVariableTable
+        (dbname,     name,      type,       tablename,     anchor,      alias,     status,description)
+           VALUES
+        ('%(field)s','%(field)s','%(type)s','%(fasttab)s','%(anchor)s','%(alias)s','%(status)s','') """ % self.__dict__
+
         return code
 
 
@@ -379,19 +392,12 @@ class variableSet:
             self.jsonDefinition = json.loads(open(jsonDefinition,"r").read())
 
         self.setTableNames()
-        self.variables = [dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName) for item in self.jsonDefinition]
+        self.variables = []
+        for item in self.jsonDefinition:
+            #The anchor field has special methods hard coded in.
+            if item['field'] != self.anchorField:
+                self.variables.append(dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName))
 
-
-        """
-        Any set of variables could be 'anchored' to any datafield that ultimately
-        checks back into 'bookid' (which is the reserved term that we use for the lowest
-        level of indexing--it can be a book, a newspaper page, a journal article, whatever).
-        If anchor is something other than bookid, there will be a set of relational joins 
-        set up to bring it back to bookid in the end.
-
-        This hasn't been implemented fully yet, but would be extremely useful
-        for every dataset I've looked at.
-        """
 
     def setTableNames(self):
         """
@@ -404,7 +410,7 @@ class variableSet:
         else:
             self.tableName = self.jsonDefinition[0]['field'] + "_" + self.jsonDefinition[1]['field']
             self.fastName  = self.tableName + "heap"
-            
+
     def guessAtFieldDescriptions(self,stopAfter=30000):
         allMyKeys = dict()
         i=1
@@ -418,7 +424,7 @@ class variableSet:
                 else:
                     entry[key] = [entry[key]]
                 for value in entry[key]:
-                    try: 
+                    try:
                         allMyKeys[key][value] += 1
                     except KeyError:
                         try:
@@ -441,21 +447,31 @@ class variableSet:
     def uniques(self):
         return [variable for variable in self.variables if variable.unique]
 
-
+    def notUniques(self):
+        return [variable for variable in self.variables if not variable.unique]
+    
     def anchorLookupDictionary(self):
         db = self.db
-        self.fastAnchor = self.anchor
-        if self.anchor=="bookid" or self.anchor=="filename":
+        anchor = self.anchorField
+        self.fastAnchor = self.anchorField
+        if anchor=="bookid" or anchor=="filename":
+            self.fastAnchor = "bookid"
             bookids = textids()
+            for variable in self.variables:
+                variable.anchor=self.fastAnchor
         else:
-            query = """SELECT alias FROM masterVariableTable WHERE dbname='%s'""" % (self.anchor)
+            query = """SELECT alias FROM masterVariableTable WHERE dbname='%s'""" % (anchor)
             bookids = dict()
-            fastAnchor = db.query("SELECT alias FROM masterVariableTable WHERE dbname = '%s'" % self.anchor)
-            fastAnchor = fastAnchor[0][0]
+            cursor = db.query("SELECT alias FROM masterVariableTable WHERE dbname = '%s'" % anchor)
+            fastAnchor = cursor.fetchall()[0][0]
             self.fastAnchor=fastAnchor
-            if fastAnchor != self.anchor:
-                results = db.query("SELECT * FROM %sLookup;" % (self.anchor))
-                bookids[row[1]] = row[0]
+            if fastAnchor != anchor:
+                results = db.query("SELECT * FROM %sLookup;" % (anchor))
+                for row in results.fetchall():
+                    bookids[row[1]] = row[0]
+                self.anchor=fastAnchor
+                for variable in self.variables:
+                    variable.anchor = fastAnchor
             else:
                 """
                 If it's not otherwise defined,
@@ -463,8 +479,9 @@ class variableSet:
                 passed in.
                 """
                 bookids = selfDictionary()
+
         return bookids
-        
+
     def writeMetadata(self,limit=float("Inf")):
         #Write out all the metadata into files that MySQL is able to read in.
         """
@@ -473,17 +490,16 @@ class variableSet:
         """
         linenum = 1
         variables = self.variables
-        bookids = textids()
+        bookids = self.anchorLookupDictionary()
 
         metadatafile = open(self.originFile)
 
         self.catalogLocation = "files/metadata/" + self.tableName + ".txt"
-        
+
+
+        #Open files for writing to
         catalog = open(self.catalogLocation,'w')
-        
         for variable in [variable for variable in variables if not variable.unique]:
-            #Don't open until here, because otherwise it destroys the existing files, I belatedly realized,
-            #making stop-and-go debugging harder.
             variable.output = open(variable.outputloc, 'w')
 
         for entry in metadatafile:
@@ -496,15 +512,14 @@ class variableSet:
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n""" + entry)
                 raise
                 #continue
-            
-            
-    
+
             #We always lead with the bookid and the filename.
             #Unicode characters in filenames may cause problems?
             if self.anchorField=="bookid":
                 self.anchorField="filename"
 
             filename = to_unicode(entry[self.anchorField])
+
             try:
                 bookid = bookids[entry[self.anchorField]]
             except KeyError:
@@ -514,19 +529,18 @@ class variableSet:
                     #If the key isn't in the name table, we have no use for this entry.
                     continue
             mainfields = [str(bookid),to_unicode(entry[self.anchorField])]
+            if self.tableName != "catalog":
+                #It can get problematic to have them both, so we're just writing over the
+                #anchorField here.
+                mainfields = [str(bookid)]
             #First, pull the unique variables and write them to the 'catalog' table
             for var in [variable for variable in variables if variable.unique]:
-                myfield = entry.get(var.field, "")
-                mainfields.append(to_unicode(myfield))
-            try:
-                catalogtext = '%s\n' % '\t'.join(mainfields)
-            except TypeError:
-                xstr = lambda s: '' if s is None else s
-                catalogtext = '%s\n' % '\t'.join([xstr(field) for field in mainfields])
-                
-            except:
-                print mainfields
-                raise
+                if var.field not in [self.anchorField,self.fastAnchor]:
+                    myfield = entry.get(var.field, "")
+                    if myfield is None:
+                        myfield = ''
+                    mainfields.append(to_unicode(myfield))
+            catalogtext = '%s\n' % '\t'.join(mainfields)
             catalog.write(catalogtext.encode('utf-8'))
             for variable in [variable for variable in variables if not variable.unique]:
                  #Each of these has a different file it must write to...
@@ -544,20 +558,24 @@ class variableSet:
             linenum=linenum+1
         for variable in [variable for variable in variables if not variable.unique]:
             variable.output.close()
-        bookids.close()
-        catalog.close()        
+        try:
+            bookids.close()
+        except AttributeError:
+            #When it's a pure dictionary, not the weird textfile hybrid
+            pass
+        catalog.close()
 
     def createNwordsFile(self):
         """
         A necessary supplement to the `catalog` table.
         """
         db = self.db
-        
+
         db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT UNSIGNED, PRIMARY KEY (bookid), nwords INT);")
         db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
         db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
         db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
-        
+
     def loadMetadata(self):
         db = self.db
         print "Making a SQL table to hold the catalog data"
@@ -566,29 +584,38 @@ class variableSet:
             """A few necessary basic fields"""
             mysqlfields = ["bookid MEDIUMINT UNSIGNED, PRIMARY KEY(bookid)", "filename VARCHAR(255)", "nwords INT"]
         else:
-            mysqlfields = []
-        for variable in [variable for variable in self.variables if variable.unique]:
+            mysqlfields = ["%s MEDIUMINT UNSIGNED, PRIMARY KEY (%s)" % (self.fastAnchor,self.fastAnchor)]
+        for variable in self.uniques():
             createstring = variable.slowSQL(withIndex=True)
             mysqlfields.append(createstring)
-        if len(mysqlfields) > 0:
+        if len(mysqlfields) > 1:
             #This creates the main (slow) catalog table
-            db.query("""DROP TABLE IF EXISTS %s """%self.tableName)
+            db.query("""DROP TABLE IF EXISTS %s """ % self.tableName)
             createcode = """CREATE TABLE IF NOT EXISTS %s (
-                """ %self.tableName + ",\n".join(mysqlfields) + ");"
+                """ %self.tableName + ",\n".join(mysqlfields) + ") ENGINE=MYISAM;"
             try:
                 db.query(createcode)
             except:
-                print createcode
+                print(createcode)
                 raise
             #Never have keys before a LOAD DATA INFILE
             db.query("ALTER TABLE %s DISABLE KEYS" % self.tableName)
             print "loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName
-            loadcode = """LOAD DATA LOCAL INFILE '%s' 
-                       INTO TABLE %s FIELDS ESCAPED BY ''
-                       (bookid,filename,%s)""" % (self.catalogLocation,self.tableName,','.join([field.field for field in self.variables if field.unique]))
+            loadEntries = {
+                "catLoc" : self.catalogLocation,
+                "tabName" : self.tableName,
+                "anchorFields" : self.fastAnchor,
+                "otherFields" : ','.join([field.field for field in self.variables if field.unique])
+            }
+            if self.tableName=="catalog":
+                loadEntries["anchorFields"] = "bookid,filename"
+                
+            loadcode = """LOAD DATA LOCAL INFILE '%(catLoc)s'
+                       INTO TABLE %(tabName)s FIELDS ESCAPED BY ''
+                       (%(anchorFields)s,%(otherFields)s)""" % loadEntries
             db.query(loadcode)
             print "enabling keys on %s" %self.tableName
-            db.query("ALTER TABLE catalog ENABLE KEYS")
+            db.query("ALTER TABLE %s ENABLE KEYS" % self.tableName)
 
             #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
 
@@ -607,15 +634,15 @@ class variableSet:
     def uniqueVariableFastSetup(self):
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
-        """ + self.fastAnchor + """ MEDIUMINT, PRIMARY KEY (""" + self.fastAnchor + """),
+        (""" + self.fastAnchor + """ MEDIUMINT, PRIMARY KEY (""" + self.fastAnchor + """),
         """ +",\n".join([variable.fastSQL() for variable in self.variables if (variable.unique and variable.fastSQL() is not None)]) + """
-        ) ENGINE=MEMORY;"""
+        ) ENGINE=MEMORY;\n"""
         #Also update the wordcounts for each text.
-        fileCommand += "INSERT INTO tmp SELECT" + self.fastAnchor + ", " + ",".join([variable.fastField for variable in self.variables if variable.unique and variable.fastSQL() is not None]) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
-        fileCommand += "DROP TABLE IF EXISTS %s;" % self.fastName
-        fileCommand += "RENAME TABLE tmp TO %s;" % self.fastName
+        fileCommand += "INSERT INTO tmp SELECT " + self.fastAnchor + ", " + ",".join([variable.fastField for variable in self.variables if variable.unique and variable.fastSQL() is not None]) + " FROM %s " % self.tableName + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";\n"
+        fileCommand += "DROP TABLE IF EXISTS %s;\n" % self.fastName
+        fileCommand += "RENAME TABLE tmp TO %s;\n" % self.fastName
         return fileCommand
-        
+
     def updateMasterVariableTable(self):
         for variable in self.variables:
             """
@@ -627,12 +654,13 @@ class variableSet:
         inCatalog = [variable for variable in self.variables if variable.unique]
         if len(inCatalog) > 0 and self.tableName!="catalog":
             #catalog has separate rules handled in CreateDatabase.py
-            fileCommand = uniqueVariableFastSetup()
-            self.db.query("UPDATE MASTER VARIABLE TABLE SET memoryCode='%s' WHERE dbname='%s'" % (fileCommand,inCatalog[0].name))
-    
+            fileCommand = self.uniqueVariableFastSetup()
+            print fileCommand
+            self.db.query("UPDATE masterVariableTable SET memoryCode='%s' WHERE dbname='%s';" % (fileCommand,inCatalog[0].field))
+
     def updateMemoryTables(self,run=True,write=True):
         ###This is the part that has to run on every startup. Now we make a SQL code that can just run on its own, stored in the root directory.
-        
+
         commands = ["USE " + self.dbname + ";"]
         commands.append("DROP TABLE IF EXISTS tmp;");
 
