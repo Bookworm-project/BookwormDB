@@ -96,10 +96,10 @@ class BookwormSQLDatabase:
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
     def importNewFile(self,originFile,anchorField,jsonDefinition):
-        self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition);
+        self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition)
         self.load_book_list()
         self.variableSet.updateMasterVariableTable()
-        self.create_memory_table_script()
+        self.reloadMemoryTables()
 
     def create_database(self):
         dbname = self.dbname

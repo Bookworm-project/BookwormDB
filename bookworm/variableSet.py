@@ -159,7 +159,7 @@ class dataField:
 
         else:
             self.table = self.field + "Disk"
-            self.fasttab = self.field
+            self.fasttab = self.field + "heap"
             self.outputloc = "files/metadata/%s.txt" % self.field
 
     def slowSQL(self, withIndex=False):
@@ -395,6 +395,15 @@ class dataField:
            VALUES
         ('%(field)s','%(field)s','%(type)s','%(finalTable)s','%(anchor)s','%(alias)s','%(status)s','') """ % self.__dict__
         self.dbToPutIn.query(code)
+        if not self.unique:
+            code = self.fastSQLTable()
+            try:
+                parentTab = self.dbToPutIn.query("""
+                SELECT tablename FROM masterVariableTable
+                WHERE dbname='%s'""" % self.fastAnchor).fetchall()[0][0]
+            except:
+                parentTab="fastcat"
+            self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"heap",parentTab,escape_string(code)))
         if self.datatype=="categorical":
             #Variable Info
             code = """
@@ -512,11 +521,7 @@ class variableSet:
                 for variable in self.variables:
                     variable.anchor = fastAnchor
             else:
-                """
-                If it's not otherwise defined,
-                construct a phony dictionary that just returns what you
-                passed in.
-                """
+                #construct a phony dictionary that just returns what you gave
                 bookids = selfDictionary()
 
         return bookids
@@ -604,17 +609,6 @@ class variableSet:
             pass
         catalog.close()
 
-    def createNwordsFile(self):
-        """
-        A necessary supplement to the `catalog` table.
-        """
-        db = self.db
-
-        db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT UNSIGNED, PRIMARY KEY (bookid), nwords INT);")
-        db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
-        db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
-        db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
-
     def loadMetadata(self):
         db = self.db
         print "Making a SQL table to hold the catalog data"
@@ -679,20 +673,39 @@ class variableSet:
 
     
     def updateMasterVariableTable(self):
+        """
+        All the categorical variables get a lookup table;
+        we store the create code in the databse;
+        """
         for variable in self.variables:
-            """
-            All the categorical variables get a lookup table;
-            we store the create code in the databse;
-            """
             variable.updateVariableDescriptionTable();
 
         inCatalog = self.uniques()
         if len(inCatalog) > 0 and self.tableName!="catalog":
             #catalog has separate rules handled in CreateDatabase.py; so this builds
             #the big rectangular table otherwise.
+            #It will fail if masterTableTable doesn't exister.
             fileCommand = self.uniqueVariableFastSetup()
-            parentTab = self.db.query("SELECT ").fetchall()[0][0]
-            self.db.query("INSERT IGNORE INTO TABLE masterTableTable VALUES ('%s','%s','%s')") % (self.fastName,parentTab,fileCommand)
+            try:
+                parentTab = self.db.query("""
+                SELECT tablename FROM masterVariableTable
+                WHERE dbname='%s'""" % self.fastAnchor).fetchall()[0][0]
+            except:
+                print("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
+                raise
+            self.db.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))
+    
+    def createNwordsFile(self):
+        """
+        A necessary supplement to the `catalog` table.
+        """
+        db = self.db
+
+        db.query("CREATE TABLE IF NOT EXISTS nwords (bookid MEDIUMINT UNSIGNED, PRIMARY KEY (bookid), nwords INT);")
+        db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+        db.query("INSERT INTO nwords (bookid,nwords) SELECT catalog.bookid,sum(count) FROM catalog LEFT JOIN nwords USING (bookid) JOIN master_bookcounts USING (bookid) WHERE nwords.bookid IS NULL GROUP BY catalog.bookid")
+        db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
+
 
 class selfDictionary():
     """

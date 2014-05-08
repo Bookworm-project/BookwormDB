@@ -36,13 +36,12 @@ clean:
 	rm -rf files/targets
 	rm -f files/metadata/jsoncatalog_derived.txt
 	rm -f files/metadata/field_descriptions_derived.json
+
 # Make 'pristine' is a little more aggressive
 #This can be dangerous
-#It doesn't do a drop database, though, because that could be even more dangerous.
-#But this won't ensure consistency with earlier versions.
 
 pristine: clean
-	echo $(bookwormName)
+	mysql -e "DROP DATABASE $(bookwormName)"
 	rm -rf files/texts/textids
 	rm -rf files/texts/wordlist
 
