@@ -76,9 +76,10 @@ class textids(dict):
 
 def guessBasedOnNameAndContents(metadataname,dictionary):
     """
-
+    This makes a guess based on the data field's name and type.
+    CUrrently it assumes everything is categorical; that can really chunk out on some text fields, but works much better for importing csvs. Probably we want to take some other things into account as well.
     """
-    description = {"field":metadataname,"datatype":"etc","type":"character","unique":True}
+    description = {"field":metadataname,"datatype":"categorical","type":"character","unique":True}
 
     example = dictionary.keys()[0]
 
@@ -97,9 +98,9 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
     averageNumberOfEntries = sum(values)/len(values)
     maxEntries = max(values)
 
-    print metadataname
-    print averageNumberOfEntries
-    print maxEntries
+#    print metadataname
+#    print averageNumberOfEntries
+#    print maxEntries
     if averageNumberOfEntries > 2:
         description["datatype"] = "categorical"
 
