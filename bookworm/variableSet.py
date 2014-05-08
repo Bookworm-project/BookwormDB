@@ -456,7 +456,12 @@ class variableSet:
             self.tableName = "catalog"
             self.fastName = "fastcat"
         else:
-            self.tableName = self.jsonDefinition[0]['field'] + "_" + self.jsonDefinition[1]['field']
+            try:
+                self.tableName = self.jsonDefinition[0]['field'] + "_" + self.jsonDefinition[1]['field']
+            except IndexError:
+                #if it's only one element long, just name it after the variable itself.
+                self.tableName = self.jsonDefinition[0]['field']
+    
             self.fastName  = self.tableName + "heap"
 
     def guessAtFieldDescriptions(self,stopAfter=30000):
@@ -512,7 +517,12 @@ class variableSet:
             query = """SELECT alias FROM masterVariableTable WHERE dbname='%s'""" % (anchor)
             bookids = dict()
             cursor = db.query("SELECT alias FROM masterVariableTable WHERE dbname = '%s'" % anchor)
-            fastAnchor = cursor.fetchall()[0][0]
+            try:
+                fastAnchor = cursor.fetchall()[0][0]
+            except:
+                if anchor in ["bookid","filename"]:
+                    fastAnchor="bookid"
+                print anchor + "\n\n"
             self.fastAnchor=fastAnchor
             if fastAnchor != anchor:
                 results = db.query("SELECT * FROM %sLookup;" % (anchor))
@@ -692,8 +702,11 @@ class variableSet:
                 SELECT tablename FROM masterVariableTable
                 WHERE dbname='%s'""" % self.fastAnchor).fetchall()[0][0]
             except:
-                print("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
-                raise
+                if self.fastAnchor=="bookid":
+                    parentTab="fastcat"
+                else:
+                    print("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
+                    raise
             self.db.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))
     
     def createNwordsFile(self):

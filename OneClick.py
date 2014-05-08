@@ -29,9 +29,10 @@ except IndexError:
 
 config = ConfigParser.ConfigParser(allow_no_value=True)
 config.read(["bookworm.cnf"])
+dbname = config.get("client","database")
 dbuser = config.get("client","user")
 dbpassword = config.get("client","password")
-dbname = config.get("client","database")
+
 
 # Initiate MySQL connection.
 class oneClickInstance(object):
@@ -92,7 +93,7 @@ class oneClickInstance(object):
         print ("anchoring to " + anchor)
         #this writes it to a new table called "tmp.txt"
         convertToJSON(filename)
-        #Should this be specifiable here?
+        #Should this be specifiable here? Well, it isn't...
         fieldDescriptions = None
         Bookworm.importNewFile("tmp.txt",anchorField=anchor,jsonDefinition=fieldDescriptions)
 
