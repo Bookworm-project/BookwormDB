@@ -428,18 +428,22 @@ class userquery:
                     if self.word_field=="stem":
                         from nltk import PorterStemmer
                         searchingFor = PorterStemmer().stem_word(searchingFor)
-                    if self.word_field=="case_insensitive":
+                    if self.word_field=="case_insensitive" or self.word_field=="Case_Insensitive":
                         searchingFor = searchingFor.lower()
 
-                    selectString =  "(SELECT wordid FROM wordsheap WHERE %s = '%s')" %(self.word_field,searchingFor)
-                    try:
-                        locallimits['words'+str(n) + ".wordid"] += [selectString]
-                    except KeyError:
-                        locallimits['words'+str(n) + ".wordid"] = [selectString]
+                    selectString =  "SELECT wordid FROM wordsheap WHERE %s = '%s'" %(self.word_field,searchingFor)
+                    cursor = self.db.cursor;
+                    cursor.execute(selectString)
+                    for row in cursor.fetchall():
+                        wordid = row[0]
+                        try:
+                            locallimits['words'+str(n) + ".wordid"] += [wordid]
+                        except KeyError:
+                            locallimits['words'+str(n) + ".wordid"] = [wordid]
                     self.max_word_length = max(self.max_word_length,n)
 
                 #Strings have already been escaped, so don't need to be escaped again.
-                limits.append(where_from_hash(locallimits,comp = " IN ",escapeStrings=False))
+                limits.append(where_from_hash(locallimits,comp = " = ",escapeStrings=False))
                 #XXX for backward compatability
                 self.words_searched = phrase
             self.wordswhere = "( " + ' OR '.join(limits) + ")"
@@ -492,9 +496,12 @@ class userquery:
 
         else:
             """
-            Have _no_ words table if no words searched for or grouped by; instead just use nwords. This
-            means that we can use the same basic functions both to build the counts for word searches and
-            for metadata searches, which is valuable because there is a metadata-only search built in to every single ratio
+            Have _no_ words table if no words searched for or grouped by;
+            instead just use nwords. This
+            means that we can use the same basic functions both to build the
+            counts for word searches and
+            for metadata searches, which is valuable because there is a
+            metadata-only search built in to every single ratio
             query. (To get the denominator values).
             """
             self.main = " "
