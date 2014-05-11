@@ -331,6 +331,11 @@ class userquery:
 
 
         self.relevantTables = set()
+
+        """
+        BEGIN DEPRECATED BLOCK
+        This is retained only for back-compatibility
+        """
         databaseScheme = self.databaseScheme
         columns = []
         for columnInQuery in [re.sub(" .*","",key) for key in self.limits.keys()] + [re.sub(" .*","",group) for group in self.groups]:
@@ -348,8 +353,11 @@ class userquery:
             except KeyError:
                 pass
                 #Could raise as well--shouldn't be errors--but this helps back-compatability.
-
-        self.relevantTables = self.tablesNeededForQuery(columns)
+        """
+        END DEPRECATED BLOCK
+        """
+        moreTables = self.tablesNeededForQuery(columns)
+        self.relevantTables = self.relevantTables.union(moreTables)
         self.catalog = "fastcat"
         for table in self.relevantTables:
             if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams":
