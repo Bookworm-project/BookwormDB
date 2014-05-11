@@ -56,7 +56,7 @@ class oneClickInstance(object):
 
 
     def reloadMemory(self):
-        Bookworm = BookwormSQLDatabase(dbname)
+        Bookworm = BookwormSQLDatabase(dbname,variableFile=None)
         Bookworm.reloadMemoryTables()
 
     def database_metadata(self):

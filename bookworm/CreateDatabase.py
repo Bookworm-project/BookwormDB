@@ -80,7 +80,8 @@ class BookwormSQLDatabase:
         self.conn = None
 
         self.db = DB(dbname=self.dbname)
-        self.setVariables(originFile=variableFile)
+        if variableFile is not None:
+            self.setVariables(originFile=variableFile)
 
     def grantPrivileges(self):
         #Grants select-only privileges to a non-admin mysql user for the API to
