@@ -451,10 +451,12 @@ class userquery:
                     self.max_word_length = max(self.max_word_length,n)
 
                 #Strings have already been escaped, so don't need to be escaped again.
-                limits.append(where_from_hash(locallimits,comp = " = ",escapeStrings=False))
+                if len(locallimits.keys()) > 0:
+                    limits.append(where_from_hash(locallimits,comp = " = ",escapeStrings=False))
                 #XXX for backward compatability
                 self.words_searched = phrase
-            self.wordswhere = "( " + ' OR '.join(limits) + ")"
+                #XXX end deprecated block
+            self.wordswhere = "(" + ' OR '.join(limits) + ")"
 
         wordlimits = dict()
 
