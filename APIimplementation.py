@@ -281,6 +281,35 @@ class userquery:
         self.make_catwhere()
         self.make_wordwheres()
 
+    def tablesNeededForQuery(self,fieldNames=[]):
+        db = self.db
+        neededTables = set()
+        tablenames = dict()
+        tableDepends = dict()
+        db.cursor.execute("SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);")
+        for row in db.cursor.fetchall():
+            tablenames[row[0]] = row[2]
+            tableDepends[row[2]] = row[3]
+
+        for fieldname in fieldNames:
+            parent = ""
+            try:
+                current = tablenames[fieldname]
+                neededTables.add(current)
+                n = 1
+                while parent not in ['fastcat','wordsheap']:
+                    parent = tableDepends[current]
+                    neededTables.add(parent)
+                    current = parent;
+                    n+=1
+                    if n > 100:
+                        raise "Unable to handle this"
+                    #This will add 'fastcat' or 'wordsheap' exactly once per entry
+            except KeyError:
+                pass
+            
+        return neededTables
+
     def create_catalog_table(self):
         self.catalog = self.prefs['fastcat'] #'catalog' #Can be replaced with a more complicated query in the event of longer joins.
 
@@ -291,41 +320,42 @@ class userquery:
         called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
         """
 
-        for limitation in self.prefs['separateDataTables']:
-            #That re.sub thing is in here because sometimes I do queries that involve renaming.
-            if limitation in [re.sub(" .*","",key) for key in self.limits.keys()] or limitation in [re.sub(" .*","",group) for group in self.groups]:
-                self.catalog = self.catalog + """ JOIN """ + limitation + """ USING (bookid)"""
-                
+        #for limitation in self.prefs['separateDataTables']:
+        #    #That re.sub thing is in here because sometimes I do queries that involve renaming.
+        #    if limitation in [re.sub(" .*","",key) for key in self.limits.keys()] or limitation in [re.sub(" .*","",group) for group in self.groups]:
+        #        self.catalog = self.catalog + """ JOIN """ + limitation + """ USING (bookid)"""
+
         """
-        Here it just pulls every variable and where to look for it. 
+        Here it just pulls every variable and where to look for it.
         """
 
 
         self.relevantTables = set()
         databaseScheme = self.databaseScheme
+        columns = []
         for columnInQuery in [re.sub(" .*","",key) for key in self.limits.keys()] + [re.sub(" .*","",group) for group in self.groups]:
-            if not re.search('\.',columnInQuery): #Lets me keep a little bit of SQL sauce for my own queries
+            columns.append(columnInQuery)
+            try:
+                self.relevantTables.add(databaseScheme.tableToLookIn[columnInQuery])
                 try:
-                    self.relevantTables.add(databaseScheme.tableToLookIn[columnInQuery])
+                    self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[columnInQuery]])
                     try:
-                        self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[columnInQuery]])
-                        try:
-                            self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[databaseScheme.anchorFields[columnInQuery]]])
-                        except KeyError:
-                            pass
+                        self.relevantTables.add(databaseScheme.tableToLookIn[databaseScheme.anchorFields[databaseScheme.anchorFields[columnInQuery]]])
                     except KeyError:
                         pass
                 except KeyError:
                     pass
-                    #Could raise as well--shouldn't be errors--but this helps back-compatability.
+            except KeyError:
+                pass
+                #Could raise as well--shouldn't be errors--but this helps back-compatability.
 
-
+        self.relevantTables = self.tablesNeededForQuery(columns)
         self.catalog = "fastcat"
         for table in self.relevantTables:
             if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
-        #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth. 
+        #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth.
 
     def make_catwhere(self):
         #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
@@ -342,9 +372,9 @@ class userquery:
             """
             This is the sort of code I'm trying to move towards
             it just generates a new API call to fill a small part of the code here:
-            (in this case, it merges the 'catalog' entry with a select query on 
+            (in this case, it merges the 'catalog' entry with a select query on
             the word in the 'haswords' field. Enough of this could really
-            shrink the codebase, I suspect. It should be possible in MySQL 6.0, from what I've read, where 
+            shrink the codebase, I suspect. It should be possible in MySQL 6.0, from what I've read, where
             subqueried tables will have indexes written for them by the query optimizer.
             """
 
