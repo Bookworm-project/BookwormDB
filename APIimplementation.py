@@ -356,7 +356,11 @@ class userquery:
         """
         END DEPRECATED BLOCK
         """
-        moreTables = self.tablesNeededForQuery(columns)
+        try:
+            moreTables = self.tablesNeededForQuery(columns)
+        except MySQLdb.ProgrammingError:
+            #What happens on old-style Bookworm constructions.
+            moreTables = set()
         self.relevantTables = self.relevantTables.union(moreTables)
         self.catalog = "fastcat"
         for table in self.relevantTables:
