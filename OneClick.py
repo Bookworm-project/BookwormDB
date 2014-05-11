@@ -54,6 +54,11 @@ class oneClickInstance(object):
         # This creates helper files in the /metadata/ folder.
         print "Writing metadata to new catalog file..."
 
+
+    def reloadMemory(self):
+        Bookworm = BookwormSQLDatabase(dbname)
+        Bookworm.reloadMemoryTables()
+
     def database_metadata(self):
         Bookworm = BookwormSQLDatabase(dbname)
         Bookworm.load_book_list()
