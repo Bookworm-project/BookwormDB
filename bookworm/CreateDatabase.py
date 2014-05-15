@@ -145,7 +145,10 @@ class BookwormSQLDatabase:
         db.query("UPDATE words SET casesens=word")
 
     def load_book_list(self):
-        self.variableSet.writeMetadata()
+        """
+        Loads in the tables that have already been created by calling
+        `Bookworm.variableSet.writeMetadata()`
+        """
         self.variableSet.loadMetadata()
 
     def create_unigram_book_counts(self):

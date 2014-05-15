@@ -49,7 +49,7 @@ class oneClickInstance(object):
         print "Parsing jsoncatalog.txt"
         ParseJSONCatalog()
         
-    def databaseMetadata(self):
+    def preDatabaseMetadata(self):
         Bookworm = BookwormSQLDatabase()
         print "Writing metadata to new catalog file..."        
         Bookworm.variableSet.writeMetadata()
@@ -58,7 +58,7 @@ class oneClickInstance(object):
 
     def metadata(self):
         self.diskMetadata()
-        self.databaseMetadata()
+        self.preDatabaseMetadata()
 
 
     def guessAtFieldDescriptions(self):
