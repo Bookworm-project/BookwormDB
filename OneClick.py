@@ -43,18 +43,32 @@ class oneClickInstance(object):
     def __init__(self):
         pass
 
-    def metadata(self):
+    def diskMetadata(self):
         print "Parsing field_descriptions.json"
         ParseFieldDescs()
         print "Parsing jsoncatalog.txt"
         ParseJSONCatalog()
+        
+    def databaseMetadata(self):
         Bookworm = BookwormSQLDatabase()
+        print "Writing metadata to new catalog file..."        
         Bookworm.variableSet.writeMetadata()
 
         # This creates helper files in the /metadata/ folder.
-        print "Writing metadata to new catalog file..."
+
+    def metadata(self):
+        self.diskMetadata()
+        self.databaseMetadata()
 
 
+    def guessAtFieldDescriptions(self):
+        Bookworm = BookwormSQLDatabase(dbname,variableFile=None)
+        Bookworm.setVariables("files/metadata/jsoncatalog.txt",jsonDefinition=None)
+        import os
+        if not os.path.exists("files/metadata/field_descriptions.json"):
+            output = open("files/metadata/field_descriptions.json","w")
+            output.write(json.dumps(Bookworm.variableSet.guessAtFieldDescriptions()))
+            
     def reloadMemory(self):
         Bookworm = BookwormSQLDatabase(dbname,variableFile=None)
         Bookworm.reloadMemoryTables()
