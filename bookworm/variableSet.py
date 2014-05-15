@@ -601,6 +601,13 @@ class variableSet:
                  #Each of these has a different file it must write to...
                 outfile = variable.output
                 lines = entry.get(variable.field, [])
+                if isinstance(lines, basestring):
+                    """
+                    Allow a single element to be represented as a string
+                    """
+                    lines = [lines]
+                if lines==None:
+                    lines = []
                 for line in lines:
                     try:
                         writing = '%s\t%s\n' % (str(bookid), line)
