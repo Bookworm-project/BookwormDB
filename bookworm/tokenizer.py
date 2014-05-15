@@ -193,17 +193,24 @@ def encodeTextStream():
     dictionary = readDictionaryFile()
     seen = getAlreadySeenList("files/texts/encoded/completed")
     tokenBatch = tokenBatches()
+    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+
     for line in sys.stdin:
         filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
         if filename not in seen:
             tokenBatch.addRow(line)
-    for level in tokenBatch.levels:
-        tokenBatch.encode(level,IDfile,dictionary)
-
-    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
-    for file in tokenBatch.counts['unigrams'].keys():
-        written.write(file + "\n")
-
+        if len(tokenBatch.counts['unigrams']) > 10000:
+            """
+            Every 10000 documents, write to disk.
+            """
+            for level in tokenBatch.levels:
+                tokenBatch.encode(level,IDfile,dictionary)
+            for file in tokenBatch.counts['unigrams'].keys():
+                written.write(file + "\n")
+            written.close()
+            tokenBatch = tokenBatches()
+            written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+            
 if __name__=="__main__":
     encodeTextStream()
