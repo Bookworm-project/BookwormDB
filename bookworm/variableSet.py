@@ -559,14 +559,14 @@ class variableSet:
 
         for entry in metadatafile:
             try:
-                entry = to_unicode(entry)
-                entry = entry.replace('\\n', ' ')
+                #entry = to_unicode(entry)
+                #entry = entry.replace('\\n', ' ')
                 entry = json.loads(entry)
             except:
                 warnings.warn("""WARNING: json parsing failed for this JSON line:
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n""" + entry)
-                raise
-                #continue
+                
+                continue
 
             #We always lead with the bookid and the filename.
             #Unicode characters in filenames may cause problems?
@@ -648,18 +648,24 @@ class variableSet:
             #Never have keys before a LOAD DATA INFILE
             db.query("ALTER TABLE %s DISABLE KEYS" % self.tableName)
             print "loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName
+            anchorFields = self.fastAnchor
+            
+            if self.tableName=="catalog":
+                anchorFields = "bookid,filename"
+                
             loadEntries = {
                 "catLoc" : self.catalogLocation,
                 "tabName" : self.tableName,
-                "anchorFields" : self.fastAnchor,
-                "otherFields" : ','.join([field.field for field in self.variables if field.unique])
+                "anchorFields" : anchorFields,
+                "loadingFields" :  anchorFields+ "," + ','.join([field.field for field in self.variables if field.unique])
             }
-            if self.tableName=="catalog":
-                loadEntries["anchorFields"] = "bookid,filename"
 
+            loadEntries['loadingFields'] = loadEntries['loadingFields'].rstrip(',')
+            
             loadcode = """LOAD DATA LOCAL INFILE '%(catLoc)s'
                        INTO TABLE %(tabName)s FIELDS ESCAPED BY ''
-                       (%(anchorFields)s,%(otherFields)s)""" % loadEntries
+                       (%(loadingFields)s)""" % loadEntries
+            
             db.query(loadcode)
             print "enabling keys on %s" %self.tableName
             db.query("ALTER TABLE %s ENABLE KEYS" % self.tableName)
