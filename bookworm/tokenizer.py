@@ -212,5 +212,14 @@ def encodeTextStream():
             tokenBatch = tokenBatches()
             written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
             
+    #And printout again at the end
+    for level in tokenBatch.levels:
+        tokenBatch.encode(level,IDfile,dictionary)
+    for file in tokenBatch.counts['unigrams'].keys():
+        written.write(file + "\n")
+    written.close()
+    tokenBatch = tokenBatches()
+    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+
 if __name__=="__main__":
     encodeTextStream()
