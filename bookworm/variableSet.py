@@ -440,12 +440,14 @@ class variableSet:
             self.jsonDefinition = json.loads(open(jsonDefinition,"r").read())
 
         self.setTableNames()
+        self.catalogLocation = "files/metadata/" + self.tableName + ".txt"
+
+
         self.variables = []
         for item in self.jsonDefinition:
             #The anchor field has special methods hard coded in.
             if item['field'] != self.anchorField:
                 self.variables.append(dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName))
-
 
     def setTableNames(self):
         """
@@ -549,8 +551,6 @@ class variableSet:
 
         metadatafile = open(self.originFile)
 
-        self.catalogLocation = "files/metadata/" + self.tableName + ".txt"
-
 
         #Open files for writing to
         catalog = open(self.catalogLocation,'w')
@@ -628,6 +628,12 @@ class variableSet:
         catalog.close()
 
     def loadMetadata(self):
+        """
+        Load in the metadata files which have already been created elsewhere.
+        """
+
+        #This function is called for the sideffect of assigning a `fastAnchor` field
+        bookwormcodes = self.anchorLookupDictionary()
         db = self.db
         print "Making a SQL table to hold the catalog data"
 
