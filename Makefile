@@ -41,7 +41,7 @@ clean:
 #This can be dangerous
 
 pristine: clean
-	mysql -e "DROP DATABASE $(bookwormName)"
+	-mysql -e "DROP DATABASE $(bookwormName)"
 	rm -rf files/texts/textids
 	rm -rf files/texts/wordlist
 
