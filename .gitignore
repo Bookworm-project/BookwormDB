@@ -21,6 +21,15 @@ oldfiles
 files
 
 startup.sh
+
 onefile.txt
 downloads
 newspapers.rdf
+
+extensions
+bookworm.cnf
+.#
+tmp.cron tmp.tsv tmp.txt
+tmp.txt
+.#*
+

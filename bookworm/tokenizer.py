@@ -1,7 +1,6 @@
 #! /usr/bin/python
 
 import regex as re
-import cPickle as pickle
 import random
 import sys
 import os 
@@ -58,13 +57,12 @@ class tokenBatches(object):
     The pickle writeout happens in between so that there's a chance to build up a vocabular using the tokenBatches.unigramCounts method. If the vocabulary were preset, it could proceed straight to writing out the encoded results.
 
     The pickle might be slower than simply using a fast csv module: this should eventually be investigated. But it's nice for the pickled version to just keep all the original methods.
-
     """
+    
     def __init__(self,levels=["unigrams","bigrams"]):
         self.counts = dict()
-        self.counts["unigrams"] = dict()
-        self.counts["bigrams"]  = dict()
-        self.counts["trigrams"] = dict()
+        for level in levels:
+            self.counts[level] = dict()
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
@@ -84,24 +82,9 @@ class tokenBatches(object):
             for ngrams in self.levels:
                 self.counts[ngrams][filename] = tokens.counts(ngrams)
         except IndexError:
-            print "Found no tab in the input for \n" + filename + "\n...skipping row"
-    
-            
-    def pickleMe(self):
-        #Often we'll have to pickle, then create the word counts, then unpickle 
-        #to build the database-loadable infrastructure
+            print "\nFound no tab in the input for '" + filename + "'...skipping row\n"
 
-        outputFile = open("files/texts/binaries/" + self.id,"w")
-        
-        outputFile = open("files/texts/binaries/" + self.id,"w")
-        pickle.dump(self,file=outputFile,protocol=pickle.HIGHEST_PROTOCOL)
 
-        #Write to a file of seen files so it won't be re-loaded
-        #when the database is recreated.
-        seenfile = open("files/texts/binaries/completed/" + self.id,"w")
-        for filename in self.counts["unigrams"].keys():
-            seenfile.write(filename + "\n")
-        
     def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
         outputFile = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
@@ -111,7 +94,7 @@ class tokenBatches(object):
             try:
                 textid = IDfile[key]
             except KeyError:
-                print "Warning: file " + key + " not found in jsoncatalog.txt"
+                sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt\n")
                 continue
             for wordset,count in value.iteritems():
                 skip = False
@@ -124,42 +107,17 @@ class tokenBatches(object):
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
                         """
+                        if level=="unigrams":
+                            try:
+                                sys.stderr.write(word.encode("utf-8") + u"not in dictionary, skipping\n")
+                            except UnicodeDecodeError:
+                                pass
                         skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
                     output.append("\t".join([textid,wordids,str(count)]))
                 
         outputFile.write("\n".join(output))        
-
-            
-    def unigramCounts(self,withDelete=False):
-        if not "counts" in self.counts:
-            self.counts["counts"] = dict()
-        for documentNum in self.counts["unigrams"].keys():
-            document = self.counts["unigrams"][documentNum]
-            for key in document.keys():
-                word = key[0]
-                try:
-                    self.counts["counts"][word] += document[key]
-                except KeyError:
-                    self.counts["counts"][word]  = document[key]
-            if withDelete:
-                del self.counts["unigrams"][documentNum]
-
-    def writeUnigramCounts(self):
-        self.unigramCounts()
-        outfile = open("files/texts/wordlist/raw-" + self.id + ".txt","w")
-        output = []
-        counts =  self.counts["counts"]
-        for word in counts:
-            output.append(" ".join([word,str(counts[word])]))
-
-        toWrite = "\n".join(output)
-        try:
-            outfile.write(toWrite)
-        except UnicodeEncodeError:
-            print "warning, bad unicode"
-            outfile.write(toWrite.encode("utf-8",'ignore'))
 
 class tokenizer(object):
     """
@@ -180,9 +138,12 @@ class tokenizer(object):
         try:
             self.string=string.decode("utf-8")
         except UnicodeDecodeError:
-            print string + " not recognized as valid unicode"
-            self.string = ""
-            
+            print "WARNING: string can't be decoded as unicode skipping and moving on"
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            print string
+            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            self.string="BADDATA"
+
     def tokenize(self):
         """
         This tries to return the pre-made tokenization:
@@ -224,19 +185,41 @@ def getAlreadySeenList(folder):
     seen = set([])
     for file in files:
         for line in open(folder+"/" + file):
-            seen.add(line.rstrip())
+            seen.add(line.rstrip("\n"))
     return seen
 
-def readTextStream():
-    seen = getAlreadySeenList("files/texts/binaries/completed")
+def encodeTextStream():
+    IDfile = readIDfile()
+    dictionary = readDictionaryFile()
+    seen = getAlreadySeenList("files/texts/encoded/completed")
     tokenBatch = tokenBatches()
+    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+
     for line in sys.stdin:
+        filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
-        if line not in seen:
+        if filename not in seen:
             tokenBatch.addRow(line)
-    print "pickling " + tokenBatch.id
-    tokenBatch.writeUnigramCounts()
-    tokenBatch.pickleMe()        
+        if len(tokenBatch.counts['unigrams']) > 10000:
+            """
+            Every 10000 documents, write to disk.
+            """
+            for level in tokenBatch.levels:
+                tokenBatch.encode(level,IDfile,dictionary)
+            for file in tokenBatch.counts['unigrams'].keys():
+                written.write(file + "\n")
+            written.close()
+            tokenBatch = tokenBatches()
+            written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+            
+    #And printout again at the end
+    for level in tokenBatch.levels:
+        tokenBatch.encode(level,IDfile,dictionary)
+    for file in tokenBatch.counts['unigrams'].keys():
+        written.write(file + "\n")
+    written.close()
+    tokenBatch = tokenBatches()
+    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
 
 if __name__=="__main__":
-    readTextStream()
+    encodeTextStream()

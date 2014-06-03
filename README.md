@@ -204,9 +204,8 @@ For reference, the general workflow of the Makefile is the following:
 1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.txt`.
 2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
 4. Create metadata catalog files in `files/metadata/`.
-6. Tokenize unigrams and bigrams and save them to binary files.
-7. Create a table with all words from the binaries, and save the million most common for regular use.
-8. Encode unigrams and bigrams from the binaries into `files/encoded`
+7. Create a table with all words from the text files, and save the million most common for regular use.
+8. Encode unigrams and bigrams from the texts into `files/encoded`
 9. Load data into MySQL database.
 10. Create temporary MySQL table and .json file that will be used by the web app.
 11. Create API settings.
