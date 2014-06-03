@@ -2,7 +2,8 @@
 set of files and their metadata into an efficient and easily queryable database that can make full use of all the
 metadata and lexical data in the original source.
 
-A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]
+A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bmschmidt.github.io/Presidio) on this repository (editable as the gh-pages branch here).
+
 
 ## Related projects
 
