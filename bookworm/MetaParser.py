@@ -87,7 +87,7 @@ def ParseJSONCatalog():
                                 k = "%s_day_year" % field["field"]
                                 dt = datetime(intent[0], intent[1], intent[2])
                                 line[k] = str(dt.timetuple().tm_yday)
-                            if derive["resolution"] == 'month' and \
+                            elif derive["resolution"] == 'month' and \
                                     derive["aggregate"] == "year":
                                 k = "%s_month_year" % field["field"]
                                 line[k] = content[1]
