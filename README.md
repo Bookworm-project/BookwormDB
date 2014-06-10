@@ -4,8 +4,6 @@ metadata and lexical data in the original source.
 
 A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bmschmidt.github.io/Presidio) on this repository (editable as the gh-pages branch here).
 
-
-
 Which version to use
 ---------------------
 
