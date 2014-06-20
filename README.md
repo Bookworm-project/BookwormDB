@@ -21,6 +21,7 @@ To query the database created here programatically, you should use the Bookworm 
 Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app"), which runs
 on top of the API. 
 
+As of v0.3, all ongoing development has been moved to the `master` branch: those wishing to clone a more stable copy for production may be better off using [the latest release](https://github.com/bmschmidt/Presidio/releases), which should be somewhat out of date.
 
 ## Bookworms ##
 Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
@@ -36,6 +37,12 @@ Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms b
 ### Required MySQL Database ###
 
 At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
+
+The easiest way to handle this is to have a user with root access defined in your system-wide MySQL configuration files.
+
+This creates a bit of a security risk, though, so we recommend 
+
+First, that admin user:
 
 For example, create a user `foobar` with password `mysecret` and full access to all databases from `localhost`:
 
@@ -54,19 +61,24 @@ GRANT SELECT PRIVILEGES ON *.* TO 'www-data'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above. Otherwise, you can get it from your `httpd.conf` file (located in this example at `/etc/apache2/httpd.conf`) by doing:
+If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above.
 
-```bash
-cat /etc/apache2/httpd.conf | grep ^User | cut -d" " -f 2
+Otherwise, you can change the system-wide mysql configuration to use whatever name you want. Those will be at `/etc/mysql/my.cnf` or a similar location, and should look something like this (if you want a password, add it as for the admin user).
+
+```
+[client]
+user = www-data
 ```
 
-Finally, there must also be a file at `~/.my.cnf` that Python can load with your MySQL user/pass (this prevents having to store any sensitive information in the Python scripts). Here is an example of what the `~/.my.cnf` file would look like for the user/pass created above:
+Finally, there must also be a **user** config file at `~/.my.cnf` that Python can load with your MySQL user/pass (this prevents having to store any sensitive information in the Python scripts). Here is an example of what the `~/.my.cnf` file would look like for the user/pass created above:
 
 ```
 [client]
 user = foobar
 password = 'mysecret'
 ```
+
+
 With these settings in place, you're ready to begin building a Bookworm.
 
 Walkthrough
@@ -76,8 +88,6 @@ These are some instructions on how to build a bookworm.
 
 > Indented bits tell you how to build on specific bookworm using [text from the summaries of bills](https://github.com/unitedstates/congress/wiki "text from the summaries of bills") introduced in the US Congress from 1973 to the present day.
 > The goal is to provide everything needed to build a Bookworm using publically available data.
-
-This should 
 
 ## Get the Data ##
 
