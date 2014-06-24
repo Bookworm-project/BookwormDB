@@ -399,16 +399,29 @@ class userquery:
             #deepcopy lets us get a real copy of the dictionary
             #that can be changed without affecting the old one.
             mydict = copy.deepcopy(self.outside_dictionary)
-            #This may make it take longer than it should; we might want the list to
-            #just be every bookid with the given word rather than filtering by the limits.
-            #It's not obvious to me which will be faster.
+            # This may make it take longer than it should; we might want the list to
+            # just be every bookid with the given word rather than
+            # filtering by the limits as well.
+            # It's not obvious to me which will be faster.
             mydict['search_limits'] = copy.deepcopy(self.limits)
-            mydict['search_limits']['word'] = copy.deepcopy(mydict['search_limits']['hasword'])
-            del mydict['search_limits']['hasword']
+            if isinstance(mydict['search_limits']['hasword'],basestring):
+                #Make sure it's an array
+                mydict['search_limits']['hasword'] =  [mydict['search_limits']['hasword']] 
+            """
+            #Ideally, this would shuffle into an order ensuring that the rarest words were nested deepest.
+            #That would speed up query execution by ensuring there wasn't some massive search for 'the' being
+            #done at the end.
+
+            Instead, it just pops off the last element and sets up a recursive nested join. for every element in the 
+            array.
+            """
+            mydict['search_limits']['word'] = [mydict['search_limits']['hasword'].pop()]
+            if len(mydict['search_limits']['hasword'])==0:
+                del mydict['search_limits']['hasword']
             tempquery = userquery(mydict,databaseScheme=self.databaseScheme)
             listofBookids = tempquery.bookid_query()
-            from uuid import uuid4
-            random_string = re.sub("-","",str(uuid4()))
+            #from uuid import uuid4
+            #random_string = re.sub("-","",str(uuid4()))
             #I don't want collisions--a uuid is overkill, but works.
             self.catwhere = self.catwhere + " AND fastcat.bookid IN (%s)"%(listofBookids)
 
