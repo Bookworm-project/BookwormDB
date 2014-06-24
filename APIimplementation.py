@@ -303,7 +303,7 @@ class userquery:
                     current = parent;
                     n+=1
                     if n > 100:
-                        raise "Unable to handle this"
+                        raise TypeError("Unable to handle this; seems like a recursion loop in the table definitions.")
                     #This will add 'fastcat' or 'wordsheap' exactly once per entry
             except KeyError:
                 pass
@@ -356,6 +356,8 @@ class userquery:
         """
         END DEPRECATED BLOCK
         """
+#        if "catalog" in self.relevantTables and self.method != "bibliography_query":
+#            self.relevantTables.remove('catalog')
         try:
             moreTables = self.tablesNeededForQuery(columns)
         except MySQLdb.ProgrammingError:
