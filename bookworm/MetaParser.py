@@ -19,7 +19,10 @@ def DaysSinceZero(dateobj):
 
 def ParseFieldDescs():
     f = open('files/metadata/field_descriptions.json', 'r')
-    fields = json.loads(f.read())
+    try:
+        fields = json.loads(f.read())
+    except ValueError:
+        raise ValueError("Error parsing JSON: Check to make sure that your field_descriptions.json file is valid?")
     f.close()
 
     derivedFile = open('files/metadata/field_descriptions_derived.json', 'w')
