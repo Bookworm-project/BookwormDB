@@ -14,6 +14,9 @@ for line in sys.stdin:
     del output["comment"]
 
     d = output["date"].split("/")
+    century = "20"
+    if d[0]=="99":
+        century = "19"
     try:
         killDate = False
         year = int("20" + d[2])
@@ -32,5 +35,5 @@ for line in sys.stdin:
         del output["date"]
     
     output["filename"] = output["ratingName"]
-
+    output["searchstring"] = " ".join(["name","school","comment"])
     print json.dumps(output)

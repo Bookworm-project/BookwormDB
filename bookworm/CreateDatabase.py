@@ -237,13 +237,15 @@ class BookwormSQLDatabase:
                     self.db.query(query)
 
     def addFilesToMasterVariableTable(self):
+        fastFieldsCreateList = ["bookid MEDIUMINT, PRIMARY KEY (bookid)","nwords MEDIUMINT"] +\
+          [variable.fastSQL() for variable in self.variableSet.variables if (variable.unique and variable.fastSQL() is not None)]
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
-        (bookid MEDIUMINT, PRIMARY KEY (bookid),
-        nwords MEDIUMINT,""" +",\n".join([variable.fastSQL() for variable in self.variableSet.variables if (variable.unique and variable.fastSQL() is not None)]) + """
+        (""" +",\n".join(fastFieldsCreateList) + """
         ) ENGINE=MEMORY;"""
         #Also update the wordcounts for each text.
-        fileCommand += "INSERT INTO tmp SELECT bookid,nwords, " + ",".join([variable.fastField for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None]) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
+        fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None]
+        fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
         fileCommand += "DROP TABLE IF EXISTS fastcat;"
         fileCommand += "RENAME TABLE tmp TO fastcat;"
         self.db.query("""INSERT IGNORE INTO masterTableTable VALUES

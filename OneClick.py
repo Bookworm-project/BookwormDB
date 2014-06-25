@@ -73,6 +73,14 @@ class oneClickInstance(object):
         Bookworm = BookwormSQLDatabase(dbname,variableFile=None)
         Bookworm.reloadMemoryTables()
 
+    def reloadAllMemory(self):
+        #reloads the memory tables for every bookworm on the server.
+        datahandler = BookwormSQLDatabase('tmp',variableFile=None)
+        cursor = datahandler.db.query("SELECT TABLE_SCHEMA FROM information_schema.tables WHERE TABLE_NAME='masterTableTable'")
+        for row in cursor.fetchall():
+            Bookworm = BookwormSQLDatabase(row[0],variableFile=None)
+            Bookworm.reloadMemoryTables()
+
     def database_metadata(self):
         Bookworm = BookwormSQLDatabase(dbname)
         Bookworm.load_book_list()

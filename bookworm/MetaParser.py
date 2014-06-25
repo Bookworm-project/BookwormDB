@@ -69,9 +69,10 @@ def ParseJSONCatalog():
                 content = line[field["field"]].split('-')
                 intent = [int(item) for item in content]
             except KeyError:
+                #It's OK not to have an entry for a time field
                 continue
             except ValueError:
-                # Thrown if fields are empty on taking the int
+                # Thrown if fields are empty on taking the int value: treat as junk
                 continue
             except AttributeError:
                 # Happens if it's an integer, which is a forgiveable way
@@ -88,9 +89,9 @@ def ParseJSONCatalog():
                             if derive["resolution"] == 'day' and \
                                     derive["aggregate"] == "year":
                                 k = "%s_day_year" % field["field"]
-                                dt = datetime(intent[0], intent[1], intent[2])
+                                dt = date(intent[0], intent[1], intent[2])
                                 line[k] = str(dt.timetuple().tm_yday)
-                            if derive["resolution"] == 'month' and \
+                            elif derive["resolution"] == 'month' and \
                                     derive["aggregate"] == "year":
                                 k = "%s_month_year" % field["field"]
                                 line[k] = content[1]
@@ -100,7 +101,7 @@ def ParseJSONCatalog():
                                 line[k] = content[2]
                             elif derive["resolution"] == 'week' and \
                                     derive["aggregate"] == "year":
-                                dt = datetime(intent[0], intent[1], intent[2])
+                                dt = date(intent[0], intent[1], intent[2])
                                 k = "%s_week_year" % field["field"]
                                 line[k] = str(int(dt.timetuple().tm_yday/7))
                             else:
@@ -125,11 +126,12 @@ def ParseJSONCatalog():
                             elif derive["resolution"] == 'day':
                                 try:
                                     k = "%s_day" % field["field"]
-                                    dtstr = '%02d%02d%s' % (int(content[2]),
-                                                            int(content[1]),
-                                                            content[0])
-                                    dt = datetime.strptime(dtstr, "%d%m%Y")
-                                    dtdiff = dt.date() - date(1, 1, 1)
+                                    #dtstr = '%02d%02d%s' % (int(content[2]),
+                                    #                        int(content[1]),
+                                    #                        content[0])
+                                    #dt = datetime.strptime(dtstr, "%d%m%Y")
+                                    #dtdiff = dt.date() - date(1, 1, 1)
+                                    dtdiff = date(content[0],content[1],content[2]) - date(1,1,1)
                                     line[k] = str(dtdiff.days)
                                 except:
                                     pass
