@@ -32,9 +32,15 @@ defaults['database'] = os.path.relpath(".","..")
 defaults["user"] = ""
 defaults["password"] = ""
 
+
+
 for field in ["user","password"]:
-    print systemConfigFile.get("client",field)
-    defaults[field] = systemConfigFile.get("client",field)
+    try:
+        print systemConfigFile.get("client",field)
+        defaults[field] = systemConfigFile.get("client",field)
+    except ConfigParser.NoSectionError:
+        print systemConfigFile.get("mysql",field)
+        defaults[field] = systemConfigFile.get("mysql",field)
 
 config = ConfigParser.ConfigParser()
 
