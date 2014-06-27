@@ -453,7 +453,7 @@ class variableSet:
             if item['field'] == self.anchorField:
                 continue
             if item['field'].upper() in mySQLreservedWords:
-                warnings.warn(item['field'] + " is a reserved word in MySQL, so can't be used as a Bookworm field name: skipping it for now, but you probably want to rename it to something different")
+                warnings.warn(item['field'] + """ is a reserved word in MySQL, so can't be used as a Bookworm field name: skipping it for now, but you probably want to rename it to something different""")
                 item['field'] = item['field'] + "___"
                 continue
             self.variables.append(dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName))
