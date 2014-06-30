@@ -29,9 +29,9 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     for row in sys.stdin:
         for item in row.split(" "):
             n+=1
-            if n % 10000000==0:
+            if n % 100000000==0:
                 elapsed = timeit.default_timer() - start_time
-                print str(len(wordcounts)) + " entries at " + str(n) + " words---" + str(elapsed) + " seconds since last print"
+                print str(float(len(wordcounts))/1000000) + " million distinct entries at " + str(float(n)/1000000000) + " billion words---" + str(elapsed) + " seconds since last print"
                 start_time = timeit.default_timer()
             item = item.rstrip("\n")
             try: 
@@ -40,12 +40,14 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
                 wordcounts[item] = 1
 
             while len(wordcounts) > maxMemoryStorage:
-                print "exporting to disk..."
+                print "exporting to disk at " + str(float(len(wordcounts))/1000000) + " million words"
                 wordcounts = exportToDisk(wordcounts,diskFile=database,keepThreshold=keepThreshold)
-                if len(wordcounts) > maxMemoryStorage:
+                print "after export, it's " + str(float(len(wordcounts))/1000000) + " million words"
+                if len(wordcounts) > .66 * maxMemoryStorage:
                     #If that's not enough to get down to a small dictionary,
                     #try again with a new higher limit.
                     keepThreshold = keepThreshold*2
+                    print "upping the keep threshold to " + str(keepThreshold)
 
     #Write all remaining items to disk
     nothing = exportToDisk(wordcounts,diskFile=database,keepThreshold=float("inf"))
