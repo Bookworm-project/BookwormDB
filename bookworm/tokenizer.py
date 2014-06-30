@@ -67,6 +67,9 @@ class tokenBatches(object):
         self.levels=levels
 
     def addFile(self,filename):
+        """
+        Is this method retireable?
+        """
         tokens = tokenizer(open(filename).read())
         #Add trigrams to this list to do trigrams
         print tokens.string
@@ -82,14 +85,14 @@ class tokenBatches(object):
             for ngrams in self.levels:
                 self.counts[ngrams][filename] = tokens.counts(ngrams)
         except IndexError:
-            print "\nFound no tab in the input for '" + filename + "'...skipping row\n"
+            sys.stderr.write("\nFound no tab in the input for '" + filename + "'...skipping row\n")
 
 
     def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
         outputFile = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
         output = []
-        print "encoding " + level + " for " + self.id
+        #print "encoding " + level + " for " + self.id
         for key,value in self.counts[level].iteritems():
             try:
                 textid = IDfile[key]
@@ -138,10 +141,7 @@ class tokenizer(object):
         try:
             self.string=string.decode("utf-8")
         except UnicodeDecodeError:
-            print "WARNING: string beginning with the following can't be decoded as unicode skipping and moving on"
-            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-            print string[:400]
-            print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+            sys.stderr.write("""WARNING: string beginning with the following can't be decoded as unicode: skipping and moving on~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n%s\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~""" % string[:400])
             self.string=""
 
     def tokenize(self):
