@@ -6,6 +6,11 @@ import subprocess
 import timeit
 
 def exportToDisk(wordcounts,diskFile,keepThreshold=5):
+
+    """
+    Periodically, the wordcounter writes what it knows to disk for dictionary values below a certain frequency:
+    this lets us keep the most common words continually in memory, and only write out (say) 'the' once, at the end.
+    """
     commonwords = dict()
     for key in wordcounts.iterkeys():
         if wordcounts[key] < keepThreshold:
@@ -43,7 +48,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
                 print "exporting to disk at " + str(float(len(wordcounts))/1000000) + " million words"
                 wordcounts = exportToDisk(wordcounts,diskFile=database,keepThreshold=keepThreshold)
                 print "after export, it's " + str(float(len(wordcounts))/1000000) + " million words"
-                if len(wordcounts) > .66 * maxMemoryStorage:
+                if len(wordcounts) > .8*float(maxMemoryStorage):
                     #If that's not enough to get down to a small dictionary,
                     #try again with a new higher limit.
                     keepThreshold = keepThreshold*2
