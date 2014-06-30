@@ -94,7 +94,7 @@ class tokenBatches(object):
             try:
                 textid = IDfile[key]
             except KeyError:
-                sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt\n")
+                sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt, not encoding\n")
                 continue
             for wordset,count in value.iteritems():
                 skip = False
@@ -138,11 +138,11 @@ class tokenizer(object):
         try:
             self.string=string.decode("utf-8")
         except UnicodeDecodeError:
-            print "WARNING: string can't be decoded as unicode skipping and moving on"
+            print "WARNING: string beginning with the following can't be decoded as unicode skipping and moving on"
             print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-            print string
+            print string[:400]
             print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-            self.string="BADDATA"
+            self.string=""
 
     def tokenize(self):
         """
@@ -219,7 +219,6 @@ def encodeTextStream():
         written.write(file + "\n")
     written.close()
     tokenBatch = tokenBatches()
-    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
 
 if __name__=="__main__":
     encodeTextStream()
