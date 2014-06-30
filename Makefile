@@ -1,6 +1,6 @@
 #invoke with any of these variable: eg, `make`
 
-textStream=scripts/justPrintInputTxt.sh
+textStream:=scripts/justPrintInputTxt.sh
 
 webDirectory="/var/www/"
 bookwormName=$(shell grep database bookworm.cnf | sed 's/.* = //g')
@@ -51,7 +51,7 @@ pristine: clean
 # The easiest thing to do, of course, is simply use an Ngrams or other wordlist.
 
 files/texts/wordlist/wordlist.txt:
-	$(textStream) | parallel --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+	$(textStream) | parallel --block-size 100M --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
 
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
