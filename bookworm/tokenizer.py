@@ -109,12 +109,13 @@ class tokenBatches(object):
                         """
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
-                        """
+                        
                         if level=="unigrams":
                             try:
                                 sys.stderr.write(word.encode("utf-8") + u"not in dictionary, skipping\n")
                             except UnicodeDecodeError:
                                 pass
+                        """
                         skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
