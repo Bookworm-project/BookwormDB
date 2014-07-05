@@ -66,6 +66,23 @@ class tokenBatches(object):
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
+        self.completedFile = open("files/texts/encoded/completed/" + self.id,"w")
+        self.outputFiles = dict()
+        for level in levels:
+            self.outputFiles[level] = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
+
+    def encodeAndFlush(self,IDfile,dictionary):
+        
+        for level in self.levels:
+            self.encode(level,IDfile,dictionary)
+        for file in self.counts['unigrams'].keys():
+            self.completedFile.write(file + "\n")
+
+        #Flush
+        self.counts = dict()
+        for level in self.levels:
+            self.counts[level] = dict()
+
     def addFile(self,filename):
         """
         Is this method retireable?
@@ -90,7 +107,7 @@ class tokenBatches(object):
 
     def encode(self,level,IDfile,dictionary):
         #dictionaryFile is
-        outputFile = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
+        outputFile = self.outputFiles[level]
         output = []
         #print "encoding " + level + " for " + self.id
         for key,value in self.counts[level].iteritems():
@@ -194,32 +211,20 @@ def encodeTextStream():
     dictionary = readDictionaryFile()
     seen = getAlreadySeenList("files/texts/encoded/completed")
     tokenBatch = tokenBatches()
-    written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
 
     for line in sys.stdin:
         filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
         if filename not in seen:
             tokenBatch.addRow(line)
-        if len(tokenBatch.counts['unigrams']) > 10000:
+        if len(tokenBatch.counts['unigrams']) > 100:
             """
             Every 10000 documents, write to disk.
             """
-            for level in tokenBatch.levels:
-                tokenBatch.encode(level,IDfile,dictionary)
-            for file in tokenBatch.counts['unigrams'].keys():
-                written.write(file + "\n")
-            written.close()
-            tokenBatch = tokenBatches()
-            written = open("files/texts/encoded/completed/" + tokenBatch.id,"w")
+            tokenBatch.encodeAndFlush(IDfile,dictionary)
             
     #And printout again at the end
-    for level in tokenBatch.levels:
-        tokenBatch.encode(level,IDfile,dictionary)
-    for file in tokenBatch.counts['unigrams'].keys():
-        written.write(file + "\n")
-    written.close()
-    tokenBatch = tokenBatches()
+    tokenBatch.encodeAndFlush(IDfile,dictionary)
 
 if __name__=="__main__":
     encodeTextStream()
