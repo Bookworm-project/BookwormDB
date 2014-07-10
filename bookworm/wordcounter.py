@@ -6,7 +6,6 @@ import subprocess
 import timeit
 
 def exportToDisk(wordcounts,diskFile,keepThreshold=5):
-
     """
     Periodically, the wordcounter writes what it knows to disk for dictionary values below a certain frequency:
     this lets us keep the most common words continually in memory, and only write out (say) 'the' once, at the end.
@@ -23,6 +22,17 @@ def exportToDisk(wordcounts,diskFile,keepThreshold=5):
     print "export done"
     
 def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
+    """
+    This function reads already-tokenized words from sys.stdin,
+    and uses them to count all the words in the document.
+
+    The only real challenge here is that there may be more unique words than can fit
+    in memory, so we need some kind of buffering on disk.
+
+    It does this by maintaining a dictionary in memory, and periodically 
+    writing the least used portions of that to disk; once it's read everything,
+    it writes everything to disk, sorts the list of all words so that 
+    """
     database = open('files/texts/wordlist/raw.txt','w')
     start_time = timeit.default_timer()
     n = 1
@@ -60,7 +70,12 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     sortWordlist(maxDictionaryLength=maxDictionaryLength)
 
 def sortWordlist(maxDictionaryLength=1000000):
-
+    """
+    The function to sort and curtail the wordcounts created by the previous function leaves an unsorted file at
+    `files/texts/wordlist/raw.txt`. We sort this by invoking the system "sort" program, which is likely to be 
+    faster than anything pythonic; and then for legacy reasons use a perl program to make the counts, sort again (to put the most common words
+    at the top, and then take the top 1,000,000 words.
+    """
     print("Sorting full word counts\n")
     #This LC_COLLATE here seems to be extremely necessary, because otherwise alphabetical order isn't preserved across different orderings.
     subprocess.call(["export LC_COLLATE='C';export LC_ALL='C'; sort -k1 files/texts/wordlist/raw.txt > files/texts/wordlist/sorted.txt"], shell=True)
