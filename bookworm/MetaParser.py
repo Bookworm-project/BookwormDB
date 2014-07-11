@@ -1,9 +1,8 @@
 from datetime import date, datetime
 import json
-
+import sys
 
 fields_to_derive = []
-
 
 def DaysSinceZero(dateobj):
     numdays = 0
@@ -52,16 +51,15 @@ def ParseFieldDescs():
     derivedFile.close()
 
 
-def ParseJSONCatalog():
-    f = open("files/metadata/jsoncatalog_derived.txt", "w")
-
-    for data in open("files/metadata/jsoncatalog.txt", "r"):
+def ParseJSONCatalog(target=open("files/metadata/jsoncatalog_derived.txt", "w"),source = open("files/metadata/jsoncatalog.txt", "r")):
+    f = target
+    for data in source:
         for char in ['\t', '\n']:
             data = data.replace(char, '')
         try:
             line = json.loads(data)
         except:
-            print 'JSON Parsing Failed:\n%s\n' % data
+            sys.stderr.write('JSON Parsing Failed:\n%s\n' % data)
             pass
 
         for field in fields_to_derive:
@@ -90,11 +88,11 @@ def ParseJSONCatalog():
                                     derive["aggregate"] == "year":
                                 k = "%s_day_year" % field["field"]
                                 dt = date(intent[0], intent[1], intent[2])
-                                line[k] = str(dt.timetuple().tm_yday)
+                                line[k] = dt.timetuple().tm_yday
                             elif derive["resolution"] == 'month' and \
                                     derive["aggregate"] == "year":
                                 k = "%s_month_year" % field["field"]
-                                line[k] = content[1]
+                                line[k] = intent[1]
                             elif derive["resolution"] == 'day' and \
                                     derive["aggregate"] == "month":
                                 k = "%s_day_month" % field["field"]
@@ -103,26 +101,27 @@ def ParseJSONCatalog():
                                     derive["aggregate"] == "year":
                                 dt = date(intent[0], intent[1], intent[2])
                                 k = "%s_week_year" % field["field"]
-                                line[k] = str(int(dt.timetuple().tm_yday/7))
+                                line[k] = int(dt.timetuple().tm_yday/7)
                             else:
-                                print 'Problem with aggregate resolution.'
+                                sys.stderr.write('Problem with aggregate resolution.')
                                 continue
                         else:
                             if derive["resolution"] == 'year':
-                                line["%s_year" % field["field"]] = content[0]
+                                line["%s_year" % field["field"]] = intent[0]
                             elif derive["resolution"] == 'month':
                                 try:
                                     dt = datetime(intent[0], intent[1], 1)
                                     k = "%s_month" % field["field"]
                                     line[k] = DaysSinceZero(dt)
                                 except:
-                                    print 'Problem with date fields:', intent
+                                    sys.stderr.write("Problem with date fields")
                                     pass
                             elif derive['resolution'] == 'week':
                                 k = "%s_week" % field['field']
                                 dt1 = date(intent[0], intent[1], intent[2])
                                 dt2 = date(1, 1, 1)
-                                line[k] = str(int((dt1 - dt2).days/7)*7)
+                                #Weeks start with 1, not zero; not starting on Sunday or anything funky like that.
+                                line[k] = int((dt1 - dt2).days/7)*7 + 1
                             elif derive["resolution"] == 'day':
                                 try:
                                     k = "%s_day" % field["field"]
@@ -131,26 +130,29 @@ def ParseJSONCatalog():
                                     #                        content[0])
                                     #dt = datetime.strptime(dtstr, "%d%m%Y")
                                     #dtdiff = dt.date() - date(1, 1, 1)
-                                    dtdiff = date(content[0],content[1],content[2]) - date(1,1,1)
-                                    line[k] = str(dtdiff.days)
+                                    dtdiff = date(intent[0],intent[1],intent[2]) - date(1,1,1)
+                                    line[k] = dtdiff.days
                                 except:
-                                    pass
+                                    sys.stderr.write("Problem with daily resolution")
                             else:
-                                print 'Resolution currently not supported.'
+                                sys.stderr.write('Resolution currently not supported.')
                                 continue
                     except ValueError:
                         # One of out a million Times articles threw this with
                         # a year of like 111,203. It's not clear how best to
                         # handle this.
-                        print "ERROR: %s " % line[field["field"]] + \
-                              "did not convert to proper date. Moving on..."
+                        sys.stderr.write( "ERROR: %s " % line[field["field"]] + \
+                              "did not convert to proper date. Moving on...")
                         pass
                     except Exception, e:
-                        print '*'*50
-                        print '   ---   Different error occured ---   '
-                        print 'ERROR: %s\nINFO: %s' % (str(e), e.__doc__)
-                        print '*'*50
+                        sys.stderr.write( '*'*50)
+                        sys.stderr.write('ERROR: %s\nINFO: %s' % (str(e), e.__doc__))
+                        sys.stderr.write( '*'*50)
                 line.pop(field["field"])
         f.write('%s\n' % json.dumps(line))
         f.flush()
     f.close()
+
+if __name__=="__main__":
+    ParseFieldDescs()
+    ParseJSONCatalog(target=sys.stdout,source=sys.stdin)

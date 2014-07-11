@@ -56,9 +56,10 @@ files/texts/wordlist/wordlist.txt:
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
 
-files/metadata/jsoncatalog_derived.txt:
-#Create metadata files.
-	python OneClick.py metadata
+files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt
+#Run through parallel as well.
+	cat files/metadata/jsoncatalog.txt | parallel --pipe python bookworm/MetaParser.py > $@
+
 
 # This is the penultimate step: creating a bunch of tsv files 
 # (one for each binary blob) with 3-byte integers for the text
@@ -75,7 +76,7 @@ files/metadata/jsoncatalog_derived.txt:
 
 files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt files/texts/textids
 #builds up the encoded lists that don't exist yet.
-	$(textStream) | parallel --block 100M --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block-size 200M --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
