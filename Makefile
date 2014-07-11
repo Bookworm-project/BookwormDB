@@ -43,7 +43,7 @@ clean:
 pristine: clean
 	-mysql -e "DROP DATABASE $(bookwormName)"
 	rm -rf files/texts/textids
-	rm -rf files/texts/wordlist
+	rm -rf files/texts/wordlist/*
 
 # The wordlist is an encoding scheme for words: it tokenizes in parallel, and should
 # intelligently update an exist vocabulary where necessary. It takes about half the time
