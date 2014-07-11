@@ -61,6 +61,9 @@ files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt
 	cat files/metadata/jsoncatalog.txt | parallel --pipe python bookworm/MetaParser.py > $@
 
 
+files/metadata/catalog.txt:
+	python OneClick.py preDatabaseMetadata
+
 # This is the penultimate step: creating a bunch of tsv files 
 # (one for each binary blob) with 3-byte integers for the text
 # and word IDs that MySQL can slurp right up.
@@ -74,7 +77,7 @@ files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
 
-files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt files/texts/textids
+files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt files/texts/textids files/metadata/catalog.txt
 #builds up the encoded lists that don't exist yet.
 	$(textStream) | parallel --block-size 200M --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
