@@ -34,6 +34,7 @@ clean:
 	find files/texts -maxdepth 1 -type p -delete
 	rm -rf files/texts/encoded/*
 	rm -rf files/targets
+	rm -f files/metadata/catalog.txt
 	rm -f files/metadata/jsoncatalog_derived.txt
 	rm -f files/metadata/field_descriptions_derived.json
 
