@@ -51,7 +51,12 @@ def ParseFieldDescs():
     derivedFile.close()
 
 
-def ParseJSONCatalog(target=open("files/metadata/jsoncatalog_derived.txt", "w"),source = open("files/metadata/jsoncatalog.txt", "r")):
+def ParseJSONCatalog(target="default",source = "default"):
+    if target=="default":
+        target=open("files/metadata/jsoncatalog_derived.txt", "w")
+    if source=="default":
+        source = open("files/metadata/jsoncatalog.txt", "r")
+        
     f = target
     for data in source:
         for char in ['\t', '\n']:
