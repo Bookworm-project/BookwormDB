@@ -138,7 +138,7 @@ class tokenBatches(object):
                     wordids = "\t".join(wordList)
                     output.append("\t".join([textid,wordids,str(count)]))
                 
-        outputFile.write("\n".join(output))        
+        outputFile.write("\n".join(output) + "\n")        
 
 class tokenizer(object):
     """
