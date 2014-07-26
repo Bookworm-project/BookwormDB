@@ -78,7 +78,7 @@ files/metadata/catalog.txt:
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
 
-files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt files/texts/textids files/metadata/catalog.txt
+files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt files/texts/textids.dbm files/metadata/catalog.txt
 #builds up the encoded lists that don't exist yet.
 	$(textStream) | parallel --block-size 100M -u --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
@@ -89,6 +89,9 @@ files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncata
 
 files/targets/database: files/targets/database_wordcounts files/targets/database_metadata 
 	touch $@
+
+files/texts/textids.dbm: files/texts/textids files/metadata/jsoncatalog_derived.txt files/metadata/catalog.txt
+	python bookworm/makeWordIdDBM.py
 
 files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts
 	python OneClick.py database_metadata

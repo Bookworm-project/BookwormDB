@@ -3,7 +3,8 @@
 import regex as re
 import random
 import sys
-import os 
+import os
+import anydbm
 
 def wordRegex():
     """
@@ -36,14 +37,7 @@ def readDictionaryFile(prefix=""):
     return look
 
 def readIDfile(prefix=""):
-    files = os.listdir(prefix + "files/texts/textids/")
-    look = dict()
-    for filename in files:
-        for line in open(prefix + "files/texts/textids/" + filename):
-            line = line.rstrip("\n")
-            splat = line.split("\t")
-            look[splat[1]] = splat[0]
-    return look
+    return anydbm.open(prefix + "files/texts/textids.dbm")
 
 class tokenBatches(object):
     """
@@ -60,9 +54,6 @@ class tokenBatches(object):
     """
     
     def __init__(self,levels=["unigrams","bigrams"]):
-        self.counts = dict()
-        for level in levels:
-            self.counts[level] = dict()
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
@@ -70,53 +61,40 @@ class tokenBatches(object):
         self.outputFiles = dict()
         for level in levels:
             self.outputFiles[level] = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
+    
+    def attachDictionaryAndID(self):
+        self.dictionary = readDictionaryFile()
+        self.IDfile = readIDfile()
 
-    def encodeAndFlush(self,IDfile,dictionary):
-        
-        for level in self.levels:
-            self.encode(level,IDfile,dictionary)
-        for file in self.counts['unigrams'].keys():
-            self.completedFile.write(file + "\n")
 
-        #Flush
-        self.counts = dict()
-        for level in self.levels:
-            self.counts[level] = dict()
+    def encodeRow(self,row):
+        #The counts will be built up
+        counts = dict()
 
-    def addFile(self,filename):
-        """
-        Is this method retireable?
-        """
-        tokens = tokenizer(open(filename).read())
-        #Add trigrams to this list to do trigrams
-        print tokens.string
-        for ngrams in self.levels:
-            self.counts[ngrams][filename] = tokens.counts(ngrams)
-
-    def addRow(self,row):
-        #row is a piece of text: the first line is the identifier, and the rest is the text.
+        #The dictionary and ID lookup tables should be pre-attached.
+        dictionary = self.dictionary
+        IDfile = self.IDfile
         parts = row.split("\t",1)
         filename = parts[0]
+
+        try:
+            textid = IDfile[filename]
+        except KeyError:
+            sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt, not encoding\n")
+            return
+
         try:
             tokens = tokenizer(parts[1])
-            for ngrams in self.levels:
-                self.counts[ngrams][filename] = tokens.counts(ngrams)
         except IndexError:
             sys.stderr.write("\nFound no tab in the input for '" + filename + "'...skipping row\n")
 
+        for level in self.levels:
+            outputFile = self.outputFiles[level]
+            output = []
 
-    def encode(self,level,IDfile,dictionary):
-        #dictionaryFile is
-        outputFile = self.outputFiles[level]
-        output = []
-        #print "encoding " + level + " for " + self.id
-        for key,value in self.counts[level].iteritems():
-            try:
-                textid = IDfile[key]
-            except KeyError:
-                sys.stderr.write("Warning: file " + key + " not found in jsoncatalog.txt, not encoding\n")
-                continue
-            for wordset,count in value.iteritems():
+            counts = tokens.counts(level)
+
+            for wordset,count in counts.iteritems():
                 skip = False
                 wordList = []
                 for word in wordset:
@@ -126,19 +104,15 @@ class tokenBatches(object):
                         """
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
-                        
-                        if level=="unigrams":
-                            try:
-                                sys.stderr.write(word.encode("utf-8") + u"not in dictionary, skipping\n")
-                            except UnicodeDecodeError:
-                                pass
                         """
                         skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
                     output.append("\t".join([textid,wordids,str(count)]))
-                
-        outputFile.write("\n".join(output) + "\n")        
+
+            outputFile.write("\n".join(output) + "\n")        
+        self.completedFile.write(filename + "\n")
+
 
 class tokenizer(object):
     """
@@ -207,24 +181,15 @@ def getAlreadySeenList(folder):
     return seen
 
 def encodeTextStream():
-    IDfile = readIDfile()
-    dictionary = readDictionaryFile()
     seen = getAlreadySeenList("files/texts/encoded/completed")
-    tokenBatch = tokenBatches()
-
+    tokenBatch.attachDictionaryAndID()
     for line in sys.stdin:
         filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
         if filename not in seen:
-            tokenBatch.addRow(line)
-        if len(tokenBatch.counts['unigrams']) > 100:
-            """
-            Every 10000 documents, write to disk.
-            """
-            tokenBatch.encodeAndFlush(IDfile,dictionary)
+            tokenBatch.encodeRow(line)
             
     #And printout again at the end
-    tokenBatch.encodeAndFlush(IDfile,dictionary)
 
 if __name__=="__main__":
     encodeTextStream()
