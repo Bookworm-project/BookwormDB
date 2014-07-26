@@ -98,9 +98,6 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
     averageNumberOfEntries = sum(values)/len(values)
     maxEntries = max(values)
 
-#    print metadataname
-#    print averageNumberOfEntries
-#    print maxEntries
     if averageNumberOfEntries > 2:
         description["datatype"] = "categorical"
 
@@ -225,7 +222,6 @@ class dataField:
         print "Making a SQL table to hold the data for " + dfield.field
 
         q1 = """DROP TABLE IF EXISTS """       + dfield.field + "Disk"
-        print "\n" + q1 + "\n"
         db.query(q1)
         db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
         """ + self.anchor + " " +  self.anchorType + """,
@@ -237,7 +233,6 @@ class dataField:
                FIELDS ESCAPED BY '';"""
         db.query(loadcode)
         #cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
-        #print "length is\n" + str(cursor.fetchall()[0][0]) + "\n\n\n"
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
     def buildIDTable(self):
@@ -417,7 +412,7 @@ class dataField:
             self.dbToPutIn.query(code)
             #Separate Table Info
             code = self.fastLookupTableIfNecessary()
-            #print code
+
             self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
 
 
