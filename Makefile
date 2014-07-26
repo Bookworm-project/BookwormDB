@@ -32,7 +32,7 @@ files/targets: files/texts
 clean:
 	#Remove inputs.txt if it's a pipe.
 	find files/texts -maxdepth 1 -type p -delete
-	rm -rf files/texts/encoded/*
+	rm -rf files/texts/encoded/*/*
 	rm -rf files/targets
 	rm -f files/metadata/catalog.txt
 	rm -f files/metadata/jsoncatalog_derived.txt
@@ -80,7 +80,7 @@ files/metadata/catalog.txt:
 
 files/targets/encoded: files/texts/wordlist/wordlist.txt files/metadata/jsoncatalog_derived.txt files/texts/textids files/metadata/catalog.txt
 #builds up the encoded lists that don't exist yet.
-	$(textStream) | parallel --block-size 200M --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block-size 100M -u --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
