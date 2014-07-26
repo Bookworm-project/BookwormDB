@@ -16,6 +16,7 @@ from variableSet import splitMySQLcode
 import warnings
 warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", "Can't create database.*; database exists")
+warnings.filterwarnings("ignore", "^Unknown table .*")
 
 class DB:
     def __init__(self,dbname=None):
@@ -361,7 +362,7 @@ class BookwormSQLDatabase:
         self.db.query(thisField.updateVariableDescriptionTable())
 
         query = "SELECT memoryCode FROM masterVariableTable WHERE name='%s'" % (name)
-        print query;
+        #print query;
         commands = self.db.query(query).fetchall()[0][0];
         for query in splitMySQLcode(commands):
             self.db.query(query)
