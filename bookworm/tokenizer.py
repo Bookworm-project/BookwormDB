@@ -182,6 +182,7 @@ def getAlreadySeenList(folder):
 
 def encodeTextStream():
     seen = getAlreadySeenList("files/texts/encoded/completed")
+    tokenBatch = tokenBatches()
     tokenBatch.attachDictionaryAndID()
     for line in sys.stdin:
         filename = line.split("\t",1)[0]
