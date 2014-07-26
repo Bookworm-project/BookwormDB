@@ -4,13 +4,10 @@ metadata and lexical data in the original source.
 
 A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bmschmidt.github.io/Presidio) on this repository (editable as the gh-pages branch here).
 
-Which version to use
+Releases
 ---------------------
 
-The "master" branch is more backwards-compatible, but the "dev" branch tends to be significantly faster both for creation and
-for querying. "Master" exists primarily as an internal scheme to support legacy installations; there has not been a "stable" 
-release to date, so neither is guaranteed to be more stable than the other. Most new installations should use "dev."
-
+The "master" branch is under continuous development: it's likely to be faster and incorporate the latest bugfixes, but will also tend to incorporate the latest bugs. The most recent tagged version (currently 0.3 alpha) may be a good replacement.
 
 ## Related projects
 
@@ -34,6 +31,9 @@ Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms b
 
 
 ## Getting Started ##
+
+
+
 ### Required MySQL Database ###
 
 At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
