@@ -56,7 +56,7 @@ class DB:
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
             except:
-                print "\n" + sql + "\n"
+                #sys.stderr.write("Query failed: \n" + sql + "\n")
                 raise
         return cursor
 
