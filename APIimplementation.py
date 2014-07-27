@@ -63,13 +63,14 @@ class userqueries:
         db = dbConnect(prefs)
         databaseScheme = databaseSchema(db)
         for limits in outside_dictionary['search_limits']:
-            mylimits = outside_dictionary
+            mylimits = copy.deepcopy(outside_dictionary)
             mylimits['search_limits'] = limits
             localQuery = userquery(mylimits,db=db,databaseScheme=databaseScheme)
             self.queryInstances.append(localQuery)
             self.returnval.append(localQuery.execute())
 
     def execute(self):
+        
         return self.returnval
 
 
@@ -101,30 +102,9 @@ class userquery:
         """
         if isinstance(outside_dictionary['search_limits'],list):
             outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
-        outside_dictionary = self.limitCategoricalQueries(outside_dictionary)
+        #outside_dictionary = self.limitCategoricalQueries(outside_dictionary)
         self.defaults(outside_dictionary) #Take some defaults
         self.derive_variables() #Derive some useful variables that the query will use.
-
-    def limitCategoricalQueries(self,outside_dictionary,n=75):
-        """
-        For every group, if it's categorical we automatically curtail the list to the
-        top 75 unless it's specified somewhere else.
-        This is a temporary stopgap until we come up with a better solution.
-        """
-        try:
-            for group in outside_dictionary['groups']:
-                try:
-                    alias = self.databaseScheme.aliases[group]
-                    if re.search("__id",alias) and not alias in outside_dictionary['search_limits'].keys():
-                        #If you want to avoid the dropping, some constraint ("$gte":0, say) has to be put on the
-                        #ids in the query.
-                        outside_dictionary['search_limits'][alias] = {"$lte":n}
-                except KeyError:
-                    pass
-        except KeyError: #sometimes a query won't have a groups field
-            pass
-
-        return outside_dictionary
 
     def defaults(self,outside_dictionary):
         #these are default values;these are the only values that can be set in the query
@@ -186,8 +166,10 @@ class userquery:
                 self.outerGroups.append(group)
                 try:
                     #Search on the ID field, not the basic field.
+                    #debug(self.databaseScheme.aliases.keys())
                     self.groups.add(self.databaseScheme.aliases[group])
                     table = self.databaseScheme.tableToLookIn[group]
+
                     joinfield = self.databaseScheme.aliases[group]
                     self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
 
@@ -335,10 +317,6 @@ class userquery:
 
         self.relevantTables = set()
 
-        """
-        BEGIN DEPRECATED BLOCK
-        This is retained only for back-compatibility
-        """
         databaseScheme = self.databaseScheme
         columns = []
         for columnInQuery in [re.sub(" .*","",key) for key in self.limits.keys()] + [re.sub(" .*","",group) for group in self.groups]:
@@ -356,9 +334,7 @@ class userquery:
             except KeyError:
                 pass
                 #Could raise as well--shouldn't be errors--but this helps back-compatability.
-        """
-        END DEPRECATED BLOCK
-        """
+
 #        if "catalog" in self.relevantTables and self.method != "bibliography_query":
 #            self.relevantTables.remove('catalog')
         try:
@@ -494,11 +470,12 @@ class userquery:
                 #XXX for backward compatability
                 self.words_searched = phrase
                 #XXX end deprecated block
-            if limits == '':
+            self.wordswhere = "(" + ' OR '.join(limits) + ")"
+            if limits == []:
                 #In the case that nothing has been found, tell it explicitly to search for
                 #a condition when nothing will be found.
-                limits = "words1.wordid=-1"
-            self.wordswhere = "(" + ' OR '.join(limits) + ")"
+                self.wordswhere = "words1.wordid=-1"
+
 
         wordlimits = dict()
 
@@ -693,11 +670,13 @@ class userquery:
         self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups]) #Still in use?
         #I'm switching to this version to make it work with "unigram"; that could be special cased if I
         #still am using the aliases elsewhere. We'll see.
-        self.totalselections  = ",".join([group for group in self.outerGroups if group!="1 as In_Library"])
+        self.totalselections  = ",".join([group for group in self.outerGroups if group!="1 as In_Library" and group != ""])
+        if self.totalselections != "": self.totalselections += ", "
+        
         self.groupings = re.sub("1 as In_Library","1",self.groupings)
         query = """
         SELECT
-            %(totalselections)s,
+            %(totalselections)s
             %(countcommand)s
         FROM
             ( %(mainquery)s
@@ -714,7 +693,7 @@ class userquery:
         if len(set(["TextCount","WordCount"]).intersection(set(self.counttype)))==len(self.counttype):
             query = """
         SELECT
-            %(totalselections)s,
+            %(totalselections)s
             %(countcommand)s
         FROM
             ( %(mainquery)s
@@ -902,6 +881,9 @@ class userquery:
     def arrayNest(self,array,returnt,endLength=1):
         #A recursive function to transform a list into a nested array
         #Used here to return compact json via the API.
+
+        
+
         key = array[0]
         key = to_unicode(key)
         if len(array)==endLength+1:
@@ -927,6 +909,9 @@ class userquery:
         names = [to_unicode(item[0]) for item in self.cursor.description]
         returnt = dict()
         lines = self.cursor.fetchall()
+        if len(self.counttype) == len(names):
+            #If there are no groups at all, just return the array straight off.
+            return [float(value) for value in lines[0]]
         for line in lines:
             returnt = self.arrayNest(line,returnt,endLength = len(self.counttype))
         return returnt
@@ -986,10 +971,35 @@ class databaseSchema:
 
         if self.db.dbname=="presidio":
             self.aliases = {"classification":"lc1","lat":"pointid","lng":"pointid"}
-        elif self.db.dbname=="ChronAm":
-            self.aliases = {"lat":"papercode","lng":"papercode","state":"papercode","region":"papercode"}
         else:
             self.aliases = dict()
+            
+        try:
+            #First build using the new streamlined tables; if that fails, 
+            #build using the old version that hits the INFORMATION_SCHEMA,
+            #which is bad practice.
+            self.newStyle(db)
+        except:
+            self.oldStyle(db)
+        
+        
+    def newStyle(self,db):
+        self.tableToLookIn['bookid'] = 'fastcat'
+        self.anchorFields['bookid'] = 'fastcat'
+        self.anchorFields['wordid'] = 'wordid'
+        self.tableToLookIn['wordid'] = 'wordsheap'
+
+
+        tablenames = dict()
+        tableDepends = dict()
+        db.cursor.execute("SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);")
+        for row in db.cursor.fetchall():
+            (dbname,alias,tablename,dependsOn) = row
+            self.tableToLookIn[dbname] = tablename
+            self.anchorFields[tablename] = dependsOn
+            self.aliases[dbname] = alias
+
+    def oldStyle(self,db):
 
         #This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
 
@@ -1168,3 +1178,14 @@ try:
     print json.dumps(result)
 except:
     pass
+
+
+
+def debug(string):
+    """
+    Makes it easier to debug through a web browser by handling the headers
+    """
+    print headers('1')
+    print "<br>"
+    print string
+    print "<br>"
