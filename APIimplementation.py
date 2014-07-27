@@ -8,6 +8,8 @@ import numpy #used for smoothing.
 import copy
 import decimal
 import MySQLdb
+import warnings
+import hashlib
 
 """
 #There are 'fast' and 'full' tables for books and words;
@@ -47,6 +49,7 @@ class userqueries:
             prefs = general_prefs['default']
             prefs['database'] = self.database
         self.prefs = prefs
+
         self.wordsheap = prefs['fastword']
         self.words = prefs['fullword']
         if 'search_limits' not in outside_dictionary.keys():
@@ -369,8 +372,6 @@ class userquery:
             if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
-        #Here's a feature that's not yet fully implemented: it doesn't work quickly enough, probably because the joins involve a lot of jumping back and forth.
-
     def make_catwhere(self):
         #Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
@@ -384,12 +385,13 @@ class userquery:
             self.catwhere = "TRUE"
         if 'hasword' in self.limits.keys():
             """
-            This is the sort of code I'm trying to move towards
-            it just generates a new API call to fill a small part of the code here:
-            (in this case, it merges the 'catalog' entry with a select query on
-            the word in the 'haswords' field. Enough of this could really
-            shrink the codebase, I suspect. It should be possible in MySQL 6.0, from what I've read, where
-            subqueried tables will have indexes written for them by the query optimizer.
+            Because temporary tables don't carry indexes, we're just making the new tables
+            with indexes on the fly to be stored in a temporary database, "bookworm_scratch"
+            Each time a hasword query is performed, the results of that query are permanently cached;
+            they're stored as a table that can be used in the future.
+
+            This will create problems if database contents are changed; there needs to be some mechanism for 
+            clearing out the cache periodically.
             """
 
             if self.limits['hasword'] == []:
@@ -408,11 +410,14 @@ class userquery:
                 #Make sure it's an array
                 mydict['search_limits']['hasword'] =  [mydict['search_limits']['hasword']] 
             """
-            #Ideally, this would shuffle into an order ensuring that the rarest words were nested deepest.
-            #That would speed up query execution by ensuring there wasn't some massive search for 'the' being
+            #Ideally, this would shuffle into an order ensuring that the
+            rarest words were nested deepest.
+            #That would speed up query execution by ensuring there
+            wasn't some massive search for 'the' being
             #done at the end.
 
-            Instead, it just pops off the last element and sets up a recursive nested join. for every element in the 
+            Instead, it just pops off the last element and sets up a
+            recursive nested join. for every element in the 
             array.
             """
             mydict['search_limits']['word'] = [mydict['search_limits']['hasword'].pop()]
@@ -420,10 +425,24 @@ class userquery:
                 del mydict['search_limits']['hasword']
             tempquery = userquery(mydict,databaseScheme=self.databaseScheme)
             listofBookids = tempquery.bookid_query()
-            #from uuid import uuid4
-            #random_string = re.sub("-","",str(uuid4()))
-            #I don't want collisions--a uuid is overkill, but works.
-            self.catwhere = self.catwhere + " AND fastcat.bookid IN (%s)"%(listofBookids)
+
+            #Unique identifier for the query that persists across the 
+            #various subqueries.
+            queryID  = hashlib.sha1(listofBookids).hexdigest()[:20]
+
+            tmpcatalog = "bookworm_scratch.tmp" + re.sub("-","",queryID)
+
+            try:
+                self.cursor.execute("CREATE TABLE %s (bookid MEDIUMINT, PRIMARY KEY (bookid)) ENGINE=MYISAM;" %tmpcatalog)
+                self.cursor.execute("INSERT IGNORE INTO %s %s;" %(tmpcatalog,listofBookids))
+
+            except MySQLdb.OperationalError,e:
+                #Usually the error will be 1050, which is a good thing: it means we don't need to
+                #create the table.
+                #If it's not, something bad is happening.
+                if not re.search("1050.*already exists",str(e)):
+                    raise
+            self.catalog += " NATURAL JOIN %s "%(tmpcatalog)
 
 
     def make_wordwheres(self):
@@ -475,6 +494,10 @@ class userquery:
                 #XXX for backward compatability
                 self.words_searched = phrase
                 #XXX end deprecated block
+            if limits == '':
+                #In the case that nothing has been found, tell it explicitly to search for
+                #a condition when nothing will be found.
+                limits = "words1.wordid=-1"
             self.wordswhere = "(" + ' OR '.join(limits) + ")"
 
         wordlimits = dict()
@@ -935,7 +958,8 @@ class userquery:
         if self.method=="Nothing":
             pass
         else:
-            return getattr(self,self.method)()
+            value = getattr(self,self.method)()
+            return value
 
 class databaseSchema:
     """
