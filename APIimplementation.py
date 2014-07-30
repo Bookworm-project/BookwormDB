@@ -165,18 +165,16 @@ class userquery:
             else:
                 self.outerGroups.append(group)
                 try:
-                    if self.databaseScheme.aliases[group] != group:
-                        #Search on the ID field, not the basic field.
-                        #debug(self.databaseScheme.aliases.keys())
-                        self.groups.add(self.databaseScheme.aliases[group])
-                        table = self.databaseScheme.tableToLookIn[group]
+                    #Search on the ID field, not the basic field.
+                    #debug(self.databaseScheme.aliases.keys())
+                    self.groups.add(self.databaseScheme.aliases[group])
+                    table = self.databaseScheme.tableToLookIn[group]
 
-                        joinfield = self.databaseScheme.aliases[group]
-                        self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
-                    else:
-                        self.groups.add(group)
+                    joinfield = self.databaseScheme.aliases[group]
+                    self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+
                 except KeyError:
-                    self.groups.add(group)                
+                    self.groups.add(group)
 
         """
         There are the selections which can include table refs, and the groupings, which may not:
@@ -654,11 +652,7 @@ class userquery:
         """ % self.__dict__
         return countsQuery
 
-    def debug_query(self):
-        query = self.ratio_query(materialize = False)
-        return json.dumps(self.denominator.groupings.split(",")) + query 
-    
-    def ratio_query(self,materialize=True):
+    def ratio_query(self):
         """
         We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most
         cases is the search_limits without the keys, see above; it can also be specially defined using asterisks as a shorthand to identify other fields to drop.
@@ -667,14 +661,9 @@ class userquery:
 
         self.denominator =  userquery(outside_dictionary = self.compare_dictionary,db=self.db,databaseScheme=self.databaseScheme)
         self.supersetquery = self.denominator.counts_query()
-        supersetIndices = self.denominator.groupings.split(",")
-        if materialize:
-            self.supersetquery = derived_table(self.supersetquery,self.db,indices=supersetIndices).materialize()
-        
+
         self.mainquery    = self.counts_query()
-        if materialize:
-            self.mainquery = derived_table(self.mainquery,self.db,indices=supersetIndices).materialize()
-        
+
         self.countcommand = ','.join(self.finaloperations)
 
         self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
@@ -690,9 +679,10 @@ class userquery:
             %(totalselections)s
             %(countcommand)s
         FROM
-             %(mainquery)s as numerator
+            ( %(mainquery)s
+            ) as numerator
         RIGHT OUTER JOIN
-            %(supersetquery)s as denominator
+            ( %(supersetquery)s ) as denominator
             %(totalMergeTerms)s
         %(joinSuffix)s
         GROUP BY %(groupings)s;""" % self.__dict__
@@ -706,7 +696,8 @@ class userquery:
             %(totalselections)s
             %(countcommand)s
         FROM
-            %(mainquery)s as numerator
+            ( %(mainquery)s
+            ) as numerator
         %(joinSuffix)s
         GROUP BY %(groupings)s;""" % self.__dict__
 
@@ -955,47 +946,6 @@ class userquery:
             value = getattr(self,self.method)()
             return value
 
-class derived_table(object):
-    """
-    MySQL/MariaDB doesn't have good subquery materialization,
-    so I'm implementing it by hand.
-    """
-    def __init__(self,SQLstring,db,indices = [],dbToPutIn = "bookworm_scratch"):
-        """
-        initialize with the code to create the table; the database it will be in
-        (to prevent conflicts with other identical queries in other dbs);
-        and the list of all tables to be indexed
-        (optional, but which can really speed up joins)
-        """
-        self.query = SQLstring
-        self.db = db
-        #Each query is identified by a unique key hashed
-        #from the query and the dbname.
-        self.queryID  = dbToPutIn + "." + "derived" + hashlib.sha1(self.query + db.dbname).hexdigest()
-        self.indices = "(" + ",".join(["INDEX(%s)" % index  for index in indices]) + ")" if indices != [] else ""
-    
-
-    def materialize(self,temp=False):
-        """
-        materializes the table, by default in memory in the bookworm_scratch
-        database. If temp is false, the table will be stored on disk, available
-        for future users too.
-        """
-        self.tempString = "TEMPORARY" if temp else ""
-        self.engine = "MEMORY" if temp else "MYISAM"
-        try:
-            self.db.cursor.execute("CREATE %(tempString)s TABLE %(queryID)s %(indices)s ENGINE=%(engine)s %(query)s;" % self.__dict__)
-
-        except MySQLdb.OperationalError,e:
-            #Often the error will be 1050, which is a good thing:
-            #It means we don't need to
-            #create the table, because it's there already.
-            #But if it's not, something bad is happening.
-            if not re.search("1050.*already exists",str(e)):
-                raise
-
-        return self.queryID
-        
 class databaseSchema:
     """
     This class stores information about the database setup that is used to optimize query creation query
@@ -1233,8 +1183,7 @@ except:
 
 def debug(string):
     """
-    Makes it easier to debug through a web browser by handling the headers.
-    Despite being called a `string`, it can be anything that python can print.
+    Makes it easier to debug through a web browser by handling the headers
     """
     print headers('1')
     print "<br>"
