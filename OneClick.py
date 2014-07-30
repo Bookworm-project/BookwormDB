@@ -168,6 +168,18 @@ class oneClickInstance(object):
         self.database_wordcounts()
         self.database_metadata()
 
+    def doctor(self):
+        """
+        Do some things to update old databases to the newest version.
+        This should always be safe to run, but may do more than diagnostics.
+        """
+        datahandler = BookwormSQLDatabase(dbname)
+        cursor = datahandler.db.query("CREATE DATABASE IF NOT EXISTS bookworm_scratch")
+        cursor = datahandler.db.query("GRANT ALL ON bookworm_scratch.* TO '%s'@'localhost' IDENTIFIED BY '%s'" %(dbuser,dbpassword))
+        #Just to be safe
+        cursor = datahandler.db.query("GRANT ALL ON bookworm_scratch.* TO '%s'@'127.0.0.1' IDENTIFIED BY '%s'" %(dbuser,dbpassword))
+        cursor = datahandler.db.query("FLUSH PRIVILEGES")
+
 
 if __name__=="__main__":
     program = oneClickInstance()
