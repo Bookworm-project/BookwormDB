@@ -180,6 +180,20 @@ class oneClickInstance(object):
         cursor = datahandler.db.query("GRANT ALL ON bookworm_scratch.* TO '%s'@'127.0.0.1' IDENTIFIED BY '%s'" %(dbuser,dbpassword))
         cursor = datahandler.db.query("FLUSH PRIVILEGES")
 
+        """
+        check some MySQL settings
+        """
+
+        config = ConfigParser.ConfigParser(allow_no_value=True)
+        read = config.read(["/.my.cnf","~/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf"])
+        if len(read) == 0:
+            sys.stderr.write("Warning: couldn't find a my.cnf file in the usual places ('/etc/my.cnf' and /etc/mysql/my.cnf.' To see if your settings are OK, you'll have to search for this method and change the code just above it.")
+        try:
+            print config.get("mysqld","query_cache_size") + config.get("mysqld","query_cache_type") + config.get("mysqld","query_cache_limit")
+        except:
+            sys.stderr.write("Warning: Your my.cnf file doesn't properly specify all three query cache values: perhaps you need to run or re-run etc/mysqlsetup/updateMyCnf.py, or insert the defaults in there by hand? Recent versions of MySQL have different default settings that may break things.\n")
+
+
 
 if __name__=="__main__":
     program = oneClickInstance()
