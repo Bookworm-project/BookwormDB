@@ -5,16 +5,8 @@ import sys
 fields_to_derive = []
 
 def DaysSinceZero(dateobj):
-    numdays = 0
-    for yr in range(dateobj.year):
-        if yr % 4 == 0 and (yr % 100 != 0 or yr % 100 == 0 and yr % 400 == 0):
-            numdays += 366
-        else:
-            numdays += 365
-    curr_date = date(dateobj.year, dateobj.month, dateobj.day)
-    numdays += curr_date.timetuple().tm_yday
-    return numdays
-
+    #Zero isn't a date, which python knows but MySQL and javascript don't.
+    return (dateobj - date(1,1,1)).days + 366
 
 def ParseFieldDescs():
     f = open('files/metadata/field_descriptions.json', 'r')
@@ -94,19 +86,28 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 k = "%s_day_year" % field["field"]
                                 dt = date(intent[0], intent[1], intent[2])
                                 line[k] = dt.timetuple().tm_yday
-                            elif derive["resolution"] == 'month' and \
-                                    derive["aggregate"] == "year":
-                                k = "%s_month_year" % field["field"]
-                                line[k] = intent[1]
                             elif derive["resolution"] == 'day' and \
                                     derive["aggregate"] == "month":
                                 k = "%s_day_month" % field["field"]
-                                line[k] = content[2]
+                                line[k] = intent[2]
+                            elif derive["resolution"] == 'day' and \
+                                    derive["aggregate"] == "week":
+                                k = "%s_day_month" % field["field"]
+                                dt = date(intent[0], intent[1], intent[2])
+                                #Python and javascript handle weekdays differently:
+                                #Like JS, we want to begin on Sunday with zero
+                                line[k] = dt.weekday() + 1
+                                if (line[k])==7: line[k] = 0
+                            elif derive["resolution"] == 'month' and \
+                                    derive["aggregate"] == "year":
+                                k = "%s_month_year" % field["field"]
+                                dt = date(1,intent[1],1)
+                                line[k] = dt.timetuple().tm_yday
                             elif derive["resolution"] == 'week' and \
                                     derive["aggregate"] == "year":
                                 dt = date(intent[0], intent[1], intent[2])
                                 k = "%s_week_year" % field["field"]
-                                line[k] = int(dt.timetuple().tm_yday/7)
+                                line[k] = int(dt.timetuple().tm_yday/7)*7
                             else:
                                 sys.stderr.write('Problem with aggregate resolution.')
                                 continue
@@ -115,28 +116,24 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 line["%s_year" % field["field"]] = intent[0]
                             elif derive["resolution"] == 'month':
                                 try:
-                                    dt = datetime(intent[0], intent[1], 1)
                                     k = "%s_month" % field["field"]
+                                    dt = date(intent[0], intent[1], 1)
                                     line[k] = DaysSinceZero(dt)
                                 except:
                                     sys.stderr.write("Problem with date fields")
                                     pass
                             elif derive['resolution'] == 'week':
                                 k = "%s_week" % field['field']
-                                dt1 = date(intent[0], intent[1], intent[2])
-                                dt2 = date(1, 1, 1)
-                                #Weeks start with 1, not zero; not starting on Sunday or anything funky like that.
-                                line[k] = int((dt1 - dt2).days/7)*7 + 1
+                                dt = date(intent[0], intent[1], intent[2])
+                                inttime = DaysSinceZero(dt)
+                                time = int(inttime/7)*7
+                                #Not starting on Sunday or anything funky like that. Actually, I don't know what we're starting on. Adding an integer here would fix that.
+                                line[k] = time
                             elif derive["resolution"] == 'day':
                                 try:
                                     k = "%s_day" % field["field"]
-                                    #dtstr = '%02d%02d%s' % (int(content[2]),
-                                    #                        int(content[1]),
-                                    #                        content[0])
-                                    #dt = datetime.strptime(dtstr, "%d%m%Y")
-                                    #dtdiff = dt.date() - date(1, 1, 1)
-                                    dtdiff = date(intent[0],intent[1],intent[2]) - date(1,1,1)
-                                    line[k] = dtdiff.days
+                                    dt = date(intent[0],intent[1],intent[2])
+                                    line[k] = DaysSinceZero(dt)
                                 except:
                                     sys.stderr.write("Problem with daily resolution")
                             else:
@@ -148,6 +145,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                         # handle this.
                         sys.stderr.write( "ERROR: %s " % line[field["field"]] + \
                               "did not convert to proper date. Moving on...")
+                        #raise
                         pass
                     except Exception, e:
                         sys.stderr.write( '*'*50)
