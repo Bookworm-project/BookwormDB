@@ -179,6 +179,7 @@ class oneClickInstance(object):
         #Just to be safe
         cursor = datahandler.db.query("GRANT ALL ON bookworm_scratch.* TO '%s'@'127.0.0.1' IDENTIFIED BY '%s'" %(dbuser,dbpassword))
         cursor = datahandler.db.query("FLUSH PRIVILEGES")
+        cursor = datahandler.db.query("CREATE TABLE bookworm_scratch.cache (fieldname VARCHAR(90) NOT NULL, PRIMARY KEY (fieldname), created TIMESTAMP, cached TINYINT NOT NULL, count INT NOT NULL)")
 
         """
         check some MySQL settings
