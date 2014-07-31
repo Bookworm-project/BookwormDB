@@ -85,7 +85,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     derive["aggregate"] == "year":
                                 k = "%s_day_year" % field["field"]
                                 dt = date(intent[0], intent[1], intent[2])
-                               line[k] = dt.timetuple().tm_yday
+                                line[k] = dt.timetuple().tm_yday
                             elif derive["resolution"] == 'day' and \
                                     derive["aggregate"] == "month":
                                 k = "%s_day_month" % field["field"]
@@ -96,12 +96,12 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 dt = date(intent[0], intent[1], intent[2])
                                 #Python and javascript handle weekdays differently:
                                 #Like JS, we want to begin on Sunday with zero
-                                line[k] = intent[2].weekday() + 1
+                                line[k] = dt.weekday() + 1
                                 if (line[k])==7: line[k] = 0
                             elif derive["resolution"] == 'month' and \
                                     derive["aggregate"] == "year":
                                 k = "%s_month_year" % field["field"]
-                                dt = date(0,intent[1],1)
+                                dt = date(1,intent[1],1)
                                 line[k] = dt.timetuple().tm_yday
                             elif derive["resolution"] == 'week' and \
                                     derive["aggregate"] == "year":
@@ -145,6 +145,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                         # handle this.
                         sys.stderr.write( "ERROR: %s " % line[field["field"]] + \
                               "did not convert to proper date. Moving on...")
+                        #raise
                         pass
                     except Exception, e:
                         sys.stderr.write( '*'*50)
