@@ -363,7 +363,7 @@ class userquery:
             self.catwhere = "TRUE"
         if 'hasword' in self.limits.keys():
             """
-            Because temporary tables don't carry indexes, we're just making the new tables
+            Because derived tables don't carry indexes, we're just making the new tables
             with indexes on the fly to be stored in a temporary database, "bookworm_scratch"
             Each time a hasword query is performed, the results of that query are permanently cached;
             they're stored as a table that can be used in the future.
@@ -975,7 +975,7 @@ class derived_table(object):
         self.indices = "(" + ",".join(["INDEX(%s)" % index  for index in indices]) + ")" if indices != [] else ""
     
 
-    def materialize(self,temp=False):
+    def materialize(self,temp=True):
         """
         materializes the table, by default in memory in the bookworm_scratch
         database. If temp is false, the table will be stored on disk, available
