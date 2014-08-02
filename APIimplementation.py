@@ -754,12 +754,12 @@ class userquery:
         return self.nwords
 
     def bibliography_query(self,limit = "100"):
-        #I'd like to redo this at some point so it could work as an API call.
+        #I'd like to redo this at some point so it could work as an API call more naturally.
         self.limit = limit
         self.ordertype = "sum(main.count*10000/nwords)"
         try:
             if self.outside_dictionary['ordertype'] == "random":
-                if self.counttype==["Raw_Counts"] or self.counttype==["Number_of_Books"] or self.counttype==['WordCount'] or self.counttype==['BookCount']:
+                if self.counttype==["Raw_Counts"] or self.counttype==["Number_of_Books"] or self.counttype==['WordCount'] or self.counttype==['BookCount'] or self.counttype==['TextCount']:
                     self.ordertype = "RAND()"
                 else:
                     #This is a based on an attempt to match various different distributions I found on the web somewhere to give
