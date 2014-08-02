@@ -974,16 +974,39 @@ class derived_table(object):
         self.queryID  = dbToPutIn + "." + "derived" + hashlib.sha1(self.query + db.dbname).hexdigest()
         self.indices = "(" + ",".join(["INDEX(%s)" % index  for index in indices]) + ")" if indices != [] else ""
     
+    def setStorageEngines(self,temp):
+        """
+        Chooses where and how to store tables.
+        """
+        self.tempString = "TEMPORARY" if temp else ""
+        self.engine = "MEMORY" if temp else "MYISAM"
 
-    def materialize(self,temp=True):
+    def materialize(self,temp="default"):
         """
         materializes the table, by default in memory in the bookworm_scratch
         database. If temp is false, the table will be stored on disk, available
         for future users too.
         """
-        self.tempString = "TEMPORARY" if temp else ""
-        self.engine = "MEMORY" if temp else "MYISAM"
+        
+        if temp=="default":
+            temp=True
+            q1 = """
+            INSERT INTO bookworm_scratch.cache (fieldname,created,cached,count) VALUES
+            ('%s',NOW(),0,1) ON DUPLICATE KEY UPDATE count = count + 1;""" %self.queryID
+            result = self.db.cursor.execute(q1)
+            results = self.db.cursor.execute("SELECT count,cached FROM bookworm_scratch.cache WHERE fieldname='%s'" %self.queryID)
+            try:
+                if self.db.cursor.fetchall()[0][0] > 5:
+                    temp = False
+            except:
+                debug(q1)
+        self.db.db.commit()
+        self.setStorageEngines(temp)
+
         try:
+            values = self.db.cursor.execute(self.query)
+            self.db.cursor.fetchall()
+
             self.db.cursor.execute("CREATE %(tempString)s TABLE %(queryID)s %(indices)s ENGINE=%(engine)s %(query)s;" % self.__dict__)
 
         except MySQLdb.OperationalError,e:
