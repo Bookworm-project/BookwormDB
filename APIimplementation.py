@@ -981,34 +981,101 @@ class derived_table(object):
         self.tempString = "TEMPORARY" if temp else ""
         self.engine = "MEMORY" if temp else "MYISAM"
 
+    def checkCache(self):
+        """
+        Checks what's already been calculated.
+        """
+        try:
+            (self.count,self.created,self.modified,self.createCode,self.data) = self.db.cursor.execute("SELECT count,created,modified,createCode,data FROM bookworm_scratch.cache WHERE fieldname='%s'" %self.queryID)[0]
+            return True
+        except:
+            (self.count,self.created,self.modified,self.createCode,self.data) = [None]*5
+            return False
+
+    def fillTableWithData(self,data):
+        dataCode = "INSERT INTO %s values ("%self.queryID + ", ".join(["%s"]*len(data[0])) + ")"
+        self.db.cursor.executemany(dataCode,data)
+        self.db.db.commit()
+            
+    def materializeFromCache(self,temp):
+        if self.data is not None:
+            #Datacode should never exist without createCode also.
+            self.db.cursor.execute(self.createCode)
+            self.fillTableWithData(pickle.loads(self.data,protocol=-1))
+            return True
+        else:
+            return False
+
+
+    def createFromCacheWithDataFromBookworm(self,temp,postDataToCache=False):
+        """
+        If the create code exists but the data does not.
+        This uses a form of query that MySQL can cache,
+        unlike the normal subqueries OR the CREATE TABLE ... INSERT
+        used by materializeFromBookworm.
+
+        You can also post the data itself, but that's turned off by default:
+        because why wouldn't it have been posted the first time?
+        Probably it's too large or something, is why.
+        """
+        if self.createCode==None:
+            return False
+        self.db.cursor.execute(self.createCode)
+        self.db.cursor.execute(self.query)
+        data = [row for row in self.db.cursor.fetchall()]
+        self.newdata = pickle.dumps(data,protocol=-1)
+        self.fillTableWithData(data)
+        if postDataToCache:
+            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET data='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newdata),self.queryID)])
+        else:
+            self.updateCache()
+        return True
+            
+    def materializeFromBookworm(self,temp,postDataToCache=True,postCreateToCache=True):
+        import cPickle as pickle
+        self.db.cursor.execute("CREATE %(tempString)s TABLE %(queryID)s %(indices)s ENGINE=%(engine)s %(query)s;" % self.__dict__)
+        self.db.cursor.execute("SHOW CREATE TABLE %s" %self.queryID)
+        self.newCreateCode = self.db.cursor.fetchall()[0][1]
+        self.db.cursor.execute("SELECT * FROM %s" %self.queryID)
+        #coerce the results to a list of tuples, then pickle it.
+        self.newdata = pickle.dumps([row for row in self.db.cursor.fetchall()],protocol=-1)
+
+        if postDataToCache:
+            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET data='%s',createCode='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newdata),MySQLdb.escape_string(self.newCreateCode),self.queryID)])
+
+        if postCreateToCache:
+            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET createCode='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newCreateCode),self.queryID)])
+        
+        
+    def updateCache(self,postQueries=[]):
+        q1 = """
+        INSERT INTO bookworm_scratch.cache (fieldname,created,modified,count) VALUES
+        ('%s',NOW(),NOW(),1) ON DUPLICATE KEY UPDATE count = count + 1,modified=NOW();""" %self.queryID
+        result = self.db.cursor.execute(q1)
+        for query in postQueries:
+            self.db.cursor.execute(query)
+        self.db.db.commit()
+        
     def materialize(self,temp="default"):
         """
         materializes the table, by default in memory in the bookworm_scratch
         database. If temp is false, the table will be stored on disk, available
-        for future users too.
+        for future users too. This should be used sparingly, because you can't have too many
+        tables on disk.
+
+        Returns the tableID, which the superquery to this one may need to know.
         """
-        
         if temp=="default":
             temp=True
-            q1 = """
-            INSERT INTO bookworm_scratch.cache (fieldname,created,cached,count) VALUES
-            ('%s',NOW(),0,1) ON DUPLICATE KEY UPDATE count = count + 1;""" %self.queryID
-            result = self.db.cursor.execute(q1)
-            results = self.db.cursor.execute("SELECT count,cached FROM bookworm_scratch.cache WHERE fieldname='%s'" %self.queryID)
-            try:
-                if self.db.cursor.fetchall()[0][0] > 5:
-                    temp = False
-            except:
-                debug(q1)
-        self.db.db.commit()
+
+        self.checkCache()
         self.setStorageEngines(temp)
 
         try:
-            values = self.db.cursor.execute(self.query)
-            self.db.cursor.fetchall()
-
-            self.db.cursor.execute("CREATE %(tempString)s TABLE %(queryID)s %(indices)s ENGINE=%(engine)s %(query)s;" % self.__dict__)
-
+            if not self.materializeFromCache(temp):
+                if not self.createFromCacheWithDataFromBookworm(temp):
+                    self.materializeFromBookworm(temp)
+    
         except MySQLdb.OperationalError,e:
             #Often the error will be 1050, which is a good thing:
             #It means we don't need to
@@ -1016,7 +1083,7 @@ class derived_table(object):
             #But if it's not, something bad is happening.
             if not re.search("1050.*already exists",str(e)):
                 raise
-
+        
         return self.queryID
         
 class databaseSchema:
@@ -1053,6 +1120,8 @@ class databaseSchema:
             #which is bad practice.
             self.newStyle(db)
         except:
+            #The new style will fail on old bookworms: a failure is an easy way to test
+            #for oldness, though of course something else might be causing the failure.
             self.oldStyle(db)
         
         
