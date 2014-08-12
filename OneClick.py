@@ -79,8 +79,10 @@ class oneClickInstance(object):
         cursor = datahandler.db.query("SELECT TABLE_SCHEMA FROM information_schema.tables WHERE TABLE_NAME='masterTableTable'")
         for row in cursor.fetchall():
             Bookworm = BookwormSQLDatabase(row[0],variableFile=None)
-            Bookworm.reloadMemoryTables()
-
+            try:
+                Bookworm.reloadMemoryTables()
+            except:
+                print "Unable to load memory tables for database %s, moving on to next" %row[0]
     def database_metadata(self):
         Bookworm = BookwormSQLDatabase(dbname)
         Bookworm.load_book_list()
@@ -179,7 +181,14 @@ class oneClickInstance(object):
         #Just to be safe
         cursor = datahandler.db.query("GRANT ALL ON bookworm_scratch.* TO '%s'@'127.0.0.1' IDENTIFIED BY '%s'" %(dbuser,dbpassword))
         cursor = datahandler.db.query("FLUSH PRIVILEGES")
-        cursor = datahandler.db.query("CREATE TABLE bookworm_scratch.cache (fieldname VARCHAR(90) NOT NULL, PRIMARY KEY (fieldname), created TIMESTAMP, cached TINYINT NOT NULL, count INT NOT NULL)")
+        cursor = datahandler.db.query("DROP TABLE IF EXISTS bookworm_scratch.cache")
+        cursor = datahandler.db.query("""CREATE TABLE bookworm_scratch.cache (
+        fieldname VARCHAR(90) NOT NULL, PRIMARY KEY (fieldname),
+        created TIMESTAMP,
+        modified TIMESTAMP,
+        createCode VARCHAR(15845),
+        data BLOB,
+        count INT NOT NULL) ENGINE=InnoDB""")
 
         """
         check some MySQL settings
