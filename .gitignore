@@ -7,5 +7,5 @@ APIkeys
 *.cgi
 migration.py
 shipping.py
-bookworm
 genderizer*
+*.pyc

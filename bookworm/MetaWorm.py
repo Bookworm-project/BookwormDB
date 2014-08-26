@@ -3,11 +3,8 @@ import json
 import copy
 import threading
 import time
+from collections import defaultdict
 
-
-
-
-        
 def hostlist(dblist):
     #This could do something fancier, but for now we look by default only on localhost.
     return ["localhost"]*len(dblist)
@@ -20,8 +17,7 @@ class childQuery(threading.Thread):
         
     def runQuery(self):
         #make a webquery, assign it to self.data
-        url = self.host + "/cgi-bin/APIimplementation.py?queryTerms=" + self.dict
-        
+        url = self.host + "/cgi-bin/bookwormAPI?query=" + self.dict
 
     def parseResults(self):
         pass
@@ -47,6 +43,18 @@ def flatten(dictOfdicts):
                 output.append([(key,) + child[0],child[1]])
     return output
 
+def animate(dictOfTuples):
+    """
+    opposite of flatten
+    """
+
+    def tree():
+        return defaultdict(tree)
+
+    output = defaultdict(tree)
+
+    
+
 def combineDicts(master,new):
     """
     instead of a dict of dicts of arbitrary depth, use a dict of tuples to store.
@@ -63,8 +71,6 @@ class MetaQuery(object):
     def __init__(self,dictJSON):
         self.outside_outdictionary = json.dumps(dictJSON)
         
-
-
     def setDefaults(self):
         for specialKey in ["database","host"]:
             try:
