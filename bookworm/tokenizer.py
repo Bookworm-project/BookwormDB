@@ -66,7 +66,6 @@ class tokenBatches(object):
         self.dictionary = readDictionaryFile()
         self.IDfile = readIDfile()
 
-
     def encodeRow(self,row):
         #The counts will be built up
         counts = dict()
@@ -116,6 +115,7 @@ class tokenBatches(object):
             outputFile.write("\n".join(output) + "\n")        
         self.completedFile.write(filename + "\n")
 
+haveWarnedUnicode = False
 
 class tokenizer(object):
     """
@@ -133,11 +133,14 @@ class tokenizer(object):
     """
     
     def __init__(self,string):
+        global haveWarnedUnicode
         try:
-            self.string=string.decode("utf-8")
-        except UnicodeDecodeError:
-            sys.stderr.write("""WARNING: string beginning with the following can't be decoded as unicode: skipping and moving on~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n%s\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~""" % string[:400])
-            self.string=""
+            self.string = string.decode("UTF-8")
+        except:
+            if not haveWarnedUnicode:
+                sys.stderr.write("WARNING: some of your input files seem not to be valid unicode. Silently ignoring all non-unicode characters from now on in this thread.\n")
+                haveWarnedUnicode = True
+            self.string = string.decode("UTF-8","ignore")
 
     def tokenize(self):
         """
