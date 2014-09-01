@@ -250,6 +250,7 @@ class BookwormSQLDatabase:
         fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
         fileCommand += "DROP TABLE IF EXISTS fastcat;"
         fileCommand += "RENAME TABLE tmp TO fastcat;"
+        self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="fastcat";')
         self.db.query("""INSERT IGNORE INTO masterTableTable VALUES
                    ('fastcat','fastcat','""" + fileCommand + """')""")
 
