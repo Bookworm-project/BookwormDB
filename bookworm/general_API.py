@@ -41,6 +41,12 @@ class dbConnect(object):
         self.cursor = self.db.cursor()
 
 def calculateAggregates(self,parameters):
+
+    """
+    We only collect "WordCoun" and "TextCount" for each query,
+    but there are a lot of cool things you can do with those:
+    basic things like frequency, all the way up to TF-IDF.
+    """
     parameters = set(parameters)
     
     if "WordsPerMillion" in parameters:
@@ -52,14 +58,55 @@ def calculateAggregates(self,parameters):
     if "SumWords" in parameters:
         self.eval("SumWords = WordCount_y + WordCount_x")
 
-
+    if "WordsRatio" in parameters:
+        self.eval("WordsRatio = WordCount_x/WordCount_y")
     if "TextPercent" in parameters:
         self.eval("TextPercent = 100*TextCount_x/TextCount_y")
     if "TextCount" in parameters:
         self.eval("TextCount = TextCount_x")
     if "TotalTexts" in parameters:
         self.eval("TotalTexts = TextCount_y")
-        
+
+    if "HitsPerBook" in parameters:
+        self.eval("HitsPerMatch = WordCount_x/TextCount_x")
+    if "TextLength" in parameters:
+        self.eval("TextLength = WordCount_y/TextCount_y")
+
+    if "TFIDF" in parameters:
+        from numpy import log as log
+        self.eval("TF = WordCount_x/WordCount_y")
+        self["TFIDF"] = (self["WordCount_x"]/self["WordCount_y"])*log(self["TextCount_y"]/self['TextCount_x'])
+
+    if "Dunning" in parameters:
+        from numpy import log as log
+        t1 = sum(self["WordCount_x"])
+        t2 = sum(self["WordCount_y"])
+        expectedRate = (self["WordCount_x"] + self["WordCount_y"]).divide((t1+t2))
+        E1 = t1*expectedRate
+        E2 = t2*expectedRate
+        diff1 = log(self["WordCount_x"].divide(E1))
+        diff2 = log(self["WordCount_y"].divide(E2))
+        self["Dunning"] = 2*(self["WordCount_x"].multiply(diff1) + self["WordCount_y"].multiply(diff2))        
+        #self["Dunning"] = diff2
+        def _dunning_log_likelihood(count_a, count_b, count_ab, N):
+                # https://nltk.googlecode.com/svn/trunk/nltk/nltk/tokenize/punkt.py
+                """
+                A function that calculates the modified Dunning log-likelihood
+                ratio scores for abbreviation candidates.  The details of how
+                this works is available in the paper.
+                """
+                p1 = float(count_b) / N
+                p2 = 0.99
+
+                null_hypo = (float(count_ab) * math.log(p1) +
+                             (count_a - count_ab) * math.log(1.0 - p1))
+                alt_hypo  = (float(count_ab) * math.log(p2) +
+                             (count_a - count_ab) * math.log(1.0 - p2))
+
+                likelihood = null_hypo - alt_hypo
+
+                return (-2.0 * likelihood)
+
     return self
     
 def intersectingNames(p1,p2,full=False):
@@ -85,12 +132,22 @@ def base_count_types(list_of_final_count_types):
     output = set()
 
     for count_name in list_of_final_count_types:
-        if count_name in ["WordCount","WordsPerMillion","WordsRatio","TotalWords","SumWords"]:
+        if count_name in ["WordCount","WordsPerMillion","WordsRatio","TotalWords","SumWords","Dunning"]:
             output.add("WordCount")
         if count_name in ["TextCount","TextPercent","TextRatio","TotalTexts","SumTexts"]:
             output.add("TextCount")
-
+        if count_name in ["TextLength","HitsPerMatch","TFIDF"]:
+            output.add("TextCount")
+            output.add("WordCount")
+        
+            
     return list(output)
+
+def is_a_wordcount_field(string):
+    if string in ["unigram","bigram","word"]:
+        return True
+
+    return False
 
 class APIcall(object):
     """
@@ -104,7 +161,17 @@ class APIcall(object):
         """
         self.query = APIcall
         self.idiot_proof_arrays()
+        self.set_defaults()
 
+    def set_defaults(self):
+        query = self.query
+        if not "search_limits" in query:
+            self.query["search_limits"] = dict()
+        if "unigram" in query["search_limits"]:
+            #Hack: change somehow. You can't group on "word", just on "unigram"
+            query["search_limits"]["word"] = query["search_limits"]["unigram"]
+            del query["search_limits"]["unigram"]
+            
     def idiot_proof_arrays(self):
         for element in ['counttype','groups']:
             try:
@@ -146,7 +213,6 @@ class APIcall(object):
             if word_term in ['word','unigram','bigram']:
                 del compare_limits[word_term]
 
-
         #Finally, whether it's deleted a word term or not, return it all.
         return compare_limits
         
@@ -175,6 +241,9 @@ class APIcall(object):
         call2 = deepcopy(call1)
 
         call2['search_limits'] = self.get_compare_limits()
+
+        #Special case: unigram groupings are dropped if they're not explicitly limited
+        call2['groups'] = filter(lambda x: not x in ["unigram","bigram","word"],call2['groups'])
 
         """
         This could use any method other than pandas_SQL:
@@ -210,6 +279,7 @@ class APIcall(object):
     def execute(self):
         method = self.query['method']
 
+        
         if isinstance(self.query['search_limits'],list):
             if self.query['method'] not in ["json","return_json"]:
                 self.query['search_limits'] = self.query['search_limits'][0]
