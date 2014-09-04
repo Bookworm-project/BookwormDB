@@ -12,7 +12,6 @@ import os.path
 #Some settings can be overridden here, if no where else.
 prefs = dict()
 
-
 def find_my_cnf():
     """
     The password will be looked for in these places.
@@ -79,33 +78,15 @@ def calculateAggregates(self,parameters):
 
     if "Dunning" in parameters:
         from numpy import log as log
-        t1 = sum(self["WordCount_x"])
-        t2 = sum(self["WordCount_y"])
-        expectedRate = (self["WordCount_x"] + self["WordCount_y"]).divide((t1+t2))
-        E1 = t1*expectedRate
-        E2 = t2*expectedRate
+        c = sum(self["WordCount_x"])
+        d = sum(self["WordCount_y"])
+        expectedRate = (self["WordCount_x"] + self["WordCount_y"]).divide(c+d)
+        E1 = c*expectedRate
+        E2 = c*expectedRate
         diff1 = log(self["WordCount_x"].divide(E1))
         diff2 = log(self["WordCount_y"].divide(E2))
         self["Dunning"] = 2*(self["WordCount_x"].multiply(diff1) + self["WordCount_y"].multiply(diff2))        
         #self["Dunning"] = diff2
-        def _dunning_log_likelihood(count_a, count_b, count_ab, N):
-                # https://nltk.googlecode.com/svn/trunk/nltk/nltk/tokenize/punkt.py
-                """
-                A function that calculates the modified Dunning log-likelihood
-                ratio scores for abbreviation candidates.  The details of how
-                this works is available in the paper.
-                """
-                p1 = float(count_b) / N
-                p2 = 0.99
-
-                null_hypo = (float(count_ab) * math.log(p1) +
-                             (count_a - count_ab) * math.log(1.0 - p1))
-                alt_hypo  = (float(count_ab) * math.log(p2) +
-                             (count_a - count_ab) * math.log(1.0 - p2))
-
-                likelihood = null_hypo - alt_hypo
-
-                return (-2.0 * likelihood)
 
     return self
     
@@ -243,7 +224,8 @@ class APIcall(object):
         call2['search_limits'] = self.get_compare_limits()
 
         #Special case: unigram groupings are dropped if they're not explicitly limited
-        call2['groups'] = filter(lambda x: not x in ["unigram","bigram","word"],call2['groups'])
+        #if "unigram" not in call2['search_limits']:
+        #    call2['groups'] = filter(lambda x: not x in ["unigram","bigram","word"],call2['groups'])
 
         """
         This could use any method other than pandas_SQL:
@@ -261,6 +243,9 @@ class APIcall(object):
         if len(intersections) > 0:
             merged = merge(df1,df2,on=intersections,how='outer')
         else:
+            """
+            Pandas doesn't seem to have a full, unkeyed merge.
+            """
             df1['dummy_merge_variable'] = 1
             df2['dummy_merge_variable'] = 1
             merged = merge(df1,df2,on=["dummy_merge_variable"],how='outer')
