@@ -325,22 +325,35 @@ class APIcall(object):
     def return_json(self,raw_python_object=False):
         query = self.query
         data = self.data()
+        
+        def fixNumpyType(input):
+            #This is, weirdly, an occasional problem but not a constant one.
+            if str(input.dtype)=="int64":
+                return int(input)
+            else:
+                return input
+        
+        #Define a recursive structure to hold the stuff.
         def tree():
             return defaultdict(tree)
         returnt = tree()
+        
         for row in data.itertuples(index=False):
             row = list(row)
             destination = returnt
             if len(row)==len(query['counttype']):
-                returnt = row
+                returnt = [fixNumpyType(num) for num in row]
             while len(row) > len(query['counttype']):
                 key = row.pop(0)
                 if len(row) == len(query['counttype']):
+                    # Assign the elements.
                     destination[key] = row
                     break
+                # This bit of the loop is where we descend the recursive dictionary.
                 destination = destination[key]
         if raw_python_object:
             return returnt
+        
         
         return json.dumps(returnt)
 
