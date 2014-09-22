@@ -520,7 +520,17 @@ class userquery:
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
 
-        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections) or re.search("topic",self.selections):
+        elif re.search("topic",self.selections):
+            self.maintable = 'master_topicWords'
+            self.main = '''
+                NATURAL JOIN 
+            master_topicWords as main
+            '''
+            self.wordstables = """
+              JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
+             """ % self.__dict__
+            
+        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections):
             self.maintable = 'master_bookcounts'
             self.main = '''
                 NATURAL JOIN
@@ -552,7 +562,6 @@ class userquery:
             #Just a dummy thing to make the SQL writing easier. Shouldn't take any time. Will usually be extended with actual conditions.
 
     def set_operations(self):
-
         """
         This is the code that allows multiple values to be selected.
         It is definitely not as tight as it could be. Sorry everyone. A lot can be removed
