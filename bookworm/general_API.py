@@ -39,7 +39,7 @@ class dbConnect(object):
 
         self.cursor = self.db.cursor()
 
-def calculateAggregates(self,parameters):
+def calculateAggregates(df,parameters):
 
     """
     We only collect "WordCoun" and "TextCount" for each query,
@@ -49,46 +49,64 @@ def calculateAggregates(self,parameters):
     parameters = set(parameters)
     
     if "WordsPerMillion" in parameters:
-        self.eval("WordsPerMillion = WordCount_x*1000000/WordCount_y")
+        df["WordsPerMillion"] = df["WordCount_x"].multiply(1000000)/df["WordCount_y"]
+        #df.eval("WordsPerMillion = WordCount_x*1000000/WordCount_y")
     if "WordCount" in parameters:
-        self.eval("WordCount = WordCount_x")
+        df["WordCount"] = df["WordCount_x"]
+        #df.eval("WordCount = WordCount_x")
     if "TotalWords" in parameters:
-        self.eval("TotalWords = WordCount_y")
+        df["TotalWords"] = df["WordCount_y"]
     if "SumWords" in parameters:
-        self.eval("SumWords = WordCount_y + WordCount_x")
+        df["SumWords"] = df["WordCount_y"] + df["WordCount_x"]
+        #df.eval("SumWords = WordCount_y + WordCount_x")
 
     if "WordsRatio" in parameters:
-        self.eval("WordsRatio = WordCount_x/WordCount_y")
+        df.eval("WordsRatio = WordCount_x/WordCount_y")
     if "TextPercent" in parameters:
-        self.eval("TextPercent = 100*TextCount_x/TextCount_y")
+        df.eval("TextPercent = 100*TextCount_x/TextCount_y")
     if "TextCount" in parameters:
-        self.eval("TextCount = TextCount_x")
+        df["TextCount"] = df["TextCount_x"]
     if "TotalTexts" in parameters:
-        self.eval("TotalTexts = TextCount_y")
+        df["TotalTexts"] = df["TextCount_y"]
 
     if "HitsPerBook" in parameters:
-        self.eval("HitsPerMatch = WordCount_x/TextCount_x")
+        df.eval("HitsPerMatch = WordCount_x/TextCount_x")
     if "TextLength" in parameters:
-        self.eval("TextLength = WordCount_y/TextCount_y")
+        df.eval("TextLength = WordCount_y/TextCount_y")
 
     if "TFIDF" in parameters:
         from numpy import log as log
-        self.eval("TF = WordCount_x/WordCount_y")
-        self["TFIDF"] = (self["WordCount_x"]/self["WordCount_y"])*log(self["TextCount_y"]/self['TextCount_x'])
+        df.eval("TF = WordCount_x/WordCount_y")
+        df["TFIDF"] = (df["WordCount_x"]/df["WordCount_y"])*log(df["TextCount_y"]/df['TextCount_x'])
+
+    def DunningLog(df=df,a = "WordCount_x",b = "WordCount_y"):
+        from numpy import log as log
+        destination = "Dunning"
+        if a=="WordCount_x":
+            c = sum(df[a])
+            d = sum(df[b])
+        if a=="TextCount_x":
+            c = max(df[a])
+            d = max(df[b])
+        expectedRate = (df[a] + df[b]).divide(c+d)
+        E1 = c*expectedRate
+        E2 = d*expectedRate
+        diff1 = log(df[a].divide(E1))
+        diff2 = log(df[b].divide(E2))
+        df[destination] = 2*(df[a].multiply(diff1) + df[b].multiply(diff2))
+        # A hack, but a useful one: encode the direction of the significance,
+        # in the sign, so negative 
+        difference = diff1<diff2
+        df.ix[difference,destination] = -1*df.ix[difference,destination]
+        return df[destination]
 
     if "Dunning" in parameters:
-        from numpy import log as log
-        c = sum(self["WordCount_x"])
-        d = sum(self["WordCount_y"])
-        expectedRate = (self["WordCount_x"] + self["WordCount_y"]).divide(c+d)
-        E1 = c*expectedRate
-        E2 = c*expectedRate
-        diff1 = log(self["WordCount_x"].divide(E1))
-        diff2 = log(self["WordCount_y"].divide(E2))
-        self["Dunning"] = 2*(self["WordCount_x"].multiply(diff1) + self["WordCount_y"].multiply(diff2))        
-        #self["Dunning"] = diff2
+        df["Dunning"] = DunningLog(df,"WordCount_x","WordCount_y")
+        
+    if "DunningTexts" in parameters:
+        df["DunningTexts"] = DunningLog(df,"TextCount_x","TextCount_y")
 
-    return self
+    return df
     
 def intersectingNames(p1,p2,full=False):
     """
@@ -115,7 +133,7 @@ def base_count_types(list_of_final_count_types):
     for count_name in list_of_final_count_types:
         if count_name in ["WordCount","WordsPerMillion","WordsRatio","TotalWords","SumWords","Dunning"]:
             output.add("WordCount")
-        if count_name in ["TextCount","TextPercent","TextRatio","TotalTexts","SumTexts"]:
+        if count_name in ["TextCount","TextPercent","TextRatio","TotalTexts","SumTexts","DunningTexts"]:
             output.add("TextCount")
         if count_name in ["TextLength","HitsPerMatch","TFIDF"]:
             output.add("TextCount")
@@ -127,14 +145,14 @@ def base_count_types(list_of_final_count_types):
 def is_a_wordcount_field(string):
     if string in ["unigram","bigram","word"]:
         return True
-
     return False
 
 class APIcall(object):
     """
-    This is the base class from which more specific classes for actual methods can be dispatched.
-
-    The 
+    This is the base class from which more specific classes for actual 
+    methods can be dispatched.
+    
+    Without a "return_pandas_frame" method, it won't run.
     """
     def __init__(self,APIcall):
         """
@@ -203,8 +221,6 @@ class APIcall(object):
         else:
             self.pandas_frame = self.get_data_from_source()
             return self.pandas_frame
-
-
         
     def get_data_from_source(self):
 
@@ -291,6 +307,8 @@ class APIcall(object):
                 return query.execute()
             return json.dumps(query.execute())
 
+
+
     def multi_execute(self):
         """
         Queries may define several search limits in an array
@@ -334,7 +352,10 @@ class SQLAPIcall(APIcall):
     This one is comically short because all the real work is done in the userquery object.
 
     But the point is, you need to define a function "generate_pandas_frame"
-    that accepts an API call 
+    that accepts an API call and returns a pandas frame.
+
+    But that API call is more limited than the general API; you only need to support "WordCount" and "TextCount"
+    methods.
     """
     
     def generate_pandas_frame(self,call):
@@ -349,6 +370,8 @@ class SQLAPIcall(APIcall):
         """
         con=dbConnect(prefs,self.query['database'])
         q = userquery(call).query()
+        if self.query['method']=="debug":
+            print q
         df = read_sql(q, con.db)
         return df
 
