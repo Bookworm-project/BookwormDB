@@ -501,9 +501,19 @@ class userquery:
 
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
-        #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
+        #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the self.selections
+        #variable.
 
-        if (self.max_word_length == 2 or re.search("words2",self.selections)):
+
+        """
+        We also now check for whether it needs the topic assignments: this could be generalized, with difficulty, for any other kind of plugin.
+        """
+
+        needsBigrams = (self.max_word_length == 2 or re.search("words2",self.selections))
+        needsUnigrams = self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections)
+        needsTopics   = bool(re.search("topic",self.selections)) or ("topic" in self.limits.keys())
+
+        if needsBigrams:
 
             self.maintable = 'master_bigrams'
 
@@ -520,7 +530,7 @@ class userquery:
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
 
-        elif re.search("topic",self.selections):
+        elif needsTopics and needsUnigrams:
             self.maintable = 'master_topicWords'
             self.main = '''
                 NATURAL JOIN 
@@ -530,15 +540,24 @@ class userquery:
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
             
-        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections):
+        elif needsUnigrams:
             self.maintable = 'master_bookcounts'
             self.main = '''
                 NATURAL JOIN
-                 master_bookcounts as main '''
+                 master_bookcounts as main
+            '''
                  #ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
+
+        elif needsTopics:
+            self.maintable = 'master_topicCounts'
+            self.main = '''
+                NATURAL JOIN
+                 master_topicCounts as main '''
+            self.wordstables = " "
+            self.wordswhere = " TRUE "
 
         else:
             """
@@ -549,6 +568,8 @@ class userquery:
             for metadata searches, which is valuable because there is a
             metadata-only search built in to every single ratio
             query. (To get the denominator values).
+
+            Call this OLAP, if you like.
             """
             self.main = " "
             self.operation = ','.join(self.catoperations)
@@ -564,9 +585,10 @@ class userquery:
     def set_operations(self):
         """
         This is the code that allows multiple values to be selected.
-        It is definitely not as tight as it could be. Sorry everyone. A lot can be removed
-        when we kill back-compatability.
+
+        All can be removed when we kill back compatibility ! It's all handled now by the general_API, not the SQL_API.
         """
+
 
         backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion","Raw_Counts":"WordCount","Percentage_of_Books":"TextPercent","Number_of_Books":"TextCount"}
 
