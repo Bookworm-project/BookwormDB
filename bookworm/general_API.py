@@ -21,7 +21,6 @@ def find_my_cnf():
         if os.path.exists(file):
             return file
 
-
 class dbConnect(object):
     #This is a read-only account
     def __init__(self,prefs=prefs,database="federalist",host="localhost"):
@@ -50,18 +49,15 @@ def calculateAggregates(df,parameters):
     
     if "WordsPerMillion" in parameters:
         df["WordsPerMillion"] = df["WordCount_x"].multiply(1000000)/df["WordCount_y"]
-        #df.eval("WordsPerMillion = WordCount_x*1000000/WordCount_y")
     if "WordCount" in parameters:
         df["WordCount"] = df["WordCount_x"]
-        #df.eval("WordCount = WordCount_x")
     if "TotalWords" in parameters:
         df["TotalWords"] = df["WordCount_y"]
     if "SumWords" in parameters:
         df["SumWords"] = df["WordCount_y"] + df["WordCount_x"]
-        #df.eval("SumWords = WordCount_y + WordCount_x")
-
     if "WordsRatio" in parameters:
-        df.eval("WordsRatio = WordCount_x/WordCount_y")
+        df["WordsRatio"] = df["WordCount_x"]/df["WordCount_y"]
+
     if "TextPercent" in parameters:
         df.eval("TextPercent = 100*TextCount_x/TextCount_y")
     if "TextCount" in parameters:
@@ -83,9 +79,11 @@ def calculateAggregates(df,parameters):
         from numpy import log as log
         destination = "Dunning"
         if a=="WordCount_x":
+            # Dunning comparisons should be to the sums if counting:
             c = sum(df[a])
             d = sum(df[b])
         if a=="TextCount_x":
+            # The max count isn't necessarily the total number of books, but it's a decent proxy.
             c = max(df[a])
             d = max(df[b])
         expectedRate = (df[a] + df[b]).divide(c+d)
@@ -202,7 +200,7 @@ class APIcall(object):
                 del search_limits[limit]
                 del compare_limits[limit]
                 asterisked = True
-
+        
         if asterisked:
             return compare_limits
 
@@ -239,6 +237,21 @@ class APIcall(object):
 
         call2['search_limits'] = self.get_compare_limits()
 
+        #Drop out asterisks for that syntactic sugar.
+        for limit in call1['search_limits'].keys():
+            if re.search(r'^\*',limit):
+                call1['search_limits'][limit.replace('*','')] = call1['search_limits'][limit]
+                del call1['search_limits'][limit]
+
+        for group in self.query['groups']:
+            if re.search(r'^\*',group):
+                replacement = group.replace("*","")
+                call1['groups'].remove(group)
+                call1['groups'].append(replacement)
+                self.query['groups'].remove(group)
+                self.query['groups'].append(replacement)
+                call2['groups'].remove(group)
+
         #Special case: unigram groupings are dropped if they're not explicitly limited
         #if "unigram" not in call2['search_limits']:
         #    call2['groups'] = filter(lambda x: not x in ["unigram","bigram","word"],call2['groups'])
@@ -260,7 +273,7 @@ class APIcall(object):
             merged = merge(df1,df2,on=intersections,how='outer')
         else:
             """
-            Pandas doesn't seem to have a full, unkeyed merge.
+            Pandas doesn't seem to have a full, unkeyed merge, so I simulate it with a dummy.
             """
             df1['dummy_merge_variable'] = 1
             df2['dummy_merge_variable'] = 1
