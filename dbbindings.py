@@ -30,7 +30,6 @@ def debug(string):
     print "<br>"
 
 
-
 def main(JSONinput):
 
     query = JSONinput
@@ -51,9 +50,11 @@ def main(JSONinput):
 
     return True
 
+
 if __name__=="__main__":
     form = cgi.FieldStorage()
 
+    #Still supporting two names for the passed parameter.
     try:
         JSONinput = form["queryTerms"].value
     except KeyError:
