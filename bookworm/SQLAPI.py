@@ -18,8 +18,7 @@ can be stored on disk. Different queries use different types of calls.
 #Also, certain metadata fields are stored separately from the main catalog table;
 """
 
-execfile('knownHosts.py')
-
+from knownHosts import *
 
 class dbConnect(object):
     #This is a read-only account
@@ -100,8 +99,11 @@ class userquery:
         this makes the syntax cleaner on most queries,
         while still allowing some long ones from the Bookworm website.
         """
-        if isinstance(outside_dictionary['search_limits'],list):
-            outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
+        try:
+            if isinstance(outside_dictionary['search_limits'],list):
+                outside_dictionary['search_limits'] = outside_dictionary['search_limits'][0]
+        except:
+            outside_dictionary['search_limits'] = dict()
         #outside_dictionary = self.limitCategoricalQueries(outside_dictionary)
         self.defaults(outside_dictionary) #Take some defaults
         self.derive_variables() #Derive some useful variables that the query will use.
@@ -165,16 +167,18 @@ class userquery:
             else:
                 self.outerGroups.append(group)
                 try:
-                    #Search on the ID field, not the basic field.
-                    #debug(self.databaseScheme.aliases.keys())
-                    self.groups.add(self.databaseScheme.aliases[group])
-                    table = self.databaseScheme.tableToLookIn[group]
+                    if self.databaseScheme.aliases[group] != group:
+                        #Search on the ID field, not the basic field.
+                        #debug(self.databaseScheme.aliases.keys())
+                        self.groups.add(self.databaseScheme.aliases[group])
+                        table = self.databaseScheme.tableToLookIn[group]
 
-                    joinfield = self.databaseScheme.aliases[group]
-                    self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
-
+                        joinfield = self.databaseScheme.aliases[group]
+                        self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+                    else:
+                        self.groups.add(group)
                 except KeyError:
-                    self.groups.add(group)
+                    self.groups.add(group)                
 
         """
         There are the selections which can include table refs, and the groupings, which may not:
@@ -189,8 +193,8 @@ class userquery:
         """
         Define the comparison set if a comparison is being done.
         """
-
-        self.determineOutsideDictionary()
+        #Deprecated--tagged for deletion
+        #self.determineOutsideDictionary()
 
         #This is a little tricky behavior here--hopefully it works in all cases. It drops out word groupings.
 
@@ -215,6 +219,9 @@ class userquery:
         self.method = outside_dictionary.setdefault('method',"Nothing")
 
     def determineOutsideDictionary(self):
+        """
+        deprecated--tagged for deletion.
+        """
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
         if 'compare_limits' in self.outside_dictionary.keys():
             self.compare_dictionary['search_limits'] = self.outside_dictionary['compare_limits']
@@ -361,7 +368,7 @@ class userquery:
             self.catwhere = "TRUE"
         if 'hasword' in self.limits.keys():
             """
-            Because temporary tables don't carry indexes, we're just making the new tables
+            Because derived tables don't carry indexes, we're just making the new tables
             with indexes on the fly to be stored in a temporary database, "bookworm_scratch"
             Each time a hasword query is performed, the results of that query are permanently cached;
             they're stored as a table that can be used in the future.
@@ -494,9 +501,19 @@ class userquery:
 
     def build_wordstables(self):
         #Deduce the words tables we're joining against. The iterating on this can be made more general to get 3 or four grams in pretty easily.
-        #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the keys passed.
+        #This relies on a determination already having been made about whether this is a unigram or bigram search; that's reflected in the self.selections
+        #variable.
 
-        if (self.max_word_length == 2 or re.search("words2",self.selections)):
+
+        """
+        We also now check for whether it needs the topic assignments: this could be generalized, with difficulty, for any other kind of plugin.
+        """
+
+        needsBigrams = (self.max_word_length == 2 or re.search("words2",self.selections))
+        needsUnigrams = self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections)
+        needsTopics   = bool(re.search("topic",self.selections)) or ("topic" in self.limits.keys())
+
+        if needsBigrams:
 
             self.maintable = 'master_bigrams'
 
@@ -513,15 +530,34 @@ class userquery:
         #I use a regex here to do a blanket search for any sort of word limitations. That has some messy sideffects (make sure the 'hasword'
         #key has already been eliminated, for example!) but generally works.
 
-        elif self.max_word_length == 1 or re.search("[^h][^a][^s]word",self.selections) or re.search("topic",self.selections):
+        elif needsTopics and needsUnigrams:
+            self.maintable = 'master_topicWords'
+            self.main = '''
+                NATURAL JOIN 
+            master_topicWords as main
+            '''
+            self.wordstables = """
+              JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
+             """ % self.__dict__
+            
+        elif needsUnigrams:
             self.maintable = 'master_bookcounts'
             self.main = '''
                 NATURAL JOIN
-                 master_bookcounts as main '''
+                 master_bookcounts as main
+            '''
                  #ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
+
+        elif needsTopics:
+            self.maintable = 'master_topicCounts'
+            self.main = '''
+                NATURAL JOIN
+                 master_topicCounts as main '''
+            self.wordstables = " "
+            self.wordswhere = " TRUE "
 
         else:
             """
@@ -532,6 +568,8 @@ class userquery:
             for metadata searches, which is valuable because there is a
             metadata-only search built in to every single ratio
             query. (To get the denominator values).
+
+            Call this OLAP, if you like.
             """
             self.main = " "
             self.operation = ','.join(self.catoperations)
@@ -545,12 +583,12 @@ class userquery:
             #Just a dummy thing to make the SQL writing easier. Shouldn't take any time. Will usually be extended with actual conditions.
 
     def set_operations(self):
-
         """
         This is the code that allows multiple values to be selected.
-        It is definitely not as tight as it could be. Sorry everyone. A lot can be removed
-        when we kill back-compatability.
+
+        All can be removed when we kill back compatibility ! It's all handled now by the general_API, not the SQL_API.
         """
+
 
         backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion","Raw_Counts":"WordCount","Percentage_of_Books":"TextPercent","Number_of_Books":"TextCount"}
 
@@ -652,56 +690,40 @@ class userquery:
         """ % self.__dict__
         return countsQuery
 
-    def ratio_query(self):
+    def debug_query(self):
+        query = self.ratio_query(materialize = False)
+        return json.dumps(self.denominator.groupings.split(",")) + query 
+    
+    def query(self,materialize=False):
         """
         We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most
         cases is the search_limits without the keys, see above; it can also be specially defined using asterisks as a shorthand to identify other fields to drop.
         We then get the counts_query results out of that result.
         """
 
+        """
         self.denominator =  userquery(outside_dictionary = self.compare_dictionary,db=self.db,databaseScheme=self.databaseScheme)
         self.supersetquery = self.denominator.counts_query()
-
+        supersetIndices = self.denominator.groupings.split(",")
+        if materialize:
+            self.supersetquery = derived_table(self.supersetquery,self.db,indices=supersetIndices).materialize()
+        """
         self.mainquery    = self.counts_query()
-
         self.countcommand = ','.join(self.finaloperations)
-
-        self.totalMergeTerms = "USING (" + self.denominator.groupings + " ) "
-        self.totalselections  = ",".join([re.sub(".* as","",group) for group in self.outerGroups]) #Still in use?
-        #I'm switching to this version to make it work with "unigram"; that could be special cased if I
-        #still am using the aliases elsewhere. We'll see.
         self.totalselections  = ",".join([group for group in self.outerGroups if group!="1 as In_Library" and group != ""])
         if self.totalselections != "": self.totalselections += ", "
-        
-        self.groupings = re.sub("1 as In_Library","1",self.groupings)
+       
         query = """
         SELECT
             %(totalselections)s
             %(countcommand)s
         FROM
-            ( %(mainquery)s
-            ) as numerator
-        RIGHT OUTER JOIN
-            ( %(supersetquery)s ) as denominator
-            %(totalMergeTerms)s
-        %(joinSuffix)s
-        GROUP BY %(groupings)s;""" % self.__dict__
-
-
-        #There are dramatic speed improvement to not returning 0 results when not needed in a merge query.
-        #This replaces old code to do the same thing.
-        if len(set(["TextCount","WordCount"]).intersection(set(self.counttype)))==len(self.counttype):
-            query = """
-        SELECT
-            %(totalselections)s
-            %(countcommand)s
-        FROM
-            ( %(mainquery)s
-            ) as numerator
+            (%(mainquery)s) as numerator
         %(joinSuffix)s
         GROUP BY %(groupings)s;""" % self.__dict__
 
         return query
+
 
     def returnPossibleFields(self):
         try:
@@ -745,12 +767,12 @@ class userquery:
         return self.nwords
 
     def bibliography_query(self,limit = "100"):
-        #I'd like to redo this at some point so it could work as an API call.
+        #I'd like to redo this at some point so it could work as an API call more naturally.
         self.limit = limit
         self.ordertype = "sum(main.count*10000/nwords)"
         try:
             if self.outside_dictionary['ordertype'] == "random":
-                if self.counttype==["Raw_Counts"] or self.counttype==["Number_of_Books"] or self.counttype==['WordCount'] or self.counttype==['BookCount']:
+                if self.counttype==["Raw_Counts"] or self.counttype==["Number_of_Books"] or self.counttype==['WordCount'] or self.counttype==['BookCount'] or self.counttype==['TextCount']:
                     self.ordertype = "RAND()"
                 else:
                     #This is a based on an attempt to match various different distributions I found on the web somewhere to give
@@ -878,43 +900,6 @@ class userquery:
         except:
             return{'values':mydict}
 
-    def arrayNest(self,array,returnt,endLength=1):
-        #A recursive function to transform a list into a nested array
-        #Used here to return compact json via the API.
-
-        
-
-        key = array[0]
-        key = to_unicode(key)
-        if len(array)==endLength+1:
-            #This is the condition where we have the last two, which is where we no longer need to nest anymore:
-            #it's just the last value[key] = value
-            value = list(array[1:])
-            for i in range(len(value)):
-                try:
-                    value[i] = float(value[i])
-                except:
-                    pass
-            returnt[key] = value
-        else:
-            try:
-                returnt[key] = self.arrayNest(array[1:len(array)],returnt[key],endLength=endLength)
-            except KeyError:
-                returnt[key] = self.arrayNest(array[1:len(array)],dict(),endLength=endLength)
-        return returnt
-
-    def return_json(self,query='ratio_query'):
-        querytext = getattr(self,query)()
-        silent = self.cursor.execute(querytext)
-        names = [to_unicode(item[0]) for item in self.cursor.description]
-        returnt = dict()
-        lines = self.cursor.fetchall()
-        if len(self.counttype) == len(names):
-            #If there are no groups at all, just return the array straight off.
-            return [float(value) for value in lines[0]]
-        for line in lines:
-            returnt = self.arrayNest(line,returnt,endLength = len(self.counttype))
-        return returnt
 
     def return_tsv(self,query = "ratio_query"):
         if self.outside_dictionary['counttype']=="Raw_Counts" or self.outside_dictionary['counttype']==["Raw_Counts"]:
@@ -946,6 +931,137 @@ class userquery:
             value = getattr(self,self.method)()
             return value
 
+class derived_table(object):
+    """
+    MySQL/MariaDB doesn't have good subquery materialization,
+    so I'm implementing it by hand.
+    """
+    def __init__(self,SQLstring,db,indices = [],dbToPutIn = "bookworm_scratch"):
+        """
+        initialize with the code to create the table; the database it will be in
+        (to prevent conflicts with other identical queries in other dbs);
+        and the list of all tables to be indexed
+        (optional, but which can really speed up joins)
+        """
+        self.query = SQLstring
+        self.db = db
+        #Each query is identified by a unique key hashed
+        #from the query and the dbname.
+        self.queryID  = dbToPutIn + "." + "derived" + hashlib.sha1(self.query + db.dbname).hexdigest()
+        self.indices = "(" + ",".join(["INDEX(%s)" % index  for index in indices]) + ")" if indices != [] else ""
+    
+    def setStorageEngines(self,temp):
+        """
+        Chooses where and how to store tables.
+        """
+        self.tempString = "TEMPORARY" if temp else ""
+        self.engine = "MEMORY" if temp else "MYISAM"
+
+    def checkCache(self):
+        """
+        Checks what's already been calculated.
+        """
+        try:
+            (self.count,self.created,self.modified,self.createCode,self.data) = self.db.cursor.execute("SELECT count,created,modified,createCode,data FROM bookworm_scratch.cache WHERE fieldname='%s'" %self.queryID)[0]
+            return True
+        except:
+            (self.count,self.created,self.modified,self.createCode,self.data) = [None]*5
+            return False
+
+    def fillTableWithData(self,data):
+        dataCode = "INSERT INTO %s values ("%self.queryID + ", ".join(["%s"]*len(data[0])) + ")"
+        self.db.cursor.executemany(dataCode,data)
+        self.db.db.commit()
+            
+    def materializeFromCache(self,temp):
+        if self.data is not None:
+            #Datacode should never exist without createCode also.
+            self.db.cursor.execute(self.createCode)
+            self.fillTableWithData(pickle.loads(self.data,protocol=-1))
+            return True
+        else:
+            return False
+
+
+    def createFromCacheWithDataFromBookworm(self,temp,postDataToCache=False):
+        """
+        If the create code exists but the data does not.
+        This uses a form of query that MySQL can cache,
+        unlike the normal subqueries OR the CREATE TABLE ... INSERT
+        used by materializeFromBookworm.
+
+        You can also post the data itself, but that's turned off by default:
+        because why wouldn't it have been posted the first time?
+        Probably it's too large or something, is why.
+        """
+        if self.createCode==None:
+            return False
+        self.db.cursor.execute(self.createCode)
+        self.db.cursor.execute(self.query)
+        data = [row for row in self.db.cursor.fetchall()]
+        self.newdata = pickle.dumps(data,protocol=-1)
+        self.fillTableWithData(data)
+        if postDataToCache:
+            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET data='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newdata),self.queryID)])
+        else:
+            self.updateCache()
+        return True
+            
+    def materializeFromBookworm(self,temp,postDataToCache=True,postCreateToCache=True):
+        import cPickle as pickle
+        self.db.cursor.execute("CREATE %(tempString)s TABLE %(queryID)s %(indices)s ENGINE=%(engine)s %(query)s;" % self.__dict__)
+        self.db.cursor.execute("SHOW CREATE TABLE %s" %self.queryID)
+        self.newCreateCode = self.db.cursor.fetchall()[0][1]
+        self.db.cursor.execute("SELECT * FROM %s" %self.queryID)
+        #coerce the results to a list of tuples, then pickle it.
+        self.newdata = pickle.dumps([row for row in self.db.cursor.fetchall()],protocol=-1)
+
+        if postDataToCache:
+            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET data='%s',createCode='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newdata),MySQLdb.escape_string(self.newCreateCode),self.queryID)])
+
+        if postCreateToCache:
+            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET createCode='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newCreateCode),self.queryID)])
+        
+        
+    def updateCache(self,postQueries=[]):
+        q1 = """
+        INSERT INTO bookworm_scratch.cache (fieldname,created,modified,count) VALUES
+        ('%s',NOW(),NOW(),1) ON DUPLICATE KEY UPDATE count = count + 1,modified=NOW();""" %self.queryID
+        result = self.db.cursor.execute(q1)
+        for query in postQueries:
+            self.db.cursor.execute(query)
+        self.db.db.commit()
+        
+    def materialize(self,temp="default"):
+        """
+        materializes the table, by default in memory in the bookworm_scratch
+        database. If temp is false, the table will be stored on disk, available
+        for future users too. This should be used sparingly, because you can't have too many
+        tables on disk.
+
+        Returns the tableID, which the superquery to this one may need to know.
+        """
+        if temp=="default":
+            temp=True
+
+        self.checkCache()
+        self.setStorageEngines(temp)
+
+        try:
+            if not self.materializeFromCache(temp):
+                if not self.createFromCacheWithDataFromBookworm(temp):
+                    self.materializeFromBookworm(temp)
+    
+        except MySQLdb.OperationalError,e:
+            #Often the error will be 1050, which is a good thing:
+            #It means we don't need to
+            #create the table, because it's there already.
+            #But if it's not, something bad is happening.
+            if not re.search("1050.*already exists",str(e)):
+                raise
+        
+        return self.queryID
+        
 class databaseSchema:
     """
     This class stores information about the database setup that is used to optimize query creation query
@@ -980,6 +1096,8 @@ class databaseSchema:
             #which is bad practice.
             self.newStyle(db)
         except:
+            #The new style will fail on old bookworms: a failure is an easy way to test
+            #for oldness, though of course something else might be causing the failure.
             self.oldStyle(db)
         
         
@@ -1101,72 +1219,6 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = ",escapeStrings=True):
 
 
 #I'd rather have all this smoothing stuff done at the client side, but currently it happens here.
-def smooth_function(zinput,smooth_method = 'lowess',span = .05):
-    if smooth_method not in ['lowess','triangle','rectangle']:
-        return zinput
-    xarray = []
-    yarray = []
-    years = zinput.keys()
-    years.sort()
-    for key in years:
-        if zinput[key]!='None':
-            xarray.append(float(key))
-            yarray.append(float(zinput[key]))
-    from numpy import array
-    x = array(xarray)
-    y = array(yarray)
-    if smooth_method == 'lowess':
-        #print "starting lowess smoothing<br>"
-        from Bio.Statistics.lowess import lowess
-        smoothed = lowess(x,y,float(span)/100,3)
-        x = [int(p) for p in x]
-        returnval = dict(zip(x,smoothed))
-        return returnval
-    if smooth_method == 'rectangle':
-        from math import log
-        #print "starting triangle smoothing<br>"
-        span = int(span) #Takes the floor--so no smoothing on a span < 1.
-        returnval = zinput
-        windowsize = span*2 + 1
-        from numpy import average
-        for i in range(len(xarray)):
-            surrounding = array(range(windowsize),dtype=float)
-            weights = array(range(windowsize),dtype=float)
-            for j in range(windowsize):
-                key_dist = j - span #if span is 2, the zeroeth element is -2, the second element is 0 off, etc.
-                workingon = i + key_dist
-                if workingon >= 0 and workingon < len(xarray):
-                    surrounding[j] = float(yarray[workingon])
-                    weights[j] = 1
-                else:
-                    surrounding[j] = 0
-                    weights[j] = 0
-            returnval[xarray[i]] = round(average(surrounding,weights=weights),3)
-        return returnval
-    if smooth_method == 'triangle':
-        from math import log
-        #print "starting triangle smoothing<br>"
-        span = int(span) #Takes the floor--so no smoothing on a span < 1.
-        returnval = zinput
-        windowsize = span*2 + 1
-        from numpy import average
-        for i in range(len(xarray)):
-            surrounding = array(range(windowsize),dtype=float)
-            weights = array(range(windowsize),dtype=float)
-            for j in range(windowsize):
-                key_dist = j - span #if span is 2, the zeroeth element is -2, the second element is 0 off, etc.
-                workingon = i + key_dist
-                if workingon >= 0 and workingon < len(xarray):
-                    surrounding[j] = float(yarray[workingon])
-                    #This isn't actually triangular smoothing: I dampen it by the logs, to keep the peaks from being too too big.
-                    #The minimum is '2', since log(1) == 0, which is a nonesense weight.
-                    weights[j] = log(span + 2 - abs(key_dist))
-                else:
-                    surrounding[j] = 0
-                    weights[j] = 0
-
-            returnval[xarray[i]] = round(average(surrounding,weights=weights),3)
-        return returnval
 
 #The idea is: this works by default by slurping up from the command line, but you could also load the functions in and run results on your own queries.
 try:
@@ -1183,7 +1235,8 @@ except:
 
 def debug(string):
     """
-    Makes it easier to debug through a web browser by handling the headers
+    Makes it easier to debug through a web browser by handling the headers.
+    Despite being called a `string`, it can be anything that python can print.
     """
     print headers('1')
     print "<br>"
