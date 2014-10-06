@@ -1,8 +1,8 @@
-[Presidio](https://github.com/bmschmidt/Presidio "Presidio") is the code repository for transforming a large
+BookwormDB(https://github.com/bookworm-project/BookwormDB "BookwormDB") is the code repository for transforming a large
 set of files and their metadata into an efficient and easily queryable database that can make full use of all the
 metadata and lexical data in the original source.
 
-A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bmschmidt.github.io/Presidio) on this repository (editable as the gh-pages branch here).
+A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bookworm-project.github.io/BookwormDB) on this repository (editable as the gh-pages branch here).
 
 Releases
 ---------------------
@@ -13,15 +13,15 @@ The "master" branch is under continuous development: it's likely to be faster an
 
 This is closely tied to two other projects. 
 
-To query the database created here programatically, you should use the Bookworm [API](https://github.com/bmschmidt/BookwormAPI "Bookworm API").
+To query the database created here programatically, you should use the Bookworm [API](https://github.com/bookworm-project/BookwormAPI "Bookworm API").
 
-Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/econpy/BookwormGUI "Bookworm web app"), which runs
+Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/bookworm-project/BookwormGUI "Bookworm web app"), which runs
 on top of the API. 
 
-As of v0.3, all ongoing development has been moved to the `master` branch: those wishing to clone a more stable copy for production may be better off using [the latest release](https://github.com/bmschmidt/Presidio/releases), which should be somewhat out of date.
+As of v0.3, all ongoing development has been moved to the `master` branch: those wishing to clone a more stable copy for production may be better off using [the latest release](https://github.com/bookworm-project/BookwormDB/releases), which should be somewhat out of date.
 
 ## Bookworms ##
-Here are a couple of [our](http://www.culturomics.org "Culturomics") Bookworms built using [Presidio](https://github.com/bmschmidt/Presidio "Presidio"):
+Here are a couple of Bookworms built using [BookwormDB](https://github.com/bookworm-project/BookwormDB "Bookworm"):
 
 1. [Open Library](http://bookworm.culturomics.org/OL/ "Open Library")
 2. [ArXiv](http://bookworm.culturomics.org/arxiv/ "ArXiv")
