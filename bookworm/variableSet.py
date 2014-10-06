@@ -731,7 +731,7 @@ class variableSet:
                 else:
                     print("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
                     raise
-            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.fastName)
+            self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.fastName)
             self.db.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))
     
     def createNwordsFile(self):
