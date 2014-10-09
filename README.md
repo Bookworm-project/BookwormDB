@@ -1,4 +1,4 @@
-BookwormDB(https://github.com/bookworm-project/BookwormDB "BookwormDB") is the code repository for transforming a large
+[BookwormDB](https://github.com/bookworm-project/BookwormDB "BookwormDB") is the code repository for transforming a large
 set of files and their metadata into an efficient and easily queryable database that can make full use of all the
 metadata and lexical data in the original source.
 
