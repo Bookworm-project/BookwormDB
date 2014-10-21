@@ -2,7 +2,7 @@
 set of files and their metadata into an efficient and easily queryable database that can make full use of all the
 metadata and lexical data in the original source.
 
-A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bookworm-project.github.io/Docs) on this repository (editable as the gh-pages branch here).
+A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bookworm-project.github.io/Docs) on this repository (editable at the repo [here](https://github.com/Bookworm-project/Docs)).
 
 Releases
 ---------------------
@@ -109,18 +109,18 @@ First off, you need a collection of texts to analyze. Ideally this should be mor
 If you haven't already, clone this repo and make a few directories where we'll put some files:
 
 ```
-git clone git://github.com/bmschmidt/Presidio
-cd Presidio
+git clone git://github.com/Bookworm-project/BookwormDB
+cd BookwormDB
 mkdir files && mkdir files/{metadata,texts,texts/raw}
 ```
 
 ### Required Files ###
 
-To build a bookworm, files are required in three places. Relative to the root directory (which will be called `Presidio` 
+To build a bookworm, files are required in three places. Relative to the root directory (which will be called `BookwormDB` 
 if you clone this repo directly), they are all in a subdirectory called `files`. When you've built them all, it will look like this:
 
 ```
-Presidio/
+BookwormDB/
  -- files/
   | -- texts/
   |  | raw  <--- contains texts files or hierarchical folders of text files
@@ -205,7 +205,7 @@ make all bookwormName=YOURBOOKWORMNAMEHERE
 > make all bookwormName=bookwormcongress
 > ```
 
-> The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/bmschmidt/Presidio#required-mysql-database) in this tutorial.
+> The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/Bookworm-project/BookwormDB#required-mysql-database) in this tutorial.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
@@ -231,8 +231,9 @@ For reference, the general workflow of the Makefile is the following:
  * regex (to handle complicated Unicode regular expressions for tokenization: `easy_install regex`)
  
 * parallel (GNU parallel, in versions available from apt-get or homebrew)
-* MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality)
+* MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality; MariaDB 10.0+ is also actively supported)
 * Apache or other webserver (for front end).
+* pandas (for the API only)
  
 
 
