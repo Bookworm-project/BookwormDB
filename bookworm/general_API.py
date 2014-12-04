@@ -3,6 +3,7 @@
 import MySQLdb
 from pandas import merge
 from pandas.io.sql import read_sql
+from pandas import set_option
 from SQLAPI import *
 from copy import deepcopy
 from collections import defaultdict
@@ -59,16 +60,18 @@ def calculateAggregates(df,parameters):
         df["WordsRatio"] = df["WordCount_x"]/df["WordCount_y"]
 
     if "TextPercent" in parameters:
-        df.eval("TextPercent = 100*TextCount_x/TextCount_y")
+
+        df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
     if "TextCount" in parameters:
         df["TextCount"] = df["TextCount_x"]
     if "TotalTexts" in parameters:
         df["TotalTexts"] = df["TextCount_y"]
 
     if "HitsPerBook" in parameters:
-        df.eval("HitsPerMatch = WordCount_x/TextCount_x")
+        df["HitsPerMatch"] = df["WordCount_x"]/df["TextCount_x"]
+
     if "TextLength" in parameters:
-        df.eval("TextLength = WordCount_y/TextCount_y")
+        df["HitsPerMatch"] = df["WordCount_y"]/df["TextCount_y"]
 
     if "TFIDF" in parameters:
         from numpy import log as log
@@ -78,6 +81,8 @@ def calculateAggregates(df,parameters):
     def DunningLog(df=df,a = "WordCount_x",b = "WordCount_y"):
         from numpy import log as log
         destination = "Dunning"
+        df[a] = df[a].replace(0,1)
+        df[b] = df[b].replace(0,1)
         if a=="WordCount_x":
             # Dunning comparisons should be to the sums if counting:
             c = sum(df[a])
@@ -284,8 +289,9 @@ class APIcall(object):
         calculations = self.query['counttype']
     
         calcced = calculateAggregates(merged,calculations)
-        calcced = calcced.fillna(int(0))
         
+        calcced = calcced.fillna(int(0))
+
         final_DataFrame = calcced[self.query['groups'] + self.query['counttype']]
 
         return final_DataFrame
@@ -338,7 +344,8 @@ class APIcall(object):
     def return_json(self,raw_python_object=False):
         query = self.query
         data = self.data()
-        
+
+
         def fixNumpyType(input):
             #This is, weirdly, an occasional problem but not a constant one.
             if str(input.dtype)=="int64":
@@ -350,7 +357,9 @@ class APIcall(object):
         def tree():
             return defaultdict(tree)
         returnt = tree()
-        
+
+        import numpy as np
+
         for row in data.itertuples(index=False):
             row = list(row)
             destination = returnt
@@ -366,9 +375,14 @@ class APIcall(object):
                 destination = destination[key]
         if raw_python_object:
             return returnt
-        
-        
-        return json.dumps(returnt)
+
+        try:
+            return json.dumps(returnt,allow_nan=False)
+        except ValueError:
+            return json.dumps(returnt)
+            kludge = json.dumps(returnt)
+            kludge = kludge.replace("Infinity","null")
+            print kludge
 
 class SQLAPIcall(APIcall):
     """
