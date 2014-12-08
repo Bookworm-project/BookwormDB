@@ -1,8 +1,8 @@
 ## Bookworm API
 
-These Python implement the API for Bookworm.
+This is an implementation of the API for Bookworm.
 
-They are used with the [Bookworm GUI](https://github.com/econpy/BookwormGUI) and can also be used as a standalone tool to query data from your database created by [Presidio](https://github.com/bmschmidt/Presidio).
+They are used with the [Bookworm GUI](https://github.com/Bookworm-project/BookwormGUI) and can also be used as a standalone tool to query data from your database created by [the BookwormDB repo](https://github.com/Bookworm-project/BookwormDB).
 For a more interactive explanation of how the GUI works, see the [D3 bookworm browser](http://benschmidt.org/beta/APISandbox)
 
 ### General Description
