@@ -18,7 +18,7 @@ def find_my_cnf():
     The password will be looked for in these places.
     """
     
-    for file in ["etc/bookworm/my.cnf","/etc/my.cnf","/etc/mysql/my.cnf"]:
+    for file in ["etc/bookworm/my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","/root/.my.cnf"]:
         if os.path.exists(file):
             return file
 
