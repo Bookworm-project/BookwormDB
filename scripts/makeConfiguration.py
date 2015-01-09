@@ -24,7 +24,7 @@ systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
 
 #It checks each of these files for defaults in turn
 
-systemConfigFile.read(["/.my.cnf",os.path.expanduser("~/my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf",bookworm.cnf"]);
+systemConfigFile.read(["/.my.cnf",os.path.expanduser("~/my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf","bookworm.cnf"]);
 
 defaults = dict()
 #The default bookwormname is just the current location
