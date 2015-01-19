@@ -17,14 +17,9 @@ bookworm.cnf:
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: files/texts
-	mkdir -p files/texts/encoded
-	mkdir -p files/texts/encoded/unigrams
-	mkdir -p files/texts/encoded/bigrams
-	mkdir -p files/texts/encoded/trigrams
-	mkdir -p files/texts/encoded/completed
-	mkdir -p files/texts/textids
+	mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
+	mkdir -p files/texts/{textids,wordlist}
 	mkdir -p files/targets
-	mkdir -p files/texts/wordlist
 
 #A "make clean" removes most things created by the bookworm,
 #but keeps the database and the registry of text and wordids
