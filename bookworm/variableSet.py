@@ -413,7 +413,7 @@ class dataField:
             self.dbToPutIn.query(code)
             #Separate Table Info
             code = self.fastLookupTableIfNecessary()
-            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.field + "Lookup")
+            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %(self.field + "Lookup"))
             self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
 
 
