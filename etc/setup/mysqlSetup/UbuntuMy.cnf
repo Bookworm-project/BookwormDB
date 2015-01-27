@@ -52,7 +52,10 @@ myisam_max_sort_file_size = 1500G
 
 
 key_buffer_size=1500M
+
+query_cache_limit = 1M
 query_cache_size = 32M
+query_cache_type = 1
 
 tmp_table_size = 1024M
 max_heap_table_size	= 1024M
