@@ -66,15 +66,30 @@ class tokenBatches(object):
         self.dictionary = readDictionaryFile()
         self.IDfile = readIDfile()
 
-    def encodeRow(self,row):
-        #The counts will be built up
-        counts = dict()
+    def encodeRow(self,
+                  row,
+                  source="raw_text" # Can also be "countfile", in which case each row is a tab separated list of [filename,ngram,count], where ngrams can contain spaces.
+    ):
 
         #The dictionary and ID lookup tables should be pre-attached.
         dictionary = self.dictionary
         IDfile = self.IDfile
-        parts = row.split("\t",1)
-        filename = parts[0]
+            
+        if source=="raw_text":
+            parts = row.split("\t",1)
+            filename = parts[0]
+            try:
+                tokens = tokenizer(parts[1])
+            except IndexError:
+                sys.stderr.write("\nFound no tab in the input for '" + filename + "'...skipping row\n")
+            
+        if source=="countfile":
+            try:
+                (filename,token,count) = row.split("\t")
+            except:
+                print row
+                raise
+            tokens = preTokenized(token,count,self.levels[0])
 
         try:
             textid = IDfile[filename]
@@ -85,10 +100,7 @@ class tokenBatches(object):
                 "something went wrong"
             return
 
-        try:
-            tokens = tokenizer(parts[1])
-        except IndexError:
-            sys.stderr.write("\nFound no tab in the input for '" + filename + "'...skipping row\n")
+
 
         for level in self.levels:
             outputFile = self.outputFiles[level]
@@ -176,6 +188,24 @@ class tokenizer(object):
                 count[gram] = 1
         return count
 
+
+class preTokenized(object):
+    """
+    This class is a little goofy: it mimics the behavior of a tokenizer
+    one data that's already been tokenized by something like 
+    Google Ngrams or JStor Data for Research.
+    """
+
+    def __init__(self,token,count,level):
+        self.level = level
+        self.output = {tuple(token.split(" ")):count}
+        
+    def counts(self,level):
+        if level!= self.level:
+            raise
+        return self.output
+    
+    
 def getAlreadySeenList(folder):
     #Load in a list of what's already been translated for that level.
     #Returns a set.
@@ -198,5 +228,20 @@ def encodeTextStream():
             
     #And printout again at the end
 
+def encodePreTokenizedStream(file,levels=["unigrams"]):
+    """
+    Note: since unigrams and bigrams are done separately, we have to just redo the whole
+    thing every time. The prebuilt list don't work.
+    """
+    seen = getAlreadySeenList("files/texts/encoded/completed")
+    tokenBatch = tokenBatches(levels=levels)
+    tokenBatch.attachDictionaryAndID()
+    for line in file:
+        filename = line.split("\t",1)[0]
+        line = line.rstrip("\n")
+        if filename not in seen:
+            tokenBatch.encodeRow(line,source="countfile")
+
+    
 if __name__=="__main__":
     encodeTextStream()

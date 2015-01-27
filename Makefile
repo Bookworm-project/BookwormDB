@@ -2,8 +2,16 @@
 
 textStream:=scripts/justPrintInputTxt.sh
 
+# The maximum size of each input block for parallel processing.
+# 100M should be appropriate for a machine with 8-16GB of memory: if you're
+# having problems on a smaller machine, try bringing it down.
+
+blockSize:=100M
+
 webDirectory="/var/www/"
-bookwormName=$(shell grep database bookworm.cnf | sed 's/.* = //g')
+
+#You can manually specify a bookworm name, but normally it just greps it out of your configuration file.
+bookwormName:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
@@ -39,7 +47,7 @@ clean:
 	rm -f files/metadata/field_descriptions_derived.json
 
 # Make 'pristine' is a little more aggressive
-#This can be dangerous
+# This can be dangerous, but lets you really wipe the slate.
 
 pristine: clean
 	-mysql -e "DROP DATABASE $(bookwormName)"
@@ -52,7 +60,7 @@ pristine: clean
 # The easiest thing to do, of course, is simply use an Ngrams or other wordlist.
 
 files/texts/wordlist/wordlist.txt:
-	$(textStream) | parallel --block-size 100M --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+	$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
 
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
@@ -61,6 +69,8 @@ files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt
 #Run through parallel as well.
 	cat files/metadata/jsoncatalog.txt | parallel --pipe python bookworm/MetaParser.py > $@
 
+
+# In addition to building files for ingest.
 
 files/metadata/catalog.txt:
 	python OneClick.py preDatabaseMetadata
@@ -80,12 +90,12 @@ files/metadata/catalog.txt:
 
 files/targets/encoded: files/texts/wordlist/wordlist.txt
 #builds up the encoded lists that don't exist yet.
-#"Make"ing these rather than declaring dependency so that changes to 
+#I "Make" the catalog files rather than declaring dependency so that changes to 
 #the catalog don't trigger a db rebuild automatically.
 	make files/metadata/jsoncatalog_derived.txt
 	make files/texts/textids.dbm
 	make files/metadata/catalog.txt
-	$(textStream) | parallel --block-size 100M -u --pipe python bookworm/tokenizer.py
+	$(textStream) | parallel --block-size $(blockSize) -u --pipe python bookworm/tokenizer.py
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
