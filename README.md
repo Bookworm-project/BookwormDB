@@ -40,7 +40,7 @@ At the very least, there must be a MySQL user with permissions to insert + selec
 
 The easiest way to handle this is to have a user with root access defined in your system-wide MySQL configuration files.
 
-This creates a bit of a security risk, though, so we recommend 
+This creates a bit of a security risk, though, so we recommend 2 MySQL users: an admin user with the ability to create new databases (i.e. GRANT ALL) and a second user that is only able to select data from databases (i.e. GRANT SELECT). This is for security: your data is safer if the web user can't modify it at all.
 
 First, that admin user:
 
@@ -51,19 +51,16 @@ CREATE USER 'foobar'@'localhost' IDENTIFIED BY 'mysecret';
 GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost';
 FLUSH PRIVILEGES;
 ```
-
-However, ideally there should be 2 MySQL users. The first user would have the ability to create new databases (i.e. GRANT ALL) and the second would only be able to select data from databases (i.e. GRANT SELECT). This is for security: your data is safer if the web user can't modify it at all.
-
-The first user would be the one defined above. The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 
+The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 
 
 ```mysql
-GRANT SELECT PRIVILEGES ON *.* TO 'www-data'@'localhost';
+GRANT SELECT ON *.* TO 'www-data'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
 If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above.
 
-Otherwise, you can change the system-wide mysql configuration to use whatever name you want. Those will be at `/etc/mysql/my.cnf` or a similar location, and should look something like this (if you want a password, add it as for the admin user).
+If your system doesn't have an apache user or you would like to create your own non-admin user, you can change the system-wide mysql configuration to use whatever user you want. Those will be at `/etc/mysql/my.cnf`, `/etc/my.cnf`, or a similar location, and should look something like this (if you want a password, add it as for the admin user).
 
 ```
 [client]
@@ -75,7 +72,7 @@ Finally, there must also be a **user** config file at `~/.my.cnf` that Python ca
 ```
 [client]
 user = foobar
-password = 'mysecret'
+password = mysecret
 ```
 
 
@@ -111,7 +108,7 @@ If you haven't already, clone this repo and make a few directories where we'll p
 ```
 git clone git://github.com/Bookworm-project/BookwormDB
 cd BookwormDB
-mkdir files && mkdir files/{metadata,texts,texts/raw}
+mkdir -p files/{metadata,texts/raw}
 ```
 
 ### Required Files ###
