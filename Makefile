@@ -10,6 +10,9 @@ blockSize:=100M
 
 webDirectory="/var/www/"
 
+#New syntax requires bash
+SHELL:=/bin/bash
+
 #You can manually specify a bookworm name, but normally it just greps it out of your configuration file.
 bookwormName:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 
