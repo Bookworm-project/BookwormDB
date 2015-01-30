@@ -61,7 +61,8 @@ def ParseJSONCatalog(target="default",source = "default"):
 
         for field in fields_to_derive:
             try:
-                content = line[field["field"]].split('-')
+                datem = line[field["field"]].split("T")[0]
+                content = datem.split('-')
                 intent = [int(item) for item in content]
             except KeyError:
                 #It's OK not to have an entry for a time field
@@ -120,7 +121,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     dt = date(intent[0], intent[1], 1)
                                     line[k] = DaysSinceZero(dt)
                                 except:
-                                    sys.stderr.write("Problem with date fields")
+                                    sys.stderr.write("Problem with date fields\n")
                                     pass
                             elif derive['resolution'] == 'week':
                                 k = "%s_week" % field['field']
@@ -135,9 +136,9 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     dt = date(intent[0],intent[1],intent[2])
                                     line[k] = DaysSinceZero(dt)
                                 except:
-                                    sys.stderr.write("Problem with daily resolution")
+                                    sys.stderr.write("Problem with daily resolution\n")
                             else:
-                                sys.stderr.write('Resolution currently not supported.')
+                                sys.stderr.write('Resolution currently not supported.\n')
                                 continue
                     except ValueError:
                         # One of out a million Times articles threw this with
@@ -149,7 +150,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                         pass
                     except Exception, e:
                         sys.stderr.write( '*'*50)
-                        sys.stderr.write('ERROR: %s\nINFO: %s' % (str(e), e.__doc__))
+                        sys.stderr.write('ERROR: %s\nINFO: %s\n' % (str(e), e.__doc__))
                         sys.stderr.write( '*'*50)
                 line.pop(field["field"])
         f.write('%s\n' % json.dumps(line))
