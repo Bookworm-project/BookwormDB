@@ -239,8 +239,7 @@ def encodePreTokenizedStream(file,levels=["unigrams"]):
     for line in file:
         filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
-        if filename not in seen:
-            tokenBatch.encodeRow(line,source="countfile")
+        tokenBatch.encodeRow(line,source="countfile")
 
     
 if __name__=="__main__":
