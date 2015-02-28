@@ -12,8 +12,13 @@ import ConfigParser
 from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
-
+import logging
 import warnings
+
+if logging.getLogger().isEnabledFor(logging.DEBUG):
+    # Catch MYSQL warnings as errors if logging is set to debug.
+    warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
+
 warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", "Can't create database.*; database exists")
 warnings.filterwarnings("ignore", "^Unknown table .*")
@@ -30,16 +35,23 @@ class DB:
         self.password=config.get("client","password")
         self.conn = None
 
-    def connect(self):
+    def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
         cursor = self.conn.cursor()
-        cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
-        #Don't use native query attribute here to avoid infinite loops
-        cursor.execute("SET NAMES 'utf8'")
-        cursor.execute("SET CHARACTER SET 'utf8'")
-        cursor.execute("SET default_storage_engine=MYISAM")
-        cursor.execute("USE %s" % self.dbname)
+        try:
+            cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
+            #Don't use native query attribute here to avoid infinite loops
+            cursor.execute("SET NAMES 'utf8'")
+            cursor.execute("SET CHARACTER SET 'utf8'")
+            if setengine:
+                cursor.execute("SET default_storage_engine=MYISAM")
+            cursor.execute("USE %s" % self.dbname)
+        except:
+            logging.error("Forcing default engine failed. On some versions of Mysql, "
+                          "you may need to add \"default-storage-engine=MYISAM\" manually "
+                          "to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
+            self.connect(setengine=False)
 
     def query(self, sql):
         """
@@ -47,6 +59,7 @@ class DB:
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
         the connection and starts up nicely again.
         """
+        logging.debug(sql)
         try:
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -92,7 +105,6 @@ class BookwormSQLDatabase:
         username=config.get("client","user")
         password=config.get("client","password")
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
-        
     
     def setVariables(self,originFile,anchorField="bookid",jsonDefinition="files/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
@@ -164,6 +176,8 @@ class BookwormSQLDatabase:
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
         for filename in os.listdir("files/texts/encoded/unigrams"):
+            if filename[-4:] != '.txt':
+                continue
             try:
                 db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
             except:
@@ -262,6 +276,7 @@ class BookwormSQLDatabase:
         wordCommand += "RENAME TABLE tmp TO wordsheap;"
         query = """INSERT IGNORE INTO masterTableTable
                    VALUES ('wordsheap','wordsheap','""" + MySQLdb.escape_string(wordCommand) + """')"""
+        logging.info("Creating wordsheap")
         self.db.query(query)
         
     def jsonify_data(self):
