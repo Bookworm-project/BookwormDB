@@ -41,7 +41,7 @@ def writeWordIDs():
     wordid = 0
     for (count,word) in tuples:
         wordid += 1
-        output.write("\t".join([str(wordid),word,str(count)]) + "\n")
+        output.write("\t".join([str(wordid),word.replace("\\","\\\\"),str(count)]) + "\n")
 
 
 if sys.argv[1]=="wordIds":

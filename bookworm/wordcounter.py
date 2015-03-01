@@ -139,7 +139,7 @@ def sortWordlist(maxDictionaryLength=1000000):
         except KeyError:
             wordid = nextIDtoAssign
             nextIDtoAssign = nextIDtoAssign+1
-        counts.append("\t".join([str(wordid), word, count]))
+        counts.append("\t".join([str(wordid), word.replace("\\","\\\\"), count]))
             
         i = i + 1
         if i > maxDictionaryLength:
