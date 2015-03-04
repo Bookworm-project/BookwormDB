@@ -71,7 +71,7 @@ class oneClickInstance(object):
             
     def reloadMemory(self):
         Bookworm = BookwormSQLDatabase(dbname,variableFile=None)
-        Bookworm.reloadMemoryTables()
+        Bookworm.reloadMemoryTables(force=True)
 
     def reloadAllMemory(self):
         #reloads the memory tables for every bookworm on the server.
