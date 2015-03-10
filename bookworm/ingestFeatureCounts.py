@@ -4,7 +4,7 @@ import sys
 from tokenizer import *
 
 # This script reads in a unigrams file that must be formatted
-# as "textid, token, count."
+# as "textid token count."
 
 # If you want to force comma-delimited or tab-delimited splitting (instead of the current
 # whitespace splitting), change this variable.
@@ -12,9 +12,9 @@ sep=None
 
 
 # For now, you have to create these files. (I'd recommend doing it as a named pipe)
-
-unigrams = "../unigrams.txt"
-bigrams = "../bigrams.txt"
+path = os.path.dirname(os.path.realpath(__file__))
+unigrams = os.path.join(path, "..", "unigrams.txt")
+bigrams = os.path.join(path, "..", "bigrams.txt")
 
 # Bookwormdir is defined in the call.
 
@@ -49,5 +49,5 @@ if sys.argv[1]=="wordIds":
 
 
 if sys.argv[1]=="encode":
-    encodePreTokenizedStream(open("../unigrams.txt"),levels=["unigrams"])
-    #encodePreTokenizedStream(open("../bigrams"),levels=["bigrams"])
+    encodePreTokenizedStream(open(unigrams),levels=["unigrams"])
+    #encodePreTokenizedStream(open(bigrams)),levels=["bigrams"])
