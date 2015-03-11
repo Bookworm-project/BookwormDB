@@ -27,10 +27,12 @@ bookworm.cnf:
 	python scripts/makeConfiguration.py
 
 #These are all directories that need to be in place for the other scripts to work properly
-files/targets: files/texts
-	mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
-	mkdir -p files/texts/{textids,wordlist}
-	mkdir -p files/targets
+files/targets: 
+	echo "-building needed directories"
+	@mkdir -p files/texts
+	@mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
+	@mkdir -p files/texts/{textids,wordlist}
+	@mkdir -p files/targets
 
 #A "make clean" removes most things created by the bookworm,
 #but keeps the database and the registry of text and wordids
@@ -63,7 +65,7 @@ files/texts/wordlist/wordlist.txt:
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
 
-files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt
+files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt files/metadata/field_descriptions.json
 #Run through parallel as well.
 	cat files/metadata/jsoncatalog.txt | parallel --pipe python bookworm/MetaParser.py > $@
 
@@ -120,3 +122,22 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 $(webDirectory)/$(bookwormName): files/$(bookwormName).json
 	git clone https://github.com/econpy/BookwormGUI $@
 	cp files/*.json $@/static/options.json
+
+
+
+
+
+
+### Some defaults to make it easier to clone this directory in:
+
+files/metadata/jsoncatalog.txt:
+	mkdir -p files/metadata
+	ln -sf ../../../jsoncatalog.txt $@
+
+
+files/metadata/field_descriptions.json:
+	mkdir -p files/metadata
+	@if [ -f ../field_descriptions.json ]; then \
+		ln -sf ../../../field_descriptions.json files/metadata/field_descriptions.json; \
+	fi
+

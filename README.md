@@ -226,11 +226,11 @@ For reference, the general workflow of the Makefile is the following:
  * ntlk (recommended, to be required)
  * numpy
  * regex (to handle complicated Unicode regular expressions for tokenization: `easy_install regex`)
- 
+ * pandas (used by the API, not this precise, set of scripts)
+
 * parallel (GNU parallel, in versions available from apt-get or homebrew)
-* MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality; MariaDB 10.0+ is also actively supported)
-* Apache or other webserver (for front end).
-* pandas (for the API only)
+* MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality; MariaDB 10.0+ is also actively supported. Some people have reported that it largely works with MySQL 5.1)
+* Apache or other webserver (for front end; it is possible to run the API without a webserver at all, but this usage is not documented.)
  
 
 

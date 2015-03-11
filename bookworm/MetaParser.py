@@ -1,14 +1,19 @@
-from datetime import date, datetime
+from datetime import date
+import datetime
+import dateutil.parser
 import json
 import sys
 
 fields_to_derive = []
+defaultDate = datetime.datetime(datetime.MINYEAR, 1, 1)
+
 
 def DaysSinceZero(dateobj):
     #Zero isn't a date, which python knows but MySQL and javascript don't.
     return (dateobj - date(1,1,1)).days + 366
 
 def ParseFieldDescs():
+    global fields_to_derive
     f = open('files/metadata/field_descriptions.json', 'r')
     try:
         fields = json.loads(f.read())
@@ -43,7 +48,9 @@ def ParseFieldDescs():
     derivedFile.close()
 
 
+
 def ParseJSONCatalog(target="default",source = "default"):
+    global fields_to_derive
     if target=="default":
         target=open("files/metadata/jsoncatalog_derived.txt", "w")
     if source=="default":
@@ -60,22 +67,41 @@ def ParseJSONCatalog(target="default",source = "default"):
             pass
 
         for field in fields_to_derive:
-            try:
-                datem = line[field["field"]].split("T")[0]
-                content = datem.split('-')
-                intent = [int(item) for item in content]
-            except KeyError:
-                #It's OK not to have an entry for a time field
-                continue
-            except ValueError:
-                # Thrown if fields are empty on taking the int value: treat as junk
-                continue
-            except AttributeError:
-                # Happens if it's an integer, which is a forgiveable way
-                # to enter a year:
-                content = [str(line[field['field']])]
-                intent = [line[field['field']]]
+            """
+            Using fields_to_derive as a shorthand for dates--this may break if we get more ambitious about derived fields,
+            but this whole metadata-parsing code needs to be refactored anyway.
 
+            Note: this code is inefficient--it parses the same date multiple times. We should be parsing the date once and pulling 
+            derived fields out of that one parsing.
+            """
+            try:
+                time = dateutil.parser.parse(line[field["field"]],default = defaultDate)
+                intent = [time.year,time.month,time.day]
+                content = [str(item) for item in intent]
+                
+                pass
+            except:
+                raise
+                """
+                Fall back to parsing as strings
+                """
+                try:
+                    datem = line[field["field"]].split("T")[0]
+                    content = datem.split('-')
+                    intent = [int(item) for item in content]
+                except KeyError:
+                    #It's OK not to have an entry for a time field
+                    continue
+                except ValueError:
+                    # Thrown if fields are empty on taking the int value: treat as junk
+                    continue
+                except AttributeError:
+                    """
+                    Happens if it's an integer, which is a forgiveable way
+                    to enter a year:
+                    """
+                    content = [str(line[field['field']])]
+                    intent = [line[field['field']]]
             if not content:
                 continue
             else:
@@ -109,6 +135,14 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 dt = date(intent[0], intent[1], intent[2])
                                 k = "%s_week_year" % field["field"]
                                 line[k] = int(dt.timetuple().tm_yday/7)*7
+                            elif derive["resolution"] == 'hour' and \
+                                    derive["aggregate"] == "day":
+                                k = "%s_hour_day" % field["field"]
+                                line[k] = time.hour
+                            elif derive["resolution"] == 'minute' and \
+                                    derive["aggregate"] == "day":
+                                k = "%s_hour_day" % field["field"]
+                                line[k] = time.hour*60 + time.minute
                             else:
                                 sys.stderr.write('Problem with aggregate resolution.')
                                 continue
@@ -130,13 +164,6 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 time = int(inttime/7)*7
                                 #Not starting on Sunday or anything funky like that. Actually, I don't know what we're starting on. Adding an integer here would fix that.
                                 line[k] = time
-                            elif derive["resolution"] == 'day':
-                                try:
-                                    k = "%s_day" % field["field"]
-                                    dt = date(intent[0],intent[1],intent[2])
-                                    line[k] = DaysSinceZero(dt)
-                                except:
-                                    sys.stderr.write("Problem with daily resolution\n")
                             else:
                                 sys.stderr.write('Resolution currently not supported.\n')
                                 continue

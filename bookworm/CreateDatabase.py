@@ -234,7 +234,10 @@ class BookwormSQLDatabase:
         self.addWordsToMasterVariableTable()
         self.variableSet.updateMasterVariableTable()
 
-    def reloadMemoryTables(self):
+    def reloadMemoryTables(self,force=False):
+        """
+        Checks to see if memory tables need to be repopulated, and then does so if they are empty.
+        """
         existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
         for row in existingCreateCodes:
             """
@@ -248,7 +251,7 @@ class BookwormSQLDatabase:
                 currentLength = cursor.fetchall()[0][0]
             except:
                 currentLength = 0
-            if currentLength==0:
+            if currentLength==0 or force:
                 for query in splitMySQLcode(row[1]):
                     self.db.query(query)
 
