@@ -60,7 +60,6 @@ def calculateAggregates(df,parameters):
         df["WordsRatio"] = df["WordCount_x"]/df["WordCount_y"]
 
     if "TextPercent" in parameters:
-
         df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
     if "TextCount" in parameters:
         df["TextCount"] = df["TextCount_x"]
@@ -248,13 +247,11 @@ class APIcall(object):
                 call1['search_limits'][limit.replace('*','')] = call1['search_limits'][limit]
                 del call1['search_limits'][limit]
 
-        for group in self.query['groups']:
+        for n,group in enumerate(self.query['groups']):
             if re.search(r'^\*',group):
                 replacement = group.replace("*","")
-                call1['groups'].remove(group)
-                call1['groups'].append(replacement)
-                self.query['groups'].remove(group)
-                self.query['groups'].append(replacement)
+                call1['groups'][n] = replacement
+                self.query['groups'][n] = replacement
                 call2['groups'].remove(group)
 
         #Special case: unigram groupings are dropped if they're not explicitly limited
@@ -311,8 +308,9 @@ class APIcall(object):
             return self.return_json()
 
         if method=="return_tsv" or method=="tsv":
+            import csv
             frame = self.data()
-            return frame.to_csv(sep="\t",encoding="utf8",index=False)
+            return frame.to_csv(sep="\t",encoding="utf8",index=False,quoting=csv.QUOTE_NONE,escapechar="\\")
 
         if method=="return_pickle" or method=="DataFrame":
             frame = self.data()
