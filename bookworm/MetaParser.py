@@ -81,7 +81,6 @@ def ParseJSONCatalog(target="default",source = "default"):
                 
                 pass
             except:
-                raise
                 """
                 Fall back to parsing as strings
                 """
