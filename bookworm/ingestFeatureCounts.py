@@ -60,7 +60,7 @@ def writeWordIDs(featurefile, sep=None):
     wordid = 0
     for (count,word) in tuples:
         wordid += 1
-        output.write("\t".join([str(wordid),word,str(count)]) + "\n")
+        output.write("\t".join([str(wordid),word.replace("\\","\\\\"),str(count)]) + "\n")
 
 if __name__ == '__main__':
     main()
