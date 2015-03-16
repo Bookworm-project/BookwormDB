@@ -5,6 +5,8 @@ import random
 import sys
 import os
 import anydbm
+import time
+import logging
 
 def wordRegex():
     """
@@ -68,7 +70,8 @@ class tokenBatches(object):
 
     def encodeRow(self,
                   row,
-                  source="raw_text" # Can also be "countfile", in which case each row is a tab separated list of [filename,ngram,count], where ngrams can contain spaces.
+                  source="raw_text", # Can also be "countfile", in which case each row is a tab separated list of [filename,ngram,count], where ngrams can contain spaces.
+                  write_completed=True
     ):
 
         #The dictionary and ID lookup tables should be pre-attached.
@@ -125,7 +128,9 @@ class tokenBatches(object):
                     output.append("\t".join([textid,wordids,str(count)]))
 
             outputFile.write("\n".join(output) + "\n")        
-        self.completedFile.write(filename + "\n")
+
+        if write_completed:
+            self.completedFile.write(filename + "\n")
 
 haveWarnedUnicode = False
 
@@ -228,19 +233,21 @@ def encodeTextStream():
             
     #And printout again at the end
 
-def encodePreTokenizedStream(file,levels=["unigrams"]):
+def encodePreTokenizedStream(infile,levels=["unigrams"]):
     """
     Note: since unigrams and bigrams are done separately, we have to just redo the whole
     thing every time. The prebuilt list don't work.
+
+    Infile can be an open stream or a file.
     """
-    seen = getAlreadySeenList("files/texts/encoded/completed")
+    start = time.time()
     tokenBatch = tokenBatches(levels=levels)
     tokenBatch.attachDictionaryAndID()
-    for line in file:
+    logging.debug("Token batch attached (%d s)" % int(time.time() - start))
+    for line in infile:
         filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
-        tokenBatch.encodeRow(line,source="countfile")
-
+        tokenBatch.encodeRow(line,source="countfile", write_completed=False)
     
 if __name__=="__main__":
     encodeTextStream()
