@@ -5,6 +5,7 @@ import json
 import sys
 
 fields_to_derive = []
+fields = []
 defaultDate = datetime.datetime(datetime.MINYEAR, 1, 1)
 
 
@@ -14,6 +15,7 @@ def DaysSinceZero(dateobj):
 
 def ParseFieldDescs():
     global fields_to_derive
+    global fields
     f = open('files/metadata/field_descriptions.json', 'r')
     try:
         fields = json.loads(f.read())
@@ -65,7 +67,13 @@ def ParseJSONCatalog(target="default",source = "default"):
         except:
             sys.stderr.write('JSON Parsing Failed:\n%s\n' % data)
             pass
-
+        for field in fields:
+            # Smash together misidentified lists
+            try:
+                if field['unique'] and isinstance(line[field["field"]],list):
+                    line[field["field"]] = "--".join(line[field["field"]])
+            except KeyError:
+                pass
         for field in fields_to_derive:
             """
             Using fields_to_derive as a shorthand for dates--this may break if we get more ambitious about derived fields,
