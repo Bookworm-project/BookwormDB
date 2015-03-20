@@ -63,7 +63,7 @@ pristine: clean
 # from elsewhere. If so, we use Peter Organisciak's fast_featurecounter.sh on that, instead.
 
 ifneq ("$(wildcard ../unigrams.txt)","")
-wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) files/texts/wordlist/sorted.txt; head -1000000 files/texts/wordlist/sorted.txt > files/text/wordlist/wordlist.txt
+wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) files/texts/wordlist/sorted.txt; head -1000000 files/texts/wordlist/sorted.txt > files/texts/wordlist/wordlist.txt
 else
 wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
 endif
