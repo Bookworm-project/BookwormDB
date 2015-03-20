@@ -28,7 +28,7 @@ bookworm.cnf:
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: 
-	echo "-building needed directories"
+	#"-building needed directories"
 	@mkdir -p files/texts
 	@mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
 	@mkdir -p files/texts/{textids,wordlist}
@@ -38,7 +38,7 @@ files/targets:
 #but keeps the database and the registry of text and wordids
 
 clean:
-	#Remove inputs.txt if it's a pipe.
+#Remove inputs.txt if it's a pipe.
 	find files/texts -maxdepth 1 -type p -delete
 	rm -rf files/texts/encoded/*/*
 	rm -rf files/targets
@@ -59,8 +59,19 @@ pristine: clean
 # just to build this: any way to speed it up is a huge deal.
 # The easiest thing to do, of course, is simply use an Ngrams or other wordlist.
 
+# The build method is dependent on whether we're using an accumulated wordcount list
+# from elsewhere. If so, we use Peter Organisciak's fast_featurecounter.sh on that, instead.
+
+ifneq ("$(wildcard ../unigrams.txt)","")
+wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) files/texts/wordlist/sorted.txt
+else
+wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+endif
+
 files/texts/wordlist/wordlist.txt:
-	$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+	$(wordlistBuilder)
+	head -1000000 files/texts/wordlist/sorted.txt > $@
+
 
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
@@ -122,11 +133,6 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 $(webDirectory)/$(bookwormName): files/$(bookwormName).json
 	git clone https://github.com/econpy/BookwormGUI $@
 	cp files/*.json $@/static/options.json
-
-
-
-
-
 
 ### Some defaults to make it easier to clone this directory in:
 
