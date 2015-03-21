@@ -99,6 +99,16 @@ files/metadata/catalog.txt:
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
 
+
+
+#Use an alternate method to ingest feature counts if the file is defined immediately below.
+
+ifneq ("$(wildcard ../unigrams.txt)","")
+encoder=cat ../unigrams.txt | parallel --block-size $(blockSize) -u --pipe python bookworm/ingestFeatureCounts.py encode
+else
+encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe python bookworm/tokenizer.py
+endif
+
 files/targets/encoded: files/texts/wordlist/wordlist.txt
 #builds up the encoded lists that don't exist yet.
 #I "Make" the catalog files rather than declaring dependency so that changes to 
@@ -106,7 +116,7 @@ files/targets/encoded: files/texts/wordlist/wordlist.txt
 	make files/metadata/jsoncatalog_derived.txt
 	make files/texts/textids.dbm
 	make files/metadata/catalog.txt
-	$(textStream) | parallel --block-size $(blockSize) -u --pipe python bookworm/tokenizer.py
+	$(encoder)
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
