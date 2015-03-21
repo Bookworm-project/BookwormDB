@@ -8,7 +8,7 @@ textStream:=scripts/justPrintInputTxt.sh
 
 blockSize:=100M
 
-webDirectory="/var/www/"
+webDirectory=/var/www/
 
 #New syntax requires bash
 SHELL:=/bin/bash
@@ -28,7 +28,7 @@ bookworm.cnf:
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: 
-	echo "-building needed directories"
+	#"-building needed directories"
 	@mkdir -p files/texts
 	@mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
 	@mkdir -p files/texts/{textids,wordlist}
@@ -38,7 +38,7 @@ files/targets:
 #but keeps the database and the registry of text and wordids
 
 clean:
-	#Remove inputs.txt if it's a pipe.
+#Remove inputs.txt if it's a pipe.
 	find files/texts -maxdepth 1 -type p -delete
 	rm -rf files/texts/encoded/*/*
 	rm -rf files/targets
@@ -59,8 +59,19 @@ pristine: clean
 # just to build this: any way to speed it up is a huge deal.
 # The easiest thing to do, of course, is simply use an Ngrams or other wordlist.
 
+# The build method is dependent on whether we're using an accumulated wordcount list
+# from elsewhere. If so, we use Peter Organisciak's fast_featurecounter.sh on that, instead.
+
+ifneq ("$(wildcard ../unigrams.txt)","")
+wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) files/texts/wordlist/sorted.txt; head -1000000 files/texts/wordlist/sorted.txt > files/texts/wordlist/wordlist.txt
+else
+wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+endif
+
 files/texts/wordlist/wordlist.txt:
-	$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+	$(wordlistBuilder)
+
+
 
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
@@ -88,6 +99,16 @@ files/metadata/catalog.txt:
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
 
+
+
+#Use an alternate method to ingest feature counts if the file is defined immediately below.
+
+ifneq ("$(wildcard ../unigrams.txt)","")
+encoder=cat ../unigrams.txt | parallel --block-size $(blockSize) -u --pipe python bookworm/ingestFeatureCounts.py encode
+else
+encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe python bookworm/tokenizer.py
+endif
+
 files/targets/encoded: files/texts/wordlist/wordlist.txt
 #builds up the encoded lists that don't exist yet.
 #I "Make" the catalog files rather than declaring dependency so that changes to 
@@ -95,7 +116,7 @@ files/targets/encoded: files/texts/wordlist/wordlist.txt
 	make files/metadata/jsoncatalog_derived.txt
 	make files/texts/textids.dbm
 	make files/metadata/catalog.txt
-	$(textStream) | parallel --block-size $(blockSize) -u --pipe python bookworm/tokenizer.py
+	$(encoder)
 	touch files/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
@@ -120,13 +141,11 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 # I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
 
 $(webDirectory)/$(bookwormName): files/$(bookwormName).json
-	git clone https://github.com/econpy/BookwormGUI $@
-	cp files/*.json $@/static/options.json
+	git clone https://github.com/Bookworm-project/BookwormGUI $@
+	cp files/$(bookwormName).json $@/static/options.json
 
-
-
-
-
+linechartGUI: $(webDirectory)/$(bookwormName)
+	cp files/$(bookwormName).json $@/static/options.json
 
 ### Some defaults to make it easier to clone this directory in:
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage:
-#    htrc_wordcounter.sh [infile] [tmpdir] [blocksize]
+#    htrc_wordcounter.sh [infile] [tmpdir] [blocksize] [outfile]
 
 # Important: Need to set locale in order to sort properly
 export LC_ALL=C
