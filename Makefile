@@ -8,7 +8,7 @@ textStream:=scripts/justPrintInputTxt.sh
 
 blockSize:=100M
 
-webDirectory="/var/www/"
+webDirectory=/var/www/
 
 #New syntax requires bash
 SHELL:=/bin/bash
@@ -141,8 +141,11 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 # I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
 
 $(webDirectory)/$(bookwormName): files/$(bookwormName).json
-	git clone https://github.com/econpy/BookwormGUI $@
-	cp files/*.json $@/static/options.json
+	git clone https://github.com/Bookworm-project/BookwormGUI $@
+	cp files/$(bookwormName).json $@/static/options.json
+
+linechartGUI: $(webDirectory)/$(bookwormName)
+	cp files/$(bookwormName).json $@/static/options.json
 
 ### Some defaults to make it easier to clone this directory in:
 
