@@ -140,12 +140,12 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
 # I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
 
-$(webDirectory)/$(bookwormName): files/$(bookwormName).json
+$(webDirectory)/$(bookwormName):
 	git clone https://github.com/Bookworm-project/BookwormGUI $@
-	cp files/$(bookwormName).json $@/static/options.json
 
-linechartGUI: $(webDirectory)/$(bookwormName)
-	cp files/$(bookwormName).json $@/static/options.json
+linechartGUI: $(webDirectory)/$(bookwormName) files/$(bookwormName).json
+	cp files/$(bookwormName).json $</static/options.json
+
 
 ### Some defaults to make it easier to clone this directory in:
 
