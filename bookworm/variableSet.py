@@ -373,12 +373,16 @@ class dataField:
 
         returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
 
+        returnt += "DROP TABLE IF EXISTS %(field)s__id;\n\n" % self.__dict__
+
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
                       %(field)s VARCHAR (255), INDEX (%(field)s), %(field)s__count MEDIUMINT);\n\n""" % self.__dict__
+
         returnt += """INSERT INTO %(field)s__id (%(field)s,%(field)s__count)
                       SELECT %(field)s,count FROM tmp LEFT JOIN %(field)s__id USING (%(field)s) WHERE %(field)s__id.%(field)s__id IS NULL
                       ORDER BY count DESC;\n\n""" % self.__dict__
+
         returnt += """DROP TABLE tmp;\n\n"""
 
         self.idCode = "%s__id" % self.field
