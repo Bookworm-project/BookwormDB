@@ -564,8 +564,6 @@ class variableSet:
 
         for entry in metadatafile:
             try:
-                #entry = to_unicode(entry)
-                #entry = entry.replace('\\n', ' ')
                 entry = json.loads(entry)
             except:
                 warnings.warn("""WARNING: json parsing failed for this JSON line:
@@ -606,7 +604,7 @@ class variableSet:
                  #Each of these has a different file it must write to...
                 outfile = variable.output
                 lines = entry.get(variable.field, [])
-                if isinstance(lines, basestring):
+                if isinstance(lines,(basestring,int)):
                     """
                     Allow a single element to be represented as a string
                     """
@@ -615,7 +613,7 @@ class variableSet:
                     lines = []
                 for line in lines:
                     try:
-                        writing = '%s\t%s\n' % (str(bookid), line)
+                        writing = '%s\t%s\n' % (str(bookid), to_unicode(line))
                         outfile.write(writing.encode('utf-8'))
                     except:
                         warnings.warn("some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines))
