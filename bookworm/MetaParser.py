@@ -82,10 +82,11 @@ def ParseJSONCatalog(target="default",source = "default"):
             Note: this code is inefficient--it parses the same date multiple times. We should be parsing the date once and pulling 
             derived fields out of that one parsing.
             """
-            if line[field["field"]]=="":
-                # Use blankness as a proxy for unknown
-                continue
             try:
+                if line[field["field"]]=="":
+                    # Use blankness as a proxy for unknown
+                    continue
+
                 time = dateutil.parser.parse(line[field["field"]],default = defaultDate)
                 intent = [time.year,time.month,time.day]
                 content = [str(item) for item in intent]
