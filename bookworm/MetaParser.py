@@ -66,7 +66,7 @@ def ParseJSONCatalog(target="default",source = "default"):
             line = json.loads(data)
         except:
             sys.stderr.write('JSON Parsing Failed:\n%s\n' % data)
-            pass
+            continue
         for field in fields:
             # Smash together misidentified lists
             try:
