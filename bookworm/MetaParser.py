@@ -83,6 +83,10 @@ def ParseJSONCatalog(target="default",source = "default"):
             derived fields out of that one parsing.
             """
             try:
+                if line[field["field"]]=="":
+                    # Use blankness as a proxy for unknown
+                    continue
+
                 time = dateutil.parser.parse(line[field["field"]],default = defaultDate)
                 intent = [time.year,time.month,time.day]
                 content = [str(item) for item in intent]
