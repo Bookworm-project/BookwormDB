@@ -34,7 +34,7 @@ class DB:
         self.username=config.get("client","user")
         self.password=config.get("client","password")
         self.conn = None
-
+    
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
@@ -52,13 +52,30 @@ class DB:
                           "you may need to add \"default-storage-engine=MYISAM\" manually "
                           "to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
             self.connect(setengine=False)
-
+        	
+    #Allows a user to create another database (creating new instantiation of DB class and calling this createDatabase function), further queries can then be excecuted using the query function below.
+    def createDatabase(self, dbname):
+        self.dbname = dbname
+        #create a connector
+        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)       
+        #Create cursor
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
+            #Don't use native query attribute here to avoid infinite loops
+            cursor.execute("SET NAMES 'utf8'")
+            cursor.execute("SET CHARACTER SET 'utf8'")
+            if setengine:
+                cursor.execute("SET default_storage_engine=MYISAM")
+            cursor.execute("USE %s" % self.dbname)
+        except:
+            logging.error("Forcing default engine failed. On some versions of Mysql, "
+                          "you may need to add \"default-storage-engine=MYISAM\" manually "
+                          "to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
+            self.connect(setengine=False)
+        
+    #Allows user to run queries on new database
     def query(self, sql):
-        """
-        Billy defined a separate query method here so that the common case of a connection being
-        timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
-        the connection and starts up nicely again.
-        """
         logging.debug(sql)
         try:
             cursor = self.conn.cursor()
