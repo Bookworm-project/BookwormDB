@@ -53,7 +53,7 @@ class DB:
                           "to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
             self.connect(setengine=False)
         	
-    #Allows a user to create another database (creating new instantiation of DB class and calling this createDatabase function), further queries can then be excecuted using the query function below.
+    #Allows a user to create another database by firstly creating new instantiation of DB class and calling this createDatabase function, further queries can then be excecuted using the query function below.
     def createDatabase(self, dbname=None):
         if dbname == None:
             print "You did not provide a database name so we are using the one provided previously%s." % (self.dbname)
