@@ -65,9 +65,6 @@ class DB:
             #Don't use native query attribute here to avoid infinite loops
             cursor.execute("SET NAMES 'utf8'")
             cursor.execute("SET CHARACTER SET 'utf8'")
-            if setengine:
-                cursor.execute("SET default_storage_engine=MYISAM")
-            cursor.execute("USE %s" % self.dbname)
         except:
             logging.error("Forcing default engine failed. On some versions of Mysql, "
                           "you may need to add \"default-storage-engine=MYISAM\" manually "
