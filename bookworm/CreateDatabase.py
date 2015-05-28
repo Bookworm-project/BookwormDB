@@ -54,8 +54,11 @@ class DB:
             self.connect(setengine=False)
         	
     #Allows a user to create another database (creating new instantiation of DB class and calling this createDatabase function), further queries can then be excecuted using the query function below.
-    def createDatabase(self, dbname):
-        self.dbname = dbname
+    def createDatabase(self, dbname=None):
+        if dbname == None:
+            print "You did not provide a database name so we are using the one provided previously%s." % (self.dbname)
+        else:
+            self.dbname = dbname
         #create a connector
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)       
         #Create cursor
@@ -66,10 +69,7 @@ class DB:
             cursor.execute("SET NAMES 'utf8'")
             cursor.execute("SET CHARACTER SET 'utf8'")
         except:
-            logging.error("Forcing default engine failed. On some versions of Mysql, "
-                          "you may need to add \"default-storage-engine=MYISAM\" manually "
-                          "to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
-            self.connect(setengine=False)
+            logging.error("Unable to create database")
         
     #Allows user to run queries on new database
     def query(self, sql):
