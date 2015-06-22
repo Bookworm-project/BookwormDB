@@ -48,7 +48,7 @@ For example, create a user `foobar` with password `mysecret` and full access to 
 
 ```mysql
 CREATE USER 'foobar'@'localhost' IDENTIFIED BY 'mysecret';
-GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
 The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 

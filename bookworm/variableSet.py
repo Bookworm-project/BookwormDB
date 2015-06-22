@@ -373,12 +373,16 @@ class dataField:
 
         returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
 
+        returnt += "DROP TABLE IF EXISTS %(field)s__id;\n\n" % self.__dict__
+
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
                       %(field)s VARCHAR (255), INDEX (%(field)s), %(field)s__count MEDIUMINT);\n\n""" % self.__dict__
+
         returnt += """INSERT INTO %(field)s__id (%(field)s,%(field)s__count)
                       SELECT %(field)s,count FROM tmp LEFT JOIN %(field)s__id USING (%(field)s) WHERE %(field)s__id.%(field)s__id IS NULL
                       ORDER BY count DESC;\n\n""" % self.__dict__
+
         returnt += """DROP TABLE tmp;\n\n"""
 
         self.idCode = "%s__id" % self.field
@@ -566,8 +570,6 @@ class variableSet:
 
         for entry in metadatafile:
             try:
-                #entry = to_unicode(entry)
-                #entry = entry.replace('\\n', ' ')
                 entry = json.loads(entry)
             except:
                 warnings.warn("""WARNING: json parsing failed for this JSON line:
@@ -609,7 +611,7 @@ class variableSet:
                  #Each of these has a different file it must write to...
                 outfile = variable.output
                 lines = entry.get(variable.field, [])
-                if isinstance(lines, basestring):
+                if isinstance(lines,(basestring,int)):
                     """
                     Allow a single element to be represented as a string
                     """
@@ -618,7 +620,7 @@ class variableSet:
                     lines = []
                 for line in lines:
                     try:
-                        writing = '%s\t%s\n' % (str(bookid), line)
+                        writing = '%s\t%s\n' % (str(bookid), to_unicode(line))
                         outfile.write(writing.encode('utf-8'))
                     except:
                         warnings.warn("some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines))
