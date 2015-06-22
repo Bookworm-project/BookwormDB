@@ -462,12 +462,14 @@ class variableSet:
         if self.originFile == "files/metadata/jsoncatalog_derived.txt":
             self.tableName = "catalog"
             self.fastName = "fastcat"
+            
         else:
             try:
                 self.tableName = self.jsonDefinition[0]['field'] + "_" + self.jsonDefinition[1]['field']
             except IndexError:
                 #if it's only one element long, just name it after the variable itself.
-                self.tableName = self.jsonDefinition[0]['field']
+                #Plus the string 'unique', to prevent problems of dual-named tables;
+                self.tableName = "unick_" + self.jsonDefinition[0]['field']
     
             self.fastName  = self.tableName + "heap"
 
@@ -602,6 +604,7 @@ class variableSet:
                     mainfields.append(to_unicode(myfield))
             catalogtext = '%s\n' % '\t'.join(mainfields)
             catalog.write(catalogtext.encode('utf-8'))
+                
             for variable in [variable for variable in variables if not variable.unique]:
                  #Each of these has a different file it must write to...
                 outfile = variable.output
