@@ -403,7 +403,7 @@ class dataField:
                 WHERE dbname='%s'""" % self.fastAnchor).fetchall()[0][0]
             except:
                 parentTab="fastcat"
-            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.field + "heap")
+            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' % (self.field + "heap"))     
             self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"heap",parentTab,escape_string(code)))
         if self.datatype=="categorical":
             #Variable Info
