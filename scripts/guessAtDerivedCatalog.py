@@ -16,6 +16,8 @@ for line in input:
     i += 1
     entry = json.loads(line)
     for key in entry:
+        if type(entry[key])==list:
+            entry[key] = tuple(entry[key])
         try: 
             allMyKeys[key][entry[key]] += 1
         except KeyError:
@@ -36,8 +38,8 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
     
     if type(example)==int:
         description["type"] = "integer"
-    if type(example)==list:
-        unique(example)==False
+    if type(example)==tuple:
+        description["unique"]==False
 
     if metadata == "searchstring":
         return {"datatype": "searchstring", "field": "searchstring", "unique": True, "type": "text"}
