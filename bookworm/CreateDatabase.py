@@ -85,6 +85,13 @@ class BookwormSQLDatabase:
     """
 
     def __init__(self,dbname=None,variableFile="files/metadata/jsoncatalog_derived.txt"):
+        """
+        You can initialize it with a database name; otherwise it defaults to finding a
+        Bookworm configuration file.
+
+        It also may be initialized with a set of metadata. This is a little wonky, and may
+        be deprecated in favor of a cleaner interface.
+        """
         config = ConfigParser.ConfigParser(allow_no_value=True)
         config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
         if dbname==None:
@@ -98,8 +105,12 @@ class BookwormSQLDatabase:
             self.setVariables(originFile=variableFile)
 
     def grantPrivileges(self):
-        #Grants select-only privileges to a non-admin mysql user for the API to
-        #query with (safer).
+        """
+        Grants select-only privileges to a non-admin mysql user for the API to
+        query with (safer).
+
+        The Username for these privileges is pulled from the bookworm.cnf file.
+        """
         config = ConfigParser.ConfigParser(allow_no_value=True)
         config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
         username=config.get("client","user")
@@ -110,6 +121,14 @@ class BookwormSQLDatabase:
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
     def importNewFile(self,originFile,anchorField,jsonDefinition):
+        """
+        Add additional metadata from a source collection of json-formatted rows.
+        originFile is the filename of the new metadata, in the same input format
+            as the original jsoncatalog.txt
+        anchorField is the field in the existing dataset it should be anchored onto;
+        jsonDefinition is a filename pointing to a file
+            of the format of field_descriptions.json describing the new data to ingest.
+        """
         self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition)
         self.variableSet.writeMetadata()
         self.load_book_list()
@@ -160,8 +179,8 @@ class BookwormSQLDatabase:
 
     def load_book_list(self):
         """
-        Loads in the tables that have already been created by calling
-        `Bookworm.variableSet.writeMetadata()`
+        Loads in the tables that have already been created by a previous
+        call to `Bookworm.variableSet.writeMetadata()`
         """
         self.variableSet.loadMetadata()
 
@@ -176,7 +195,8 @@ class BookwormSQLDatabase:
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
         print "loading data using LOAD DATA LOCAL INFILE"
         for filename in os.listdir("files/texts/encoded/unigrams"):
-            if filename[-4:] != '.txt':
+            if not filename.endswith('.txt'):
+                # Sometimes other files are in there; skip them.
                 continue
             try:
                 db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
@@ -236,7 +256,8 @@ class BookwormSQLDatabase:
 
     def reloadMemoryTables(self,force=False):
         """
-        Checks to see if memory tables need to be repopulated, and then does so if they are empty.
+        Checks to see if memory tables need to be repopulated (by seeing if they are empty)
+        and then does so if necessary.
         """
         existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
         for row in existingCreateCodes:
@@ -339,6 +360,9 @@ class BookwormSQLDatabase:
         db.query("INSERT INTO API_settings VALUES ('%s');" % addCode)
 
     def update_Porter_stemming(self): #We use stems occasionally.
+        """
+        Still not executed.
+        """
         print "Updating stems from Porter algorithm..."
         from nltk import PorterStemmer
         stemmer = PorterStemmer()
@@ -354,8 +378,7 @@ class BookwormSQLDatabase:
 
     def addCategoricalFromFile(self,filename,unique=False):
         """
-        Useful, but still a bit of a hack--should be a special method of adding a group
-        that automatically creates the json file.
+        No longer used: delete this code block.
         """
         file = open(filename)
         firstTwo = file.readline().split("\t")
@@ -364,7 +387,7 @@ class BookwormSQLDatabase:
         definition = {"field":name,"datatype":"categorical","type":"character","unique":False}
 
         #Currently the anchortype has to be a MediumInt.
-        #That's extremely inefficient.
+        #That's a little inefficient if joining on a smaller document..
         anchorType = "MEDIUMINT"
 
         thisField = dataField(definition,
