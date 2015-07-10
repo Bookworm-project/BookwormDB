@@ -659,8 +659,12 @@ class variableSet:
             #This creates the main (slow) catalog table
             db.query("""DROP TABLE IF EXISTS %s """ % self.tableName)
             createcode = """CREATE TABLE IF NOT EXISTS %s (
-                """ %self.tableName + ",\n".join(mysqlfields) + ") ENGINE=MYISAM;"
-            db.query(createcode)
+                """ % self.tableName + ",\n".join(mysqlfields) + ") ENGINE=MYISAM;"
+            try:
+                db.query(createcode)
+            except:
+                print createcode
+                raise
             #Never have keys before a LOAD DATA INFILE
             db.query("ALTER TABLE %s DISABLE KEYS" % self.tableName)
             print "loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName
@@ -718,6 +722,9 @@ class variableSet:
         we store the create code in the databse;
         """
         for variable in self.variables:
+            # Make sure the variables know who their parent is
+            variable.fastAnchor = self.fastAnchor
+            # Update the referents for everything
             variable.updateVariableDescriptionTable();
 
         inCatalog = self.uniques()
