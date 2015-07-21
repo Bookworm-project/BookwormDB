@@ -14,12 +14,12 @@ webDirectory=/var/www/
 SHELL:=/bin/bash
 
 #You can manually specify a bookworm name, but normally it just greps it out of your configuration file.
-bookwormName:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
+database:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
 
-webSite = $(addsuffix bookwormName,webDirectory)
+webSite = $(addsuffix database,webDirectory)
 
 all: bookworm.cnf files/targets files/targets/database
 
@@ -50,7 +50,7 @@ clean:
 # This can be dangerous, but lets you really wipe the slate.
 
 pristine: clean
-	-mysql -e "DROP DATABASE $(bookwormName)"
+	-mysql -e "DROP DATABASE $(database)"
 	rm -rf files/texts/textids
 	rm -rf files/texts/wordlist/*
 
@@ -140,11 +140,11 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
 # I haven't yet gotten Make to properly just handle the shuffling around: maybe a python script inside "etc" would do better.
 
-$(webDirectory)/$(bookwormName):
+$(webDirectory)/$(database):
 	git clone https://github.com/Bookworm-project/BookwormGUI $@
 
-linechartGUI: $(webDirectory)/$(bookwormName) files/$(bookwormName).json
-	cp files/$(bookwormName).json $</static/options.json
+linechartGUI: $(webDirectory)/$(database) files/$(database).json
+	cp files/$(database).json $</static/options.json
 
 
 ### Some defaults to make it easier to clone this directory in:
