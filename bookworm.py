@@ -71,14 +71,13 @@ def run_arguments():
     memory_tables_parser.add_argument("--force-reload",dest="force",action="store_true",
                                       help="Force reload on all memory tables. Use\
                                       '--skip-reload', for faster execution. On by default\
-                                      unless
                                       .")
     memory_tables_parser.add_argument("--skip-reload",dest="force",action="store_false",
                                       help="Don't reload memory tables which have at least\
                                       one entry. Significantly faster, but may produce\
                                       bad results if the underlying tables have been\
                                       changed.")
-    memory_tables_parser.set_defaults(force=false)
+    memory_tables_parser.set_defaults(force=False)
     memory_tables_parser.add_argument("--all",action="store_true",default=False,
                                       help="Search for all bookworm installations on\
                                       the server, and reload memory tables for each of them.")
