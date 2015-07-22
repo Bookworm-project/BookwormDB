@@ -40,19 +40,20 @@ class DB:
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
         cursor = self.conn.cursor()
-        try:
-            cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
-            #Don't use native query attribute here to avoid infinite loops
-            cursor.execute("SET NAMES 'utf8'")
-            cursor.execute("SET CHARACTER SET 'utf8'")
-            if setengine:
+        cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
+        #Don't use native query attribute here to avoid infinite loops
+        cursor.execute("SET NAMES 'utf8'")
+        cursor.execute("SET CHARACTER SET 'utf8'")
+        if setengine:
+            try:
                 cursor.execute("SET default_storage_engine=MYISAM")
-            cursor.execute("USE %s" % self.dbname)
-        except:
-            logging.error("Forcing default engine failed. On some versions of Mysql, "
-                          "you may need to add \"default-storage-engine=MYISAM\" manually "
-                          "to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
-            self.connect(setengine=False)
+            except:
+                logging.error("Forcing default engine failed. On some versions of Mysql,\
+                you may need to add \"default-storage-engine=MYISAM\" manually\
+                to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
+                self.connect(setengine=False)                
+        cursor.execute("USE %s" % self.dbname)
+
 
     def query(self, sql):
         """
