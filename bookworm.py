@@ -44,6 +44,7 @@ def run_arguments():
     # Grep out all possible targets from the Makefile
     targets = [re.sub(r":.*\n","",line) for line in open("Makefile") if re.search(r"^[^ $]+:[^=]",line)]
     
+    
     build_parser.add_argument("target",help="""The file you want to create: to build a complete bookworm, enter 'all'""",choices = targets)
 
 
@@ -84,6 +85,9 @@ def run_arguments():
                                       help="Search for all bookworm installations on\
                                       the server, and reload memory tables for each of them.")
 
+    extensions_parser = subparsers.add_parser("extension", help="Install Extensions to the current directory")
+    extensions_parser.add_argument("url",help="A cloneable url for the extension you want to pul: passed as an argument to 'git clone,' so may be either using the https protocol or the git protocol")
+
     """
     Some special functions
     """
@@ -106,7 +110,24 @@ def run_arguments():
     # Call the current action with the arguments passed in.
     getattr(my_bookworm,args.action)(args)
     
-    
+
+class Extension(object):
+    def __init__(self,args):
+        self.args = args
+        self.dir = "extensions/" + re.sub(".*/","",self.args.url)
+        
+    def clone_or_pull(self):
+        if not os.path.exists(self.dir):
+            logging.info("cloning git repo from " + self.args.url)
+            subprocess.call(["git","clone",self.args.url,self.dir])
+        else:
+            logging.info("updating pre-existing git repo at " + self.dir)
+            subprocess.Popen(["git","pull"],cwd=self.dir)
+            
+    def make(self):
+        logging.debug("Running make in " + self.dir)
+        subprocess.Popen(["make"],cwd=self.dir)
+        
 # Initiate MySQL connection.
 class BookwormManager(object):
     """
@@ -128,10 +149,22 @@ class BookwormManager(object):
         self.dbuser = config.get("client","user")
         self.dbpassword = config.get("client","password")
 
-    def add_metadata(self,args):
-        pass        
-      
+    def extension(self,args):
+        """
+        Creates (or updates) an extension
+        """
+        if not os.path.exists("extensions"):
+            os.makedirs("extensions")
+        my_extension = Extension(args)
+        my_extension.clone_or_pull()
+        my_extension.make()
+        
+    
     def build(self,args):
+        """
+        'Build' is currently a wrapper around 'Make'. We could rewrite
+        the make function to wrap this if we wanted.
+        """
         subprocess.call(["make","database=" + self.dbname,args.target])
     
     def diskMetadata(self):
