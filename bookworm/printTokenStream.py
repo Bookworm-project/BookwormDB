@@ -8,7 +8,7 @@ for row in sys.stdin:
     try:
         tokens = tokenizer(parts[1])
     except IndexError:
-        warnings.warn("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
+        logging.warning("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
         continue
     out= u" ".join(tokens.tokenize())
     print out.encode("utf-8")

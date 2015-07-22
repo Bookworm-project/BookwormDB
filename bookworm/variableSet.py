@@ -219,7 +219,7 @@ class dataField:
         if fileLocation == "default":
             fileLocation = "files/metadata/" + dfield.field + ".txt"
 
-        print "Making a SQL table to hold the data for " + dfield.field
+        logging.info("Making a SQL table to hold the data for " + dfield.field)
 
         q1 = """DROP TABLE IF EXISTS """       + dfield.field + "Disk"
         db.query(q1)
@@ -436,7 +436,7 @@ class variableSet:
         self.jsonDefinition=jsonDefinition
         if jsonDefinition==None:
             #Make a guess, why not?
-            warnings.warn("""No field_descriptions file specified, so guessing based on variable names.
+            logging.warning("""No field_descriptions file specified, so guessing based on variable names.
             Unintended consequences are possible""")
             self.jsonDefinition=self.guessAtFieldDescriptions()
         else:
@@ -453,7 +453,7 @@ class variableSet:
             if item['field'] == self.anchorField:
                 continue
             if item['field'].upper() in mySQLreservedWords:
-                warnings.warn(item['field'] + """ is a reserved word in MySQL, so can't be used as a Bookworm field name: skipping it for now, but you probably want to rename it to something different""")
+                logging.warning(item['field'] + """ is a reserved word in MySQL, so can't be used as a Bookworm field name: skipping it for now, but you probably want to rename it to something different""")
                 item['field'] = item['field'] + "___"
                 continue
             self.variables.append(dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName))
@@ -535,7 +535,7 @@ class variableSet:
             except:
                 if anchor in ["bookid","filename"]:
                     fastAnchor="bookid"
-                print anchor + "\n\n"
+                logging.warn("Unable find an alias in the DB for anchor" + anchor + "\n\n")
             self.fastAnchor=fastAnchor
             if fastAnchor != anchor:
                 results = db.query("SELECT * FROM %sLookup;" % (anchor))
@@ -572,7 +572,7 @@ class variableSet:
             try:
                 entry = json.loads(entry)
             except:
-                warnings.warn("""WARNING: json parsing failed for this JSON line:
+                logging.warning("""WARNING: json parsing failed for this JSON line:
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n""" + entry)
                 
                 continue
@@ -623,7 +623,7 @@ class variableSet:
                         writing = '%s\t%s\n' % (str(bookid), to_unicode(line))
                         outfile.write(writing.encode('utf-8'))
                     except:
-                        warnings.warn("some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines))
+                        logging.warning("some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines))
                         pass
             if linenum > limit:
                break
@@ -645,7 +645,7 @@ class variableSet:
         #This function is called for the sideffect of assigning a `fastAnchor` field
         bookwormcodes = self.anchorLookupDictionary()
         db = self.db
-        print "Making a SQL table to hold the catalog data"
+        logging.info("Making a SQL table to hold the catalog data")
 
         if self.tableName=="catalog":
             """A few necessary basic fields"""
@@ -663,11 +663,12 @@ class variableSet:
             try:
                 db.query(createcode)
             except:
-                print createcode
+                logging.error("Unable to create table for metadata: SQL Code follows")
+                logging.error(createcode)
                 raise
             #Never have keys before a LOAD DATA INFILE
             db.query("ALTER TABLE %s DISABLE KEYS" % self.tableName)
-            print "loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName
+            logging.info("loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName)
             anchorFields = self.fastAnchor
             
             if self.tableName=="catalog":
@@ -687,7 +688,7 @@ class variableSet:
                        (%(loadingFields)s)""" % loadEntries
             
             db.query(loadcode)
-            print "enabling keys on %s" %self.tableName
+            logging.info("enabling keys on %s" %self.tableName)
             db.query("ALTER TABLE %s ENABLE KEYS" % self.tableName)
 
             #If there isn't a 'searchstring' field, it may need to be coerced in somewhere hereabouts
@@ -741,7 +742,7 @@ class variableSet:
                 if self.fastAnchor=="bookid":
                     parentTab="fastcat"
                 else:
-                    print("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
+                    logging.error("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
                     raise
             self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.fastName)
             self.db.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))

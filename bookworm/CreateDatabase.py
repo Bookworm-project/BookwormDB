@@ -35,7 +35,7 @@ class DB:
         self.username=config.get("client","user")
         self.password=config.get("client","password")
         self.conn = None
-
+        
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
@@ -146,7 +146,7 @@ class BookwormSQLDatabase:
         try:
             db.query("CREATE DATABASE " + dbname)
         except:
-            print "Database %s already exists: that might be intentional, so not dying" % dbname
+            logging.info("Database %s already exists: that might be intentional, so not dying" % dbname)
 
         "Setting up permissions for web user..."
         db.query("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'localhost' IDENTIFIED BY '" + dbpassword + "'")
@@ -159,7 +159,7 @@ class BookwormSQLDatabase:
 
     def load_word_list(self):
         db = self.db
-        print "Making a SQL table to hold the words"
+        logging.info("Making a SQL table to hold the words")
         db.query("""DROP TABLE IF EXISTS words""")
         db.query("""CREATE TABLE IF NOT EXISTS words (
         wordid MEDIUMINT,
@@ -170,12 +170,12 @@ class BookwormSQLDatabase:
         );""")
 
         db.query("ALTER TABLE words DISABLE KEYS")
-        print "loading data using LOAD DATA LOCAL INFILE"
+        logging.info("loading data using LOAD DATA LOCAL INFILE")
         db.query("""LOAD DATA LOCAL INFILE 'files/texts/wordlist/wordlist.txt'
                    INTO TABLE words
                    CHARACTER SET binary
                    (wordid,word,count) """)
-        print "creating indexes on words table"
+        logging.info("creating indexes on words table")
         db.query("ALTER TABLE words ENABLE KEYS")
         db.query("UPDATE words SET casesens=word")
 
@@ -189,13 +189,13 @@ class BookwormSQLDatabase:
     def create_unigram_book_counts(self):
         db = self.db
         db.query("""DROP TABLE IF EXISTS master_bookcounts""")
-        print "Making a SQL table to hold the unigram counts"
+        logging.info("Making a SQL table to hold the unigram counts")
         db.query("""CREATE TABLE master_bookcounts (
         bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
         wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
-        print "loading data using LOAD DATA LOCAL INFILE"
+        logging.info("loading data using LOAD DATA LOCAL INFILE")
         for filename in os.listdir("files/texts/encoded/unigrams"):
             if not filename.endswith('.txt'):
                 # Sometimes other files are in there; skip them.
@@ -204,12 +204,12 @@ class BookwormSQLDatabase:
                 db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
             except:
                 raise
-        print "Creating Unigram Indexes"
+        logging.info("Creating Unigram Indexes")
         db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
 
     def create_bigram_book_counts(self):
         db = self.db
-        print "Making a SQL table to hold the bigram counts"
+        logging.info("Making a SQL table to hold the bigram counts")
         db.query("""DROP TABLE IF EXISTS master_bigrams""")
         db.query("""CREATE TABLE master_bigrams (
         bookid MEDIUMINT UNSIGNED NOT NULL,
@@ -217,13 +217,13 @@ class BookwormSQLDatabase:
         word2 MEDIUMINT UNSIGNED NOT NULL,
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
-        print "loading data using LOAD DATA LOCAL INFILE"
+        logging.info("loading data using LOAD DATA LOCAL INFILE")
         for filename in os.listdir("files/texts/encoded/bigrams"):
             try:
                 db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bigrams CHARACTER SET utf8 (bookid,word1,word2,count);")
             except:
                 raise
-        print "Creating bigram indexes"
+        logging.info("Creating bigram indexes")
         db.query("ALTER TABLE master_bigrams ENABLE KEYS")
 
     def loadVariableDescriptionsIntoDatabase(self):
@@ -340,7 +340,7 @@ class BookwormSQLDatabase:
                                          }
                                         ]
         except:
-            print "WARNING: Not enough info for a default search (like, no time variable maybe?)--likely to be some big problems with your bookworm."
+            logging.warning("WARNING: Not enough info for a default search (like, no time variable maybe?)--likely to be some big problems with your bookworm.")
         output['ui_components'] = ui_components
         outfile = open('files/%s.json' % dbname, 'w')
         outfile.write(json.dumps(output))
@@ -358,14 +358,14 @@ class BookwormSQLDatabase:
                     "read_default_file": "/etc/mysql/my.cnf",
                    }
         addCode = json.dumps(api_info)
-        print addCode
+        logging.info(addCode)
         db.query("INSERT INTO API_settings VALUES ('%s');" % addCode)
 
     def update_Porter_stemming(self): #We use stems occasionally.
         """
         Still not executed.
         """
-        print "Updating stems from Porter algorithm..."
+        logging.info("Updating stems from Porter algorithm...")
         from nltk import PorterStemmer
         stemmer = PorterStemmer()
         cursor = db.query("""SELECT word FROM words""")
@@ -406,7 +406,7 @@ class BookwormSQLDatabase:
         self.db.query(thisField.updateVariableDescriptionTable())
 
         query = "SELECT memoryCode FROM masterVariableTable WHERE name='%s'" % (name)
-        #print query;
+        logging.debug(query)
         commands = self.db.query(query).fetchall()[0][0];
         for query in splitMySQLcode(commands):
             self.db.query(query)

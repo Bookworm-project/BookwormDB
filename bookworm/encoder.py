@@ -12,14 +12,11 @@ def encodeFiles(array):
         try:
             input = pickle.load(open(thisfile))
         except ValueError:
-            print "unable to unpicked " + thisfile + "... dangerously just " + \
-                "skipping, some texts may be lost"
+            logging.warn("unable to unpicked " + thisfile + "... dangerously just " + \
+                "skipping, some texts may be lost")
             continue
         except:
-            print ""
-            print "Some problem: fix if the following file should be unpicklable"
-            print thisfile
-            print ""
+            logging.warn("Some problem: fix if " + thisfile + " should be unpicklable")
             continue
         for level in input.levels:
             input.encode(level,IDfile,dictionary)
@@ -33,6 +30,6 @@ if __name__=="__main__":
         if not os.path.exists("files/texts/encoded/unigrams/"+basename + ".txt"):
             if not os.path.exists("files/texts/encoded/bigrams/"+basename + ".txt"):
                 toEncode.append(file)
-    print  "preparing to encode " + str(len(toEncode)) + " files" + " out of " + \
-        str(len(passedList))
+    logging.info("preparing to encode " + str(len(toEncode)) + " files" + " out of " + \
+        str(len(passedList)))
     encodeFiles(toEncode)

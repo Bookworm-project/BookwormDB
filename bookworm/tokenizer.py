@@ -90,7 +90,8 @@ class tokenBatches(object):
             try:
                 (filename,token,count) = row.split("\t")
             except:
-                print row
+                logging.error("Can't find tab\n***************")
+                logging.error(row)
                 raise
             tokens = preTokenized(token,count,self.levels[0])
 
@@ -158,7 +159,7 @@ class tokenizer(object):
             self.string = string.decode("UTF-8")
         except:
             if not haveWarnedUnicode:
-                sys.stderr.write("WARNING: some of your input files seem not to be valid unicode. Silently ignoring all non-unicode characters from now on in this thread.\n")
+                logging.warning("WARNING: some of your input files seem not to be valid unicode. Silently ignoring all non-unicode characters from now on in this thread.\n")
                 haveWarnedUnicode = True
             self.string = string.decode("UTF-8","ignore")
 

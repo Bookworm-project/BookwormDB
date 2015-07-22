@@ -19,7 +19,7 @@ def exportToDisk(wordcounts,diskFile,keepThreshold=5):
         else:
             commonwords[key] = wordcounts[key]
     return commonwords
-    print "export done"
+    logging.info("export done")
     
 def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     """
@@ -46,7 +46,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
             n+=1
             if n % 100000000==0:
                 elapsed = timeit.default_timer() - start_time
-                print str(float(len(wordcounts))/1000000) + " million distinct entries at " + str(float(n)/1000000000) + " billion words---" + str(elapsed) + " seconds since last print"
+                logging.info(str(float(len(wordcounts))/1000000) + " million distinct entries at " + str(float(n)/1000000000) + " billion words---" + str(elapsed) + " seconds since last print")
                 start_time = timeit.default_timer()
             item = item.rstrip("\n")
             try: 
@@ -55,14 +55,14 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
                 wordcounts[item] = 1
 
             while len(wordcounts) > maxMemoryStorage:
-                print "exporting to disk at " + str(float(len(wordcounts))/1000000) + " million words"
+                logging.info("exporting to disk at " + str(float(len(wordcounts))/1000000) + " million words")
                 wordcounts = exportToDisk(wordcounts,diskFile=database,keepThreshold=keepThreshold)
-                print "after export, it's " + str(float(len(wordcounts))/1000000) + " million words"
+                logging.info("after export, it's " + str(float(len(wordcounts))/1000000) + " million words")
                 if len(wordcounts) > .8*float(maxMemoryStorage):
                     #If that's not enough to get down to a small dictionary,
                     #try again with a new higher limit.
                     keepThreshold = keepThreshold*2
-                    print "upping the keep threshold to " + str(keepThreshold)
+                    logging.info("upping the keep threshold to " + str(keepThreshold))
 
     #Write all remaining items to disk
     nothing = exportToDisk(wordcounts,diskFile=database,keepThreshold=float("inf"))
@@ -76,11 +76,11 @@ def sortWordlist(maxDictionaryLength=1000000):
     faster than anything pythonic; and then for legacy reasons use a perl program to make the counts, sort again (to put the most common words
     at the top, and then take the top 1,000,000 words.
     """
-    print("Sorting full word counts\n")
+    logging.info("Sorting full word counts\n")
     #This LC_COLLATE here seems to be extremely necessary, because otherwise alphabetical order isn't preserved across different orderings.
     subprocess.call(["export LC_COLLATE='C';export LC_ALL='C'; sort -k1 files/texts/wordlist/raw.txt > files/texts/wordlist/sorted.txt"], shell=True)
     
-    print("Collapsing word counts\n")
+    logging.info("Collapsing word counts\n")
     
     #This is in perl, using bignum, because it's possible to get integer overflows on a really huge text set (like Google ngrams).
 
