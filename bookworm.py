@@ -8,6 +8,7 @@ import os
 import ConfigParser
 import argparse
 from subprocess import call
+import logging
 
 # These four libraries define the Bookworm-specific methods.
 from bookworm.MetaParser import *
@@ -28,7 +29,8 @@ def run_arguments():
     parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm.py")
     parser.add_argument("--configuration",help="The name of the configuration file to read options from: by default, 'bookworm.cnf' in the current directory.", default="bookworm.cnf")
     parser.add_argument("--database",help="The name of the bookworm database in MySQL to connect to: by default, read from the active configuration file.", default=None)
-    #parser.add_argument("--logging-level",help="The logging detail to use for errors: unimplemented")
+
+    parser.add_argument("--log-level",help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
 
     # Use subparsers to have an action syntax, like git.
     subparsers = parser.add_subparsers(title="action",help='The commands to run with Bookworm',dest="action")
@@ -87,10 +89,18 @@ def run_arguments():
     """
     # Not yet implemented.
     
-    #init_parser = subparsers.add_parser("init",help="Configure the current file as a bookworm base directory (not currently implemented)")
+    #init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory (not yet implemented)")
 
     # Call the function
     args = parser.parse_args()
+
+    # Set the logging level based on the input.
+    numeric_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level)
+
+    # Create the bookworm 
     my_bookworm = BookwormManager(args.configuration,args.database)
 
     # Call the current action with the arguments passed in.
