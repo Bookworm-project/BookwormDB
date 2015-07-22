@@ -22,6 +22,7 @@ if logging.getLogger().isEnabledFor(logging.DEBUG):
 warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", "Can't create database.*; database exists")
 warnings.filterwarnings("ignore", "^Unknown table .*")
+warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
 
 class DB:
     def __init__(self,dbname=None):
