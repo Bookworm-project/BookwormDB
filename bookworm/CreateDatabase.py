@@ -78,20 +78,23 @@ class DB:
 class BookwormSQLDatabase:
 
     """
-    This class gives interactions methods to a MySQL database storing Bookworm data.
-    Although the primary methods are about loading data already created
+    This class gives interactions methods to a MySQL database storing Bookworm
+    data. Although the primary methods are about loading data already created
     into the SQL database, it has a few other operations
     that write out text files needed by the API and the web front end:
     I take it as logical to do those here, since that how
     it fits chronologically in the bookworm-creation sequence.
     """
 
-    def __init__(self,dbname=None,variableFile="files/metadata/jsoncatalog_derived.txt"):
+    def __init__(self,dbname=None,
+                 variableFile="files/metadata/jsoncatalog_derived.txt"):
         """
-        You can initialize it with a database name; otherwise it defaults to finding a
+        You can initialize it with a database name;
+        otherwise it defaults to finding a
         Bookworm configuration file.
 
-        It also may be initialized with a set of metadata. This is a little wonky, and may
+        It also may be initialized with a set of metadata.
+        This is a little wonky, and may
         be deprecated in favor of a cleaner interface.
         """
         config = ConfigParser.ConfigParser(allow_no_value=True)
@@ -119,17 +122,18 @@ class BookwormSQLDatabase:
         password=config.get("client","password")
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
-    def setVariables(self,originFile,anchorField="bookid",jsonDefinition="files/metadata/field_descriptions_derived.json"):
+    def setVariables(self,originFile,anchorField="bookid",
+                     jsonDefinition="files/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
     def importNewFile(self,originFile,anchorField,jsonDefinition):
         """
         Add additional metadata from a source collection of json-formatted rows.
         originFile is the filename of the new metadata, in the same input format
-            as the original jsoncatalog.txt
+        as the original jsoncatalog.txt
         anchorField is the field in the existing dataset it should be anchored onto;
         jsonDefinition is a filename pointing to a file
-            of the format of field_descriptions.json describing the new data to ingest.
+        of the format of field_descriptions.json describing the new data to ingest.
         """
         self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition)
         self.variableSet.writeMetadata()

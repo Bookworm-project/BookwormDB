@@ -13,6 +13,9 @@ webDirectory=/var/www/
 #New syntax requires bash
 SHELL:=/bin/bash
 
+# Make ./bookworm.py executable
+PATH := ./:$(PATH)
+
 #You can manually specify a bookworm name, but normally it just greps it out of your configuration file.
 database:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 
@@ -34,8 +37,8 @@ files/targets:
 	@mkdir -p files/texts/{textids,wordlist}
 	@mkdir -p files/targets
 
-#A "make clean" removes most things created by the bookworm,
-#but keeps the database and the registry of text and wordids
+# A "make clean" removes most things created by the bookworm,
+# but keeps the database and the registry of text and wordids
 
 clean:
 #Remove inputs.txt if it's a pipe.
@@ -84,7 +87,7 @@ files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt files/met
 # In addition to building files for ingest.
 
 files/metadata/catalog.txt:
-	python OneClick.py preDatabaseMetadata
+	bookworm.py prep preDatabaseMetadata
 
 # This is the penultimate step: creating a bunch of tsv files 
 # (one for each binary blob) with 3-byte integers for the text
@@ -98,7 +101,6 @@ files/metadata/catalog.txt:
 # each of which saves a binary file. The cat stage at the beginning here could be modified to 
 # check against some list that tracks which texts we have already encoded to allow additions to existing 
 # bookworms to not require a complete rebuild.
-
 
 
 #Use an alternate method to ingest feature counts if the file is defined immediately below.
@@ -130,11 +132,11 @@ files/texts/textids.dbm: files/texts/textids files/metadata/jsoncatalog_derived.
 	python bookworm/makeWordIdDBM.py
 
 files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts files/metadata/jsoncatalog_derived.txt files/metadata/catalog.txt 
-	python OneClick.py database_metadata
+	bookworm.py prep database_metadata
 	touch $@
 
 files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wordlist.txt
-	python OneClick.py database_wordcounts
+	bookworm.py prep database_wordcounts
 	touch $@
 
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.
@@ -145,7 +147,6 @@ $(webDirectory)/$(database):
 
 linechartGUI: $(webDirectory)/$(database) files/$(database).json
 	cp files/$(database).json $</static/options.json
-
 
 ### Some defaults to make it easier to clone this directory in:
 

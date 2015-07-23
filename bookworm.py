@@ -85,8 +85,15 @@ def run_arguments():
                                       help="Search for all bookworm installations on\
                                       the server, and reload memory tables for each of them.")
 
+
+    ########## Clone and run extensions
     extensions_parser = subparsers.add_parser("extension", help="Install Extensions to the current directory")
     extensions_parser.add_argument("url",help="A cloneable url for the extension you want to pul: passed as an argument to 'git clone,' so may be either using the https protocol or the git protocol")
+
+
+    ########## Build components
+    extensions_parser = subparsers.add_parser("prep", help="Build individual components: primarily used by the Makefile.")
+    extensions_parser.add_argument("goal",help="The name of the target.")
 
     """
     Some special functions
@@ -159,7 +166,16 @@ class BookwormManager(object):
         my_extension.clone_or_pull()
         my_extension.make()
         
-    
+    def prep(self,args):
+        """
+        This is a wrapper to all the functions define here: the purpose
+        is to continue to allow access to internal methods in, for instance,
+        the Makefile, without documenting all of them in separate functions.
+
+        That's a little groaty, I know.
+        """
+        getattr(self,args.goal)()
+        
     def build(self,args):
         """
         'Build' is currently a wrapper around 'Make'. We could rewrite

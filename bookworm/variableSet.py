@@ -7,6 +7,8 @@ import os
 import decimal
 import re
 from MySQLdb import escape_string
+import logging
+
 
 def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
