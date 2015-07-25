@@ -225,7 +225,7 @@ def getAlreadySeenList(folder):
             seen.add(line.rstrip("\n"))
     return seen
 
-def encodeTextStream():
+def encode_text_stream():
     seen = getAlreadySeenList("files/texts/encoded/completed")
     tokenBatch = tokenBatches()
     tokenBatch.attachDictionaryAndID()
@@ -254,4 +254,4 @@ def encodePreTokenizedStream(infile,levels=["unigrams"]):
         tokenBatch.encodeRow(line,source="countfile", write_completed=False)
     
 if __name__=="__main__":
-    encodeTextStream()
+    encode_text_stream()

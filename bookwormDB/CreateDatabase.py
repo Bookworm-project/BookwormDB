@@ -14,7 +14,7 @@ from variableSet import variableSet
 from variableSet import splitMySQLcode
 import logging
 import warnings
-
+import anydbm
 if logging.getLogger().isEnabledFor(logging.DEBUG):
     # Catch MYSQL warnings as errors if logging is set to debug.
     warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
@@ -24,6 +24,20 @@ warnings.filterwarnings("ignore", "Can't create database.*; database exists")
 warnings.filterwarnings("ignore", "^Unknown table .*")
 warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
 
+
+def text_id_dbm():
+    """
+    This quickly creates a key-value store for textids: storing on disk
+    dramatically reduces memory consumption for bookworms of over 
+    1 million documents.
+    """
+    dbm = anydbm.open("files/texts/textids.dbm","c")
+    for file in os.listdir("files/texts/textids"):
+        for line in open("files/texts/textids/" + file):        
+            line = line.rstrip("\n")
+            splat = line.split("\t")
+            dbm[splat[1]] = splat[0]
+        
 class DB:
     def __init__(self,dbname=None):
         config = ConfigParser.ConfigParser(allow_no_value=True)

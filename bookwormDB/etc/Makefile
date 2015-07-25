@@ -9,11 +9,11 @@ textStream:=scripts/justPrintInputTxt.sh
 blockSize:=100M
 
 webDirectory=/var/www/
-
+logLevel="WARNING"
 #New syntax requires bash
 SHELL:=/bin/bash
 
-# Make ./bookworm.py executable
+# Make bookworm executable
 PATH := ./:$(PATH)
 
 #You can manually specify a bookworm name, but normally it just greps it out of your configuration file.
@@ -31,7 +31,7 @@ bookworm.cnf:
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: 
-	#"-building needed directories"
+#"-building needed directories"
 	@mkdir -p files/texts
 	@mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
 	@mkdir -p files/texts/{textids,wordlist}
@@ -74,8 +74,6 @@ endif
 files/texts/wordlist/wordlist.txt:
 	$(wordlistBuilder)
 
-
-
 # This invokes OneClick on the metadata file to create a more useful internal version
 # (with parsed dates) and to create a lookup file for textids in files/texts/textids
 
@@ -87,7 +85,7 @@ files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt files/met
 # In addition to building files for ingest.
 
 files/metadata/catalog.txt:
-	bookworm.py prep preDatabaseMetadata
+	bookworm -l $(logLevel) -d $(database) prep preDatabaseMetadata
 
 # This is the penultimate step: creating a bunch of tsv files 
 # (one for each binary blob) with 3-byte integers for the text
@@ -108,7 +106,7 @@ files/metadata/catalog.txt:
 ifneq ("$(wildcard ../unigrams.txt)","")
 encoder=cat ../unigrams.txt | parallel --block-size $(blockSize) -u --pipe python bookworm/ingestFeatureCounts.py encode
 else
-encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe python bookworm/tokenizer.py
+encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm -l $(logLevel) -d $(database) tokenize --encode
 endif
 
 files/targets/encoded: files/texts/wordlist/wordlist.txt
@@ -129,14 +127,14 @@ files/targets/database: files/targets/database_wordcounts files/targets/database
 	touch $@
 
 files/texts/textids.dbm: files/texts/textids files/metadata/jsoncatalog_derived.txt files/metadata/catalog.txt
-	python bookworm/makeWordIdDBM.py
+	bookworm -l $(logLevel) -d $(database) prep text_id_database
 
 files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts files/metadata/jsoncatalog_derived.txt files/metadata/catalog.txt 
-	bookworm.py prep database_metadata
+	bookworm -l $(logLevel) -d $(database) prep database_metadata
 	touch $@
 
 files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wordlist.txt
-	bookworm.py prep database_wordcounts
+	bookworm -l $(logLevel) -d $(database) prep database_wordcounts
 	touch $@
 
 # the bookworm json is created as a sideeffect of the database creation: this just makes that explicit for the webdirectory target.

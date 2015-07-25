@@ -62,7 +62,7 @@ def run_arguments():
         and the first column of which is shared key (like filename). The TSV format,\
         particularly without field descriptions, is much easier to use, but doesn't\
         permit multiple values for the same key.""",
-        default="tsv",type=str.lower,choices=["tsv","json"])
+        default="json",type=str.lower,choices=["tsv","json"])
 
     supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
     supplement_parser.add_argument("--field_descriptions",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
@@ -119,6 +119,9 @@ def run_arguments():
     
 
 class Extension(object):
+    """
+    A bookworm extension
+    """
     def __init__(self,args):
         self.args = args
         self.dir = "extensions/" + re.sub(".*/","",self.args.url)
@@ -196,6 +199,13 @@ class BookwormManager(object):
 
         # This creates helper files in the /metadata/ folder.
 
+    def text_id_database(self):
+        """
+        This function is defined in Create Database.
+        It builds a file at files/texts/textids.dbm
+        """
+        text_id_dbm()
+        
     def metadata(self):
         self.diskMetadata()
         self.preDatabaseMetadata()
