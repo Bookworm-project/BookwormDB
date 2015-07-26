@@ -237,6 +237,25 @@ def encode_text_stream():
             
     #And printout again at the end
 
+def print_token_stream(regex=None):
+    """
+    Reads text files as input; tokenizes and separates by spaces.
+    Can be naively parsed as space-delimited by the next tool in the chain.
+    """
+    if regex is not None:
+        pass
+    for row in sys.stdin:
+        parts = row.split("\t",1)
+        filename = parts[0]
+        try:
+            tokens = tokenizer(parts[1])
+        except IndexError:
+            logging.warning("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
+            continue
+        out= u" ".join(tokens.tokenize())
+        print out.encode("utf-8")
+    
+
 def encodePreTokenizedStream(infile,levels=["unigrams"]):
     """
     Note: since unigrams and bigrams are done separately, we have to just redo the whole
@@ -252,6 +271,8 @@ def encodePreTokenizedStream(infile,levels=["unigrams"]):
         filename = line.split("\t",1)[0]
         line = line.rstrip("\n")
         tokenBatch.encodeRow(line,source="countfile", write_completed=False)
-    
+
+
 if __name__=="__main__":
     encode_text_stream()
+

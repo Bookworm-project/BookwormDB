@@ -8,7 +8,6 @@ fields_to_derive = []
 fields = []
 defaultDate = datetime.datetime(datetime.MINYEAR, 1, 1)
 
-
 def DaysSinceZero(dateobj):
     #Zero isn't a date, which python knows but MySQL and javascript don't.
     return (dateobj - date(1,1,1)).days + 366
@@ -195,6 +194,10 @@ def ParseJSONCatalog(target="default",source = "default"):
         f.flush()
     f.close()
 
+def parse_initial_catalog(target=sys.stdout,source=sys.stdin):
+    ParseFieldDescs()
+    ParseJSONCatalog(target=target,source=source)
+    
 if __name__=="__main__":
     ParseFieldDescs()
     ParseJSONCatalog(target=sys.stdout,source=sys.stdin)

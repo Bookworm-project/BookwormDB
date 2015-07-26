@@ -11,7 +11,7 @@ The "master" branch is under continuous development: it's likely to be faster an
 
 ## Related projects
 
-This is closely tied to two other projects. 
+This is closely tied to two other projects.
 
 To query the database created here programatically, you should use the Bookworm [API](https://github.com/bookworm-project/BookwormAPI "Bookworm API").
 
@@ -29,9 +29,7 @@ Here are a couple of Bookworms built using [BookwormDB](https://github.com/bookw
 4. [SSRN](http://bookworm.culturomics.org/ssrn/ "SSRN: Social Science Research Network")
 5. [US Congress](http://bookworm.culturomics.org/congress/ "Bills in US Congress")
 
-
 ## Getting Started ##
-
 
 
 ### Required MySQL Database ###
@@ -51,6 +49,7 @@ CREATE USER 'foobar'@'localhost' IDENTIFIED BY 'mysecret';
 GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
+
 The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 
 
 ```mysql
@@ -120,8 +119,9 @@ if you clone this repo directly), they are all in a subdirectory called `files`.
 BookwormDB/
  -- files/
   | -- texts/
-  |  | raw  <--- contains texts files or hierarchical folders of text files
-  |  | input.txt <----- (alternate method: a single file with all texts, preceded by their id.)
+  |  | input.txt <-----  A single file, each line of which is a text ID, a tab, and then the
+  |  |                   full text of the document with tabs and newlines replaced by spaces.       
+  |  | raw/  <---------  Alternate format: directory with text files.
   | -- metadata/
   |  | -- jsoncatalog.txt
   |  | -- field_descriptions.json
@@ -132,16 +132,18 @@ BookwormDB/
 #### Required files 1: Raw Text files:
 
 These can be input in one of two ways.
-The first is as a directory of files:
 
+The first, which will be faster in most cases, is as a *single file*. In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
+
+By changing the makefile, you can also do some more complex substitutions. (See the metadata parsers for an example of a Bookworm that directly reads hierarchical, bzipped directories without decompressing first).
+
+
+The second is as a directory of files:
 *  `files/texts/raw`
 This folder should contain a uniquely named .txt file for every item in your collection of texts 
 that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key
-should include the full path to the file.
+should include the full path to the file (but not the trailing '.txt').
 
-The second, which will be faster in most cases, is as a *single file*. In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
-
-By changing the makefile, you can also do some more complex substitutions. (See the metadata parsers for an example of a Bookworm that directly reads hierarchical, bzipped directories without decompressing first).
 
 > To build the congress API, Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`. Included in the [congress_api](http://github.com/econpy/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and all the .txt files: Run it as follows:
 
@@ -189,10 +191,8 @@ Currently, you **do** have to include a `searchstring` definition in this, but *
 
 For a first run, you just want to use `make` to create the entire database (if you want to rebuild parts of a large bookworm--the metadata, for example--that is also possible.)
 
-**You must specify the bookworm name you are creating, or the makefile will place it in `OL`.
-
 ```
-make all bookwormName=YOURBOOKWORMNAMEHERE
+make all
 ```
 
 
@@ -202,7 +202,7 @@ make all bookwormName=YOURBOOKWORMNAMEHERE
 > make all bookwormName=bookwormcongress
 > ```
 
-> The database **bookwormcongress** will be created if it does not exist. Both **dbuser** and **dbpassword** should have been defined [earlier](https://github.com/Bookworm-project/BookwormDB#required-mysql-database) in this tutorial.
+> The database **bookwormcongress** will be created if it does not exist.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 

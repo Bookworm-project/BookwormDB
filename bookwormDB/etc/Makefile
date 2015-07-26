@@ -1,6 +1,6 @@
 #invoke with any of these variable: eg, `make`
 
-textStream:=scripts/justPrintInputTxt.sh
+textStream:=bookworm -l $(logLevel) -d $(database) tokenize text_stream
 
 # The maximum size of each input block for parallel processing.
 # 100M should be appropriate for a machine with 8-16GB of memory: if you're
@@ -8,13 +8,11 @@ textStream:=scripts/justPrintInputTxt.sh
 
 blockSize:=100M
 
-webDirectory=/var/www/
+
 logLevel="WARNING"
+
 #New syntax requires bash
 SHELL:=/bin/bash
-
-# Make bookworm executable
-PATH := ./:$(PATH)
 
 #You can manually specify a bookworm name, but normally it just greps it out of your configuration file.
 database:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
@@ -22,12 +20,13 @@ database:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 #The data format may vary depending on how the raw files are stored. The easiest way is to simply pipe out the contents from input.txt: but any other method that produces the same format (a python script that unzips from a directory with an arcane structure, say) is just as good.
 #The important thing, I think, is that it not insert EOF markers into the middle of your stream.
 
+webDirectory=/var/www/
 webSite = $(addsuffix database,webDirectory)
 
 all: bookworm.cnf files/targets files/targets/database
 
 bookworm.cnf:
-	python scripts/makeConfiguration.py
+	bookworm prep configuration
 
 #These are all directories that need to be in place for the other scripts to work properly
 files/targets: 
@@ -68,7 +67,7 @@ pristine: clean
 ifneq ("$(wildcard ../unigrams.txt)","")
 wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) files/texts/wordlist/sorted.txt; head -1000000 files/texts/wordlist/sorted.txt > files/texts/wordlist/wordlist.txt
 else
-wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe python bookworm/printTokenStream.py | python bookworm/wordcounter.py
+wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe bookworm -l $(logLevel) -d $(database) tokenize token_stream | bookworm -l $(logLevel) -d $(database) tokenize word_db
 endif
 
 files/texts/wordlist/wordlist.txt:
@@ -79,7 +78,7 @@ files/texts/wordlist/wordlist.txt:
 
 files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt files/metadata/field_descriptions.json
 #Run through parallel as well.
-	cat files/metadata/jsoncatalog.txt | parallel --pipe python bookworm/MetaParser.py > $@
+	cat files/metadata/jsoncatalog.txt | parallel --pipe bookworm -l $(logLevel) -d $(database) prep catalog_metadata > $@
 
 
 # In addition to building files for ingest.
@@ -104,9 +103,10 @@ files/metadata/catalog.txt:
 #Use an alternate method to ingest feature counts if the file is defined immediately below.
 
 ifneq ("$(wildcard ../unigrams.txt)","")
+#This line is broken
 encoder=cat ../unigrams.txt | parallel --block-size $(blockSize) -u --pipe python bookworm/ingestFeatureCounts.py encode
 else
-encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm -l $(logLevel) -d $(database) tokenize --encode
+encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm -l $(logLevel) -d $(database) tokenize encode
 endif
 
 files/targets/encoded: files/texts/wordlist/wordlist.txt

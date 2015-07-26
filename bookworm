@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import MySQLdb
 import re
 import sys
@@ -9,10 +8,15 @@ import ConfigParser
 import argparse
 from subprocess import call
 import logging
+import shutil
 
 # These four libraries define the Bookworm-specific methods.
-from bookworm.MetaParser import *
-from bookworm.CreateDatabase import *
+from bookwormDB.MetaParser import *
+from bookwormDB.CreateDatabase import *
+from bookwormDB.configuration import *
+import bookwormDB.tokenizer
+import bookwormDB.wordcounter
+from bookwormDB.MetaParser import parse_initial_catalog
 
 # Pull a method from command line input.
 
@@ -26,11 +30,11 @@ def run_arguments():
     Refactoring pulls welcome.
     """
 
-    parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm.py")
-    parser.add_argument("--configuration",help="The name of the configuration file to read options from: by default, 'bookworm.cnf' in the current directory.", default="bookworm.cnf")
-    parser.add_argument("--database",help="The name of the bookworm database in MySQL to connect to: by default, read from the active configuration file.", default=None)
+    parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm")
+    parser.add_argument("--configuration","-c",help="The name of the configuration file to read options from: by default, 'bookworm.cnf' in the current directory.", default="bookworm.cnf")
+    parser.add_argument("--database","-d",help="The name of the bookworm database in MySQL to connect to: by default, read from the active configuration file.", default=None)
 
-    parser.add_argument("--log-level",help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
+    parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
 
     # Use subparsers to have an action syntax, like git.
     subparsers = parser.add_subparsers(title="action",help='The commands to run with Bookworm',dest="action")
@@ -42,11 +46,14 @@ def run_arguments():
     build all prior files as well.""")
 
     # Grep out all possible targets from the Makefile
-    targets = [re.sub(r":.*\n","",line) for line in open("Makefile") if re.search(r"^[^ $]+:[^=]",line)]
-    
-    
-    build_parser.add_argument("target",help="""The file you want to create: to build a complete bookworm, enter 'all'""",choices = targets)
-
+    if os.path.exists("Makefile"):
+        targets = [re.sub(r":.*\n","",line) for line in open("Makefile") if re.search(r"^[^ $]+:[^=]",line)]
+        build_parser.add_argument("target",help="""The file you want to create: to build a complete bookworm, enter 'all'""",choices = targets)
+    else:
+        """
+        There may not be a Makefile if this is the init run.
+        """
+        pass
 
     ############# supplement #################
     supplement_parser = subparsers.add_parser("add_metadata",help="""Supplement the\
@@ -91,6 +98,22 @@ def run_arguments():
     extensions_parser.add_argument("url",help="A cloneable url for the extension you want to pul: passed as an argument to 'git clone,' so may be either using the https protocol or the git protocol")
 
 
+    
+    ### Handle tokenization
+    tokenization_parser = subparsers.add_parser("tokenize", help="tokenize (and optionally, encode) text. Requires a stream to stdin as input.")
+    tokenization_subparsers = tokenization_parser.add_subparsers(title="process",help='The part of the subparser to run: see help for more details.',dest="process")
+    encode_parser = tokenization_subparsers.add_parser("encode",
+                                     help="Encode according to the stored numeric IDs.")
+    text_stream_parser = tokenization_subparsers.add_parser("text_stream",
+                                                            help="Print text from various sources to stdout in a standard form.")
+    text_stream_parser.add_argument("--file","-f",help="location of a formatted input file: leave blank for sensible defaults as described in the documentation.",default=None)
+    
+    token_stream_parser = tokenization_subparsers.add_parser("token_stream",
+                                                            help="Turn input from text_stream into delimited list of tokens using standard tokenization rules.")
+    token_stream_parser.add_argument("--token-regex","-t",
+        help="Regular expression defining tokens. Not currently implemented")
+
+    word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
     ########## Build components
     extensions_parser = subparsers.add_parser("prep", help="Build individual components: primarily used by the Makefile.")
     extensions_parser.add_argument("goal",help="The name of the target.")
@@ -100,7 +123,7 @@ def run_arguments():
     """
     # Not yet implemented.
     
-    #init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory (not yet implemented)")
+    init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
 
     # Call the function
     args = parser.parse_args()
@@ -120,7 +143,11 @@ def run_arguments():
 
 class Extension(object):
     """
-    A bookworm extension
+    A bookworm extension. Initialized with an args object,
+    which has the element url, the location of a clonable git repo.
+
+    Because I don't want people to have to write extensions in python,
+    they are build using `make`.
     """
     def __init__(self,args):
         self.args = args
@@ -139,6 +166,7 @@ class Extension(object):
         subprocess.Popen(["make"],cwd=self.dir)
         
 # Initiate MySQL connection.
+
 class BookwormManager(object):
     """
     This class is passed some options that tell it the name of the bookworm it's working on;
@@ -151,14 +179,97 @@ class BookwormManager(object):
         config = ConfigParser.ConfigParser(allow_no_value=True)
         config.read([cnf_file])
         # More specific options override the config file
-        if database is None:
-            self.dbname = config.get("client","database")
-        else:
-            self.dbname = database
-        ## These could also be handled from the command line.
-        self.dbuser = config.get("client","user")
-        self.dbpassword = config.get("client","password")
+        if config.has_section("client"):
+            """
+            Silently go along if the config doesn't exist.
+            """
+            if database is None:
+                self.dbname = config.get("client","database")
+            else:
+                self.dbname = database
+            ## These could also be handled from the command line.
+            self.dbuser = config.get("client","user")
+            self.dbpassword = config.get("client","password")
+            
+    def tokenize(self,args):
 
+        """
+        Handle functions related to tokenization and encoding.
+        
+        Should eventually be able to accept arguments like "token-regex"
+        and already-tokenized documents.
+        """
+        
+        if args.process=="encode":
+            bookwormDB.tokenizer.encode_text_stream()
+
+
+        
+        if args.process=="text_stream":
+            if args.file is None:
+                for file in ["files/texts/input.txt","input.txt","../input.txt","files/texts/raw"]:
+                    if os.path.exists(file):
+                        args.file = file
+                        break
+                if args.file is None:
+                    # One of those should have worked.
+                    raise IOError("Unable to find an input.txt file in a default location")
+                
+            if os.path.isdir(args.file):
+                for (root,dirs,files) in os.walk(args.file): 
+                    for name in files:
+                        path = os.path.join(root,name)
+                        content = open(path).read().replace("\n"," ").replace("\t"," ").replace("\r"," ")
+                        identity = path.replace(args.file,"").replace(".txt","").strip("/")
+                        print "\t".join([identity,content])
+            else:
+                # I really don't care about useless use of cat here; processor overhead is being lost elsewhere.
+                subprocess.Popen(["cat", args.file])
+                
+        if args.process=="token_stream":
+            bookwormDB.tokenizer.print_token_stream()
+
+        if args.process=="word_db":
+            """
+            Read an endless string of space-delimited characters, and 
+            """
+            bookwormDB.wordcounter.WordsTableCreate()
+            
+    def init(self,args):
+        """
+        Initialize the current directory as a bookworm directory.
+        """
+        # Create a configuration file
+        if os.path.exists("Makefile"):
+            logging.error("""Your directory already has a Makefile. Either
+            you've already initialized a Bookworm here, or you have a Makefile
+            for a project of your own already underway. If the former, great;
+            if the latter, try initializing the bookworm in a new directory
+            inside this one, and the bookworm will automatically look for an
+            input.txt file in this directory if you don't want to build a complicated
+            folder hierarchy in the new folder.
+            """)
+            
+        if not os.path.exists("bookworm.cnf"):
+            self.configuration()
+        
+        loc = os.path.dirname(bookwormDB.__file__) + "/etc/"
+
+        """
+        Hardcoding the files we need right here. Not the prettiest solution:
+        should potentially just copy the whole tree to the current dir.
+        """
+        needed_files={"Makefile":"Makefile"}
+        
+        for key,val in needed_files.iteritems():
+            src = loc + key
+            dst = val
+            newdir = os.path.dirname(dst)
+            if not os.path.exists(newdir) and newdir != "":
+                # Create dir if not exists.
+                os.makedirs(os.path.dirname(dst))
+            shutil.copyfile(src, dst)
+        
     def extension(self,args):
         """
         Creates (or updates) an extension
@@ -184,7 +295,12 @@ class BookwormManager(object):
         'Build' is currently a wrapper around 'Make'. We could rewrite
         the make function to wrap this if we wanted.
         """
-        subprocess.call(["make","database=" + self.dbname,args.target])
+        logLevel=logging.getLevelName(logging.getLogger().getEffectiveLevel())
+        subprocess.call([
+            "make",
+            "database=" + self.dbname,
+            "logLevel=" + logLevel,
+            args.target])
     
     def diskMetadata(self):
         print "Parsing field_descriptions.json"
@@ -210,6 +326,8 @@ class BookwormManager(object):
         self.diskMetadata()
         self.preDatabaseMetadata()
 
+    def catalog_metadata(self):
+        parse_initial_catalog()
 
     def guessAtFieldDescriptions(self,args):
         Bookworm = BookwormSQLDatabase(self.dbname,variableFile=None)
@@ -232,6 +350,9 @@ class BookwormManager(object):
             Bookworm = BookwormSQLDatabase(self.dbname,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
+    def configuration(self):
+        bookwormDB.configuration.create()
+            
     def database_metadata(self):
         Bookworm = BookwormSQLDatabase(self.dbname)
         Bookworm.load_book_list()
