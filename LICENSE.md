@@ -1,6 +1,6 @@
 The MIT License (MIT)
 
-Copyright (c) 2014 Benjamin Schmidt
+Copyright (c) 2014 Benjamin Schmidt, Matt Nicklay, Billy Janitsch, and Erez Lieberman Aiden
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
