@@ -1,12 +1,15 @@
 #! /usr/bin/python
 
-import regex as re
 import random
 import sys
 import os
 import anydbm
 import time
 import logging
+
+# import regex as re --now done only when the function is actually called.
+
+re = None
 
 def wordRegex():
     """
@@ -15,6 +18,9 @@ def wordRegex():
     a unicode-decoded string: and that we have to use the "regex" module instead of the "re" module. Python3 will make this, perhaps, easier.
     (See how it says import regex as re up there? Yikes.)
     """
+    global re
+    if re is None:
+        import regex as re
     MasterExpression = ur"\p{L}+"
     possessive = MasterExpression + ur"'s"
     numbers = r"(?:[\$])?\d+"
@@ -25,10 +31,11 @@ def wordRegex():
     """
     Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms 
     """
-    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
+    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)#
     return bigregex
 
-bigregex = wordRegex()
+# Define it the first time it's needed.
+bigregex = None
 
 def readDictionaryFile(prefix=""):
     look = dict()
@@ -171,6 +178,15 @@ class tokenizer(object):
         try:
             return self.tokens
         except:
+            """
+            For speed, don't import until here.
+            """
+            global re
+            if re is None:
+                import regex as re
+            global bigregex
+            if bigregex==None:
+                bigregex = wordRegex()
             #return bigregex
             self.tokens = re.findall(bigregex,self.string)
             return self.tokens

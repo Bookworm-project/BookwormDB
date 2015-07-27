@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import MySQLdb
+
 import re
 import sys
 import json
@@ -7,19 +7,18 @@ import os
 import ConfigParser
 import argparse
 from subprocess import call
+from subprocess import Popen
 import logging
 import shutil
 
-# These four libraries define the Bookworm-specific methods.
+# These libraries define the Bookworm-specific methods.
+
 from bookwormDB.MetaParser import *
 from bookwormDB.CreateDatabase import *
-from bookwormDB.configuration import *
 import bookwormDB.tokenizer
 import bookwormDB.wordcounter
-from bookwormDB.MetaParser import parse_initial_catalog
 
 # Pull a method from command line input.
-
 
 def run_arguments():
     """
@@ -46,8 +45,8 @@ def run_arguments():
     build all prior files as well.""")
 
     # Grep out all possible targets from the Makefile
-    if os.path.exists("Makefile"):
-        targets = [re.sub(r":.*\n","",line) for line in open("Makefile") if re.search(r"^[^ $]+:[^=]",line)]
+    if os.path.exists("bookworm_Makefile"):
+        targets = [re.sub(r":.*\n","",line) for line in open("bookworm_Makefile") if re.search(r"^[^ $]+:[^=]",line)]
         build_parser.add_argument("target",help="""The file you want to create: to build a complete bookworm, enter 'all'""",choices = targets)
     else:
         """
@@ -98,6 +97,11 @@ def run_arguments():
     extensions_parser.add_argument("url",help="A cloneable url for the extension you want to pul: passed as an argument to 'git clone,' so may be either using the https protocol or the git protocol")
 
 
+    ########## Clone and run extensions
+    extensions_parser = subparsers.add_parser("query", help="Run a query using the Bookworm API")
+    extensions_parser.add_argument("APIcall",help="The json-formatted query to be run.")
+
+
     
     ### Handle tokenization
     tokenization_parser = subparsers.add_parser("tokenize", help="tokenize (and optionally, encode) text. Requires a stream to stdin as input.")
@@ -124,7 +128,8 @@ def run_arguments():
     # Not yet implemented.
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
-
+    init_parser.add_argument("--force","-f",help="Overwrite existing versions of bookworm.cnf, bookworm_Makefile, and so forth: makes it easier to pull in changes to the python package into a local repo.",default=False,action="store_true")
+    #init_parser.add_argument("--destroy","-d",help="Destroy any existing ")
     # Call the function
     args = parser.parse_args()
 
@@ -142,6 +147,7 @@ def run_arguments():
     
 
 class Extension(object):
+    
     """
     A bookworm extension. Initialized with an args object,
     which has the element url, the location of a clonable git repo.
@@ -149,6 +155,7 @@ class Extension(object):
     Because I don't want people to have to write extensions in python,
     they are build using `make`.
     """
+
     def __init__(self,args):
         self.args = args
         self.dir = "extensions/" + re.sub(".*/","",self.args.url)
@@ -156,14 +163,14 @@ class Extension(object):
     def clone_or_pull(self):
         if not os.path.exists(self.dir):
             logging.info("cloning git repo from " + self.args.url)
-            subprocess.call(["git","clone",self.args.url,self.dir])
+            call(["git","clone",self.args.url,self.dir])
         else:
             logging.info("updating pre-existing git repo at " + self.dir)
-            subprocess.Popen(["git","pull"],cwd=self.dir)
+            Popen(["git","pull"],cwd=self.dir)
             
     def make(self):
         logging.debug("Running make in " + self.dir)
-        subprocess.Popen(["make"],cwd=self.dir)
+        Popen(["make"],cwd=self.dir)
         
 # Initiate MySQL connection.
 
@@ -224,7 +231,7 @@ class BookwormManager(object):
                         print "\t".join([identity,content])
             else:
                 # I really don't care about useless use of cat here; processor overhead is being lost elsewhere.
-                subprocess.Popen(["cat", args.file])
+                Popen(["cat", args.file])
                 
         if args.process=="token_stream":
             bookwormDB.tokenizer.print_token_stream()
@@ -240,26 +247,34 @@ class BookwormManager(object):
         Initialize the current directory as a bookworm directory.
         """
         # Create a configuration file
-        if os.path.exists("Makefile"):
-            logging.error("""Your directory already has a Makefile. Either
-            you've already initialized a Bookworm here, or you have a Makefile
-            for a project of your own already underway. If the former, great;
-            if the latter, try initializing the bookworm in a new directory
-            inside this one, and the bookworm will automatically look for an
-            input.txt file in this directory if you don't want to build a complicated
-            folder hierarchy in the new folder.
-            """)
-            
+        if not args.force:
+            if os.path.exists("bookworm_Makefile"):
+                logging.error("""
+                Your directory already has a bookworm Makefile.
+                Probably you've already initialized a Bookworm here.
+                """)
+                return
+
+            if os.path.exists("files"):
+                logging.error("""
+                You already have a folder named 'files'. Bookworm needs that
+                space for itself. (Sorry, we intend to find something less
+                bland soon--but given that you're using it too, you showing
+                any umbrage is kind of the kettle calling the pot black).
+                Please rename your "files" folder and try again.
+                """)
+                return
+
         if not os.path.exists("bookworm.cnf"):
             self.configuration()
-        
+            
         loc = os.path.dirname(bookwormDB.__file__) + "/etc/"
 
         """
         Hardcoding the files we need right here. Not the prettiest solution:
         should potentially just copy the whole tree to the current dir.
         """
-        needed_files={"Makefile":"Makefile"}
+        needed_files={"bookworm_Makefile":"bookworm_Makefile"}
         
         for key,val in needed_files.iteritems():
             src = loc + key
@@ -269,6 +284,17 @@ class BookwormManager(object):
                 # Create dir if not exists.
                 os.makedirs(os.path.dirname(dst))
             shutil.copyfile(src, dst)
+
+    def query(self,args):
+        """
+        Run a query against the API.
+        """
+        
+        from bookwormDB.general_API import SQLAPIcall
+        
+        query = json.loads(args.APIcall)
+        caller = SQLAPIcall(query)
+        print caller.execute()
         
     def extension(self,args):
         """
@@ -293,11 +319,12 @@ class BookwormManager(object):
     def build(self,args):
         """
         'Build' is currently a wrapper around 'Make'. We could rewrite
-        the make function to wrap this if we wanted.
+        the make function to wrap this if we wanted to be more pythonic.
         """
         logLevel=logging.getLevelName(logging.getLogger().getEffectiveLevel())
-        subprocess.call([
+        call([
             "make",
+            "-f","bookworm_Makefile",
             "database=" + self.dbname,
             "logLevel=" + logLevel,
             args.target])
@@ -327,16 +354,22 @@ class BookwormManager(object):
         self.preDatabaseMetadata()
 
     def catalog_metadata(self):
+        from bookwormDB.MetaParser import parse_initial_catalog
         parse_initial_catalog()
 
-    def guessAtFieldDescriptions(self,args):
+    def guessAtFieldDescriptions(self):
         Bookworm = BookwormSQLDatabase(self.dbname,variableFile=None)
         Bookworm.setVariables("files/metadata/jsoncatalog.txt",jsonDefinition=None)
         import os
         if not os.path.exists("files/metadata/field_descriptions.json"):
             output = open("files/metadata/field_descriptions.json","w")
             output.write(json.dumps(Bookworm.variableSet.guessAtFieldDescriptions()))
-            
+        else:
+            logging.error("""
+            You already have a file at files/metadata/field_descriptions.json
+            Dying rather than overwrite it.
+            """)
+            exit
     def reload_memory(self,args):
         dbnames = [self.dbname]
         if args.all==True:
@@ -351,6 +384,7 @@ class BookwormManager(object):
             Bookworm.reloadMemoryTables(force=args.force)
 
     def configuration(self):
+        import bookwormDB.configuration
         bookwormDB.configuration.create()
             
     def database_metadata(self):
@@ -368,7 +402,7 @@ class BookwormManager(object):
         print "adding cron job to automatically reload memory tables on launch"
         print "(this assumes this machine is the MySQL server, which need not be the case)"
 
-        subprocess.call(["sh","scripts/scheduleCronJob.sh"])
+        call(["sh","scripts/scheduleCronJob.sh"])
 
         Bookworm.jsonify_data() # Create the self.dbname.json file in the root directory.
         Bookworm.create_API_settings()

@@ -113,9 +113,9 @@ files/targets/encoded: files/texts/wordlist/wordlist.txt
 #builds up the encoded lists that don't exist yet.
 #I "Make" the catalog files rather than declaring dependency so that changes to 
 #the catalog don't trigger a db rebuild automatically.
-	make files/metadata/jsoncatalog_derived.txt
-	make files/texts/textids.dbm
-	make files/metadata/catalog.txt
+	make -f bookworm_Makefile files/metadata/jsoncatalog_derived.txt
+	make -f bookworm_Makefile files/texts/textids.dbm
+	make -f bookworm_Makefile files/metadata/catalog.txt
 	$(encoder)
 	touch files/targets/encoded
 
@@ -148,14 +148,27 @@ linechartGUI: $(webDirectory)/$(database) files/$(database).json
 
 ### Some defaults to make it easier to clone this directory in:
 
+
+
 files/metadata/jsoncatalog.txt:
-	mkdir -p files/metadata
-	ln -sf ../../../jsoncatalog.txt $@
+# First look for the file in the current directory: then in one directory below.
+	@mkdir -p files/metadata
+	@if [ -f ../jsoncatalog.txt ]; then \
+		ln -sf ../../../jsoncatalog.txt $@; \
+	fi
+	@if [ -f jsoncatalog.txt ]; then \
+		ln -sf ../../jsoncatalog.txt $@; \
+	fi
+
 
 
 files/metadata/field_descriptions.json:
+	@mkdir -p files/metadata
 	mkdir -p files/metadata
 	@if [ -f ../field_descriptions.json ]; then \
-		ln -sf ../../../field_descriptions.json files/metadata/field_descriptions.json; \
+		ln -sf ../../../field_descriptions.json $@; \
+	fi
+	@if [ -f field_descriptions.json ]; then \
+		ln -sf ../../field_descriptions.json $@; \
 	fi
 

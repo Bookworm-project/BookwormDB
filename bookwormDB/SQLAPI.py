@@ -4,12 +4,13 @@ import sys
 import json
 import cgi
 import re
-import numpy #used for smoothing.
 import copy
 import decimal
 import MySQLdb
 import warnings
 import hashlib
+import logging
+import os
 
 """
 #There are 'fast' and 'full' tables for books and words;
@@ -18,14 +19,45 @@ can be stored on disk. Different queries use different types of calls.
 #Also, certain metadata fields are stored separately from the main catalog table;
 """
 
-from knownHosts import *
+# If you have bookworms stored on a different host, you can create more lines like this.
+# A different host and read_default_file will let you import things onto a different server.
+general_prefs = dict()
+general_prefs["default"] = {"fastcat": "fastcat",
+                            "HOST": "localhost",
+                            "fastword": "wordsheap",
+                            "database": "YourDatabaseNameHere",
+                            "fullcat": "catalog",
+                            "fullword": "words",
+                            "read_default_file": "/etc/mysql/my.cnf"}
 
-class dbConnect(object):
+def find_my_cnf():
+    """
+    The password will be looked for in these places.
+    """
+    for file in ["etc/bookworm/my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","/root/.my.cnf"]:
+        if os.path.exists(file):
+            return file
+
+class DbConnect(object):
     #This is a read-only account
-    def __init__(self,prefs):
-        self.dbname = prefs['database']
-        self.db = MySQLdb.connect(host=prefs['HOST'],read_default_file = prefs['read_default_file'],use_unicode='True',charset='utf8',db=prefs['database'])
+    def __init__(self,prefs=general_prefs['default'],database=None,host="localhost"):
+        self.dbname = database
+
+        #For back-compatibility:
+        if "HOST" in prefs:
+            host=prefs['HOST']
+
+        if database is None:
+            database = prefs['database']
+            
+        self.db = MySQLdb.connect(host=host,
+                                  db=database,
+                                  read_default_file = find_my_cnf(),
+                                  use_unicode='True',
+                                  charset='utf8')
+
         self.cursor = self.db.cursor()
+
 
 # The basic object here is a 'userquery:' it takes dictionary as input, as defined in the API, and returns a value
 # via the 'execute' function whose behavior
@@ -59,7 +91,7 @@ class userqueries:
             outside_dictionary['search_limits'] = [outside_dictionary['search_limits']]
         self.returnval = []
         self.queryInstances = []
-        db = dbConnect(prefs)
+        db = DbConnect(prefs)
         databaseScheme = databaseSchema(db)
         for limits in outside_dictionary['search_limits']:
             mylimits = copy.deepcopy(outside_dictionary)
@@ -86,7 +118,7 @@ class userquery:
         #self.prefs = general_prefs[outside_dictionary.setdefault('database','presidio')]
         self.db = db
         if db is None:
-            self.db = dbConnect(self.prefs)
+            self.db = DbConnect(self.prefs)
         self.databaseScheme = databaseScheme
         if databaseScheme is None:
             self.databaseScheme = databaseSchema(self.db)
@@ -1190,10 +1222,13 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = ",escapeStrings=True):
             for operation in values.keys():
                 whereterm.append(where_from_hash({key:values[operation]},comp=operations[operation],joiner=joiner))
         elif isinstance(values,list):
-            #and this is where the magic actually happens: the cases where the key is a string, and the target is a list.
+            #and this is where the magic actually happens:
+            # the cases where the key is a string, and the target is a list.
             if isinstance(values[0],dict):
-                # If it's a list of dicts, then there's one thing that happens. Currently all types are assumed to be the same:
-                # you couldn't pass in, say {"year":[{"$gte":1900},1898]} to catch post-1898 years except for 1899. Not that you
+                # If it's a list of dicts, then there's one thing that happens.
+                #Currently all types are assumed to be the same:
+                # you couldn't pass in, say {"year":[{"$gte":1900},1898]} to
+                # catch post-1898 years except for 1899. Not that you
                 # should need to.
                 for entry in values:
                     whereterm.append(where_from_hash(entry))

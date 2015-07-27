@@ -4,40 +4,17 @@ import MySQLdb
 from pandas import merge
 from pandas.io.sql import read_sql
 from pandas import set_option
-from SQLAPI import *
 from copy import deepcopy
 from collections import defaultdict
 import ConfigParser
 import os.path
+from SQLAPI import DbConnect
+from SQLAPI import userquery
+import re
+import json
 
 #Some settings can be overridden here, if no where else.
 prefs = dict()
-
-def find_my_cnf():
-    """
-    The password will be looked for in these places.
-    """
-    
-    for file in ["etc/bookworm/my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","/root/.my.cnf"]:
-        if os.path.exists(file):
-            return file
-
-class dbConnect(object):
-    #This is a read-only account
-    def __init__(self,prefs=prefs,database="federalist",host="localhost"):
-        self.dbname = database
-
-        #For back-compatibility:
-        if "HOST" in prefs:
-            host=prefs['HOST']
-
-        self.db = MySQLdb.connect(host=host,
-                                  db=database,
-                                  read_default_file = find_my_cnf(),
-                                  use_unicode='True',
-                                  charset='utf8')
-
-        self.cursor = self.db.cursor()
 
 def calculateAggregates(df,parameters):
 
@@ -406,7 +383,7 @@ class SQLAPIcall(APIcall):
         legacy code.
 
         """
-        con=dbConnect(prefs,self.query['database'])
+        con=DbConnect(prefs,self.query['database'])
         q = userquery(call).query()
         if self.query['method']=="debug":
             print q

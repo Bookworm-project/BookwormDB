@@ -1,12 +1,11 @@
-#!/usr/bin/env python
-
+#!/usr/local/bin/python
 
 #So we load in the terms that allow the API implementation to happen for now.
-from datetime import datetime
-from bookworm.general_API import *
-import os
+from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+import cgi
 import cgitb
-#import MySQLdb
+import json
+
 cgitb.enable()
 
 def headers(method):
@@ -32,21 +31,13 @@ def debug(string):
 
 def main(JSONinput):
 
-    query = JSONinput
-
-    try:
-        #Whether there are multiple search terms, as in the highcharts method.
-        usingSuccinctStyle = isinstance(query['search_limits'],dict)
-    except:
-        #If there are no search limits, it might be a returnPossibleFields query
-        usingSuccinctStyle = True
-
+    query = json.loads(JSONinput)
+    # Print appropriate HTML headers
     headers(query['method'])
-
+    # Set up the query.
     p = SQLAPIcall(query)
-
-    result = p.execute()
-    print result
+    #run the query.
+    print p.execute() 
 
     return True
 
@@ -60,6 +51,6 @@ if __name__=="__main__":
     except KeyError:
         JSONinput = form["query"].value
 
-    main(json.loads(JSONinput))
+    main(JSONinput)
 
 

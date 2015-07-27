@@ -7,7 +7,6 @@ import re
 import sys
 import json
 import os
-import decimal
 import ConfigParser
 from variableSet import dataField
 from variableSet import variableSet
@@ -15,6 +14,9 @@ from variableSet import splitMySQLcode
 import logging
 import warnings
 import anydbm
+
+
+
 if logging.getLogger().isEnabledFor(logging.DEBUG):
     # Catch MYSQL warnings as errors if logging is set to debug.
     warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
