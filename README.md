@@ -7,7 +7,7 @@ A quick walkthrough is included below: other documentation is at [bookworm.cultu
 Releases
 ---------------------
 
-The "master" branch is under continuous development: it's likely to be faster and incorporate the latest bugfixes, but will also tend to incorporate the latest bugs. The most recent tagged version (currently 0.3 alpha) may be a good replacement.
+The "master" branch is under continuous development: it's likely to be faster and incorporate the latest bugfixes, but will also tend to incorporate the latest bugs. The most recent tagged version (currently 0.3.1) may be a good replacement.
 
 ## Related projects
 
