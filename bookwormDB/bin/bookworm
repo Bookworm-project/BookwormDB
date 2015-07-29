@@ -237,7 +237,7 @@ class BookwormManager(object):
                         path = os.path.join(root,name)
                         content = open(path).read().replace("\n"," ").replace("\t"," ").replace("\r"," ")
                         identity = path.replace(args.file,"").replace(".txt","").strip("/")
-                        print "\t".join([identity,content])
+                        print identity + "\t" + content
             else:
                 # I really don't care about useless use of cat here; processor overhead is being lost elsewhere.
                 Popen(["cat", args.file])
@@ -336,14 +336,14 @@ class BookwormManager(object):
             args.target])
     
     def diskMetadata(self):
-        print "Parsing field_descriptions.json"
+        logging.info("Parsing field_descriptions.json")
         ParseFieldDescs()
-        print "Parsing jsoncatalog.txt"
+        logging.info("Parsing jsoncatalog.txt")
         ParseJSONCatalog()
         
     def preDatabaseMetadata(self):
         Bookworm = BookwormSQLDatabase()
-        print "Writing metadata to new catalog file..."        
+        logging.info("Writing metadata to new catalog file...")
         Bookworm.variableSet.writeMetadata()
 
         # This creates helper files in the /metadata/ folder.
@@ -408,10 +408,9 @@ class BookwormManager(object):
         # temporary MySQL table and the GUI will not work if this table is not built.
         Bookworm.reloadMemoryTables()
 
-        print "adding cron job to automatically reload memory tables on launch"
-        print "(this assumes this machine is the MySQL server, which need not be the case)"
-
-        call(["sh","scripts/scheduleCronJob.sh"])
+        #print "adding cron job to automatically reload memory tables on launch"
+        #print "(this assumes this machine is the MySQL server, which need not be the case)"
+        #call(["sh","scripts/scheduleCronJob.sh"])
 
         Bookworm.jsonify_data() # Create the self.dbname.json file in the root directory.
         Bookworm.create_API_settings()
@@ -429,33 +428,6 @@ class BookwormManager(object):
             convertToJSON(filename)
             args.file="tmp.txt"
         Bookworm.importNewFile(args.file,anchorField=args.key,jsonDefinition=field_descriptions)
-
-    def supplementMetadataFromJSON(self):
-        """
-        This is a more powerful method to import a json dictionary of the same form
-        as jsoncatalog.txt. (More powerful because it lets you use a combination of
-        files, arrays instead of single elements, and a specification for each element.)
-        """
-
-        if len(sys.argv) > 4:
-            #If there are multiple entries for each element, you can specify 'unique'
-            # by typing "False" as the last entry.
-            field_descriptions = sys.argv.pop()
-        else:
-            field_descriptions = None
-            print "guessing at field descriptions for the import"
-        """
-        The anchor should be intuited, not named.
-        """
-        anchor = sys.argv.pop()
-
-        if len(sys.argv)==3:
-            filename = sys.argv.pop()
-        else:
-            print "you must supply exactly one argument to 'addCategoricalFromFile'"
-            raise
-        Bookworm=BookwormSQLDatabase()
-        Bookworm.importNewFile(filename,anchorField=anchor,jsonDefinition=field_descriptions)
 
 
     def database_wordcounts(self):
