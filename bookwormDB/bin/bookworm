@@ -257,13 +257,18 @@ class BookwormManager(object):
                 Probably you've already initialized a Bookworm here.
                 """)
                 return
-        if args.force:
+            if not os.path.exists("bookworm.cnf"):
+                self.configuration()
+            os.makedirs(".bookworm")
+        else:
             self.configuration()
 
-        if not os.path.exists("bookworm.cnf"):
-            self.configuration()
 
+
+        
         """
+        This section blocked out: trying a new strategy of just running the code from inside the python dir.
+        
         Hardcoding the files we need right here. Not the prettiest solution:
         should potentially just copy the whole tree to the current dir.
 
