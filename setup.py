@@ -16,5 +16,5 @@ setup(name='bookwormDB',
       description="Create, deploy, and serve a Bookworm instance.",
       package_data={'bookwormDB':['etc/*']},
       # Copy the cgi-executable to a cgi-dir.
-      data_files = [(figure_out_cgi_directory(),["dbbindings.py"])]
+      data_files = [(figure_out_cgi_directory(),["bookwormDB/bin/dbbindings.py"])]
 )
