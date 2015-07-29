@@ -10,9 +10,9 @@ import anydbm
 import os
 
 def text_id_dbm():
-    dbm = anydbm.open("files/texts/textids.dbm","c")
-    for file in os.listdir("files/texts/textids"):
-        for line in open("files/texts/textids/" + file):        
+    dbm = anydbm.open(".bookworm/texts/textids.dbm","c")
+    for file in os.listdir(".bookworm/texts/textids"):
+        for line in open(".bookworm/texts/textids/" + file):        
             line = line.rstrip("\n")
             splat = line.split("\t")
             dbm[splat[1]] = splat[0]

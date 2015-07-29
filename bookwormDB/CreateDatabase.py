@@ -33,9 +33,9 @@ def text_id_dbm():
     dramatically reduces memory consumption for bookworms of over 
     1 million documents.
     """
-    dbm = anydbm.open("files/texts/textids.dbm","c")
-    for file in os.listdir("files/texts/textids"):
-        for line in open("files/texts/textids/" + file):        
+    dbm = anydbm.open(".bookworm/texts/textids.dbm","c")
+    for file in os.listdir(".bookworm/texts/textids"):
+        for line in open(".bookworm/texts/textids/" + file):        
             line = line.rstrip("\n")
             splat = line.split("\t")
             dbm[splat[1]] = splat[0]
@@ -104,7 +104,7 @@ class BookwormSQLDatabase:
     """
 
     def __init__(self,dbname=None,
-                 variableFile="files/metadata/jsoncatalog_derived.txt"):
+                 variableFile=".bookworm/metadata/jsoncatalog_derived.txt"):
         """
         You can initialize it with a database name;
         otherwise it defaults to finding a
@@ -141,7 +141,7 @@ class BookwormSQLDatabase:
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
     def setVariables(self,originFile,anchorField="bookid",
-                     jsonDefinition="files/metadata/field_descriptions_derived.json"):
+                     jsonDefinition=".bookworm/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
     def importNewFile(self,originFile,anchorField,jsonDefinition):
@@ -193,7 +193,7 @@ class BookwormSQLDatabase:
 
         db.query("ALTER TABLE words DISABLE KEYS")
         logging.info("loading data using LOAD DATA LOCAL INFILE")
-        db.query("""LOAD DATA LOCAL INFILE 'files/texts/wordlist/wordlist.txt'
+        db.query("""LOAD DATA LOCAL INFILE '.bookworm/texts/wordlist/wordlist.txt'
                    INTO TABLE words
                    CHARACTER SET binary
                    (wordid,word,count) """)
@@ -218,12 +218,12 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
         logging.info("loading data using LOAD DATA LOCAL INFILE")
-        for filename in os.listdir("files/texts/encoded/unigrams"):
+        for filename in os.listdir(".bookworm/texts/encoded/unigrams"):
             if not filename.endswith('.txt'):
                 # Sometimes other files are in there; skip them.
                 continue
             try:
-                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
+                db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
             except:
                 raise
         logging.info("Creating Unigram Indexes")
@@ -240,9 +240,9 @@ class BookwormSQLDatabase:
         count MEDIUMINT UNSIGNED NOT NULL);""")
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         logging.info("loading data using LOAD DATA LOCAL INFILE")
-        for filename in os.listdir("files/texts/encoded/bigrams"):
+        for filename in os.listdir(".bookworm/texts/encoded/bigrams"):
             try:
-                db.query("LOAD DATA LOCAL INFILE 'files/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bigrams CHARACTER SET utf8 (bookid,word1,word2,count);")
+                db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bigrams CHARACTER SET utf8 (bookid,word1,word2,count);")
             except:
                 raise
         logging.info("Creating bigram indexes")
@@ -365,7 +365,7 @@ class BookwormSQLDatabase:
         except:
             logging.warning("WARNING: Not enough info for a default search (like, no time variable maybe?)--likely to be some big problems with your bookworm.")
         output['ui_components'] = ui_components
-        outfile = open('files/%s.json' % dbname, 'w')
+        outfile = open('.bookworm/%s.json' % dbname, 'w')
         outfile.write(json.dumps(output))
 
     def create_API_settings(self):

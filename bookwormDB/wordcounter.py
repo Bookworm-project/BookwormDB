@@ -33,7 +33,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
     writing the least used portions of that to disk; once it's read everything,
     it writes everything to disk, sorts the list of all words so that 
     """
-    database = open('files/texts/wordlist/raw.txt','w')
+    database = open('.bookworm/texts/wordlist/raw.txt','w')
     start_time = timeit.default_timer()
     n = 1
     #When flushing the dictionary to disk, they are kept in memory if there count is
@@ -72,13 +72,13 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
 def sortWordlist(maxDictionaryLength=1000000):
     """
     The function to sort and curtail the wordcounts created by the previous function leaves an unsorted file at
-    `files/texts/wordlist/raw.txt`. We sort this by invoking the system "sort" program, which is likely to be 
+    `.bookworm/texts/wordlist/raw.txt`. We sort this by invoking the system "sort" program, which is likely to be 
     faster than anything pythonic; and then for legacy reasons use a perl program to make the counts, sort again (to put the most common words
     at the top, and then take the top 1,000,000 words.
     """
     logging.info("Sorting full word counts\n")
     #This LC_COLLATE here seems to be extremely necessary, because otherwise alphabetical order isn't preserved across different orderings.
-    subprocess.call(["export LC_COLLATE='C';export LC_ALL='C'; sort -k1 files/texts/wordlist/raw.txt > files/texts/wordlist/sorted.txt"], shell=True)
+    subprocess.call(["export LC_COLLATE='C';export LC_ALL='C'; sort -k1 .bookworm/texts/wordlist/raw.txt > .bookworm/texts/wordlist/sorted.txt"], shell=True)
     
     logging.info("Collapsing word counts\n")
     
@@ -93,9 +93,9 @@ def sortWordlist(maxDictionaryLength=1000000):
             } 
            $last = $1;
            $count += $2
-           } END {print "$last $count\n"}' files/texts/wordlist/sorted.txt > files/texts/wordlist/counts.txt"""], shell=True) 
+           } END {print "$last $count\n"}' .bookworm/texts/wordlist/sorted.txt > .bookworm/texts/wordlist/counts.txt"""], shell=True) 
 
-    subprocess.call(["export LC_ALL='C';export LC_COLLATE='C';sort -nrk2 files/texts/wordlist/counts.txt > files/texts/wordlist/complete.txt"], shell=True)
+    subprocess.call(["export LC_ALL='C';export LC_COLLATE='C';sort -nrk2 .bookworm/texts/wordlist/counts.txt > .bookworm/texts/wordlist/complete.txt"], shell=True)
     # logfile.write("Including the old words first\n")
     oldids = set()
     oldids.add(0)
@@ -107,7 +107,7 @@ def sortWordlist(maxDictionaryLength=1000000):
 
     try:
         i = 1
-        oldFile = open("files/texts/wordlist/wordlist.txt")
+        oldFile = open(".bookworm/texts/wordlist/wordlist.txt")
         for line in oldFile:
             line = line.split('\t')
             wid = int(line[0])
@@ -126,7 +126,7 @@ def sortWordlist(maxDictionaryLength=1000000):
         pass
     newWords = set()
     # logfile.write("writing new ids\n")
-    newlist = open("files/texts/wordlist/complete.txt","r")
+    newlist = open(".bookworm/texts/wordlist/complete.txt","r")
     i = 1
     nextIDtoAssign = max(oldids) + 1
     counts = list()
@@ -145,12 +145,12 @@ def sortWordlist(maxDictionaryLength=1000000):
         if i > maxDictionaryLength:
             break
 
-    output = open("files/texts/wordlist/newwordlist.txt", "w")
+    output = open(".bookworm/texts/wordlist/newwordlist.txt", "w")
     for count in counts:
         output.write(count) #Should just carry over the newlines from earlier.
     
     #Don't overwrite the new file until the old one is complete
-    subprocess.call(["mv", "files/texts/wordlist/newwordlist.txt", "files/texts/wordlist/wordlist.txt"])
+    subprocess.call(["mv", ".bookworm/texts/wordlist/newwordlist.txt", ".bookworm/texts/wordlist/wordlist.txt"])
 
 
 
