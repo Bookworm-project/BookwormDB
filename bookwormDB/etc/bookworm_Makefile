@@ -109,13 +109,15 @@ else
 encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm -l $(logLevel) -d $(database) tokenize encode
 endif
 
+this_makefile := $(lastword $(MAKEFILE_LIST))
+
 .bookworm/targets/encoded: .bookworm/texts/wordlist/wordlist.txt
 #builds up the encoded lists that don't exist yet.
 #I "Make" the catalog files rather than declaring dependency so that changes to 
 #the catalog don't trigger a db rebuild automatically.
-	make -f bookworm_Makefile .bookworm/metadata/jsoncatalog_derived.txt
-	make -f bookworm_Makefile .bookworm/texts/textids.dbm
-	make -f bookworm_Makefile .bookworm/metadata/catalog.txt
+	make -f $(this_makefile) .bookworm/metadata/jsoncatalog_derived.txt
+	make -f $(this_makefile) .bookworm/texts/textids.dbm
+	make -f $(this_makefile) .bookworm/metadata/catalog.txt
 	$(encoder)
 	touch .bookworm/targets/encoded
 

@@ -43,16 +43,10 @@ def run_arguments():
     build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm. This is a wrapper around `Make`;\
     if you specify something far along the line (for instance, the linechart GUI), it will\
     build all prior files as well.""")
+    
+    build_parser.add_argument("target",help="The make that you want to build. To build a full bookworm, type 'build all'. To destroy your bookworm, type 'build pristine'")
 
     # Grep out all possible targets from the Makefile
-    if os.path.exists("bookworm_Makefile"):
-        targets = [re.sub(r":.*\n","",line) for line in open("bookworm_Makefile") if re.search(r"^[^ $]+:[^=]",line)]
-        build_parser.add_argument("target",help="""The file you want to create: to build a complete bookworm, enter 'all'""",choices = targets)
-    else:
-        """
-        There may not be a Makefile if this is the init run.
-        """
-        pass
 
     ############# supplement #################
     supplement_parser = subparsers.add_parser("add_metadata",help="""Supplement the\
@@ -128,7 +122,7 @@ def run_arguments():
     # Not yet implemented.
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
-    init_parser.add_argument("--force","-f",help="Overwrite existing versions of bookworm.cnf, bookworm_Makefile, and so forth: makes it easier to pull in changes to the python package into a local repo.",default=False,action="store_true")
+    init_parser.add_argument("--force","-f",help="Overwrite existing versions of bookworm.cnf, and so forth: makes it easier to pull in changes to the python package into a local repo.",default=False,action="store_true")
     #init_parser.add_argument("--destroy","-d",help="Destroy any existing ")
     # Call the function
     args = parser.parse_args()
@@ -257,13 +251,6 @@ class BookwormManager(object):
         """
         # Create a configuration file
         if not args.force:
-            if os.path.exists("bookworm_Makefile"):
-                logging.error("""
-                Your directory already has a bookworm Makefile.
-                Probably you've already initialized a Bookworm here.
-                """)
-                return
-
             if os.path.exists(".bookworm"):
                 logging.error("""
                 You already have a folder named '.bookworm'.
@@ -271,15 +258,14 @@ class BookwormManager(object):
                 """)
                 return
 
-        if not os.path.exists("bookworm.cnf"):
-            self.configuration()
-            
-        loc = os.path.dirname(bookwormDB.__file__) + "/etc/"
+        self.configuration()
 
         """
         Hardcoding the files we need right here. Not the prettiest solution:
         should potentially just copy the whole tree to the current dir.
-        """
+
+        loc = os.path.dirname(bookwormDB.__file__) + "/etc/"
+
         needed_files={"bookworm_Makefile":"bookworm_Makefile"}
         
         for key,val in needed_files.iteritems():
@@ -290,6 +276,7 @@ class BookwormManager(object):
                 # Create dir if not exists.
                 os.makedirs(os.path.dirname(dst))
             shutil.copyfile(src, dst)
+        """
 
     def query(self,args):
         """
@@ -326,11 +313,15 @@ class BookwormManager(object):
         """
         'Build' is currently a wrapper around 'Make'. We could rewrite
         the make function to wrap this if we wanted to be more pythonic.
+        
+        The makefile lives with the rest of the dist code.
         """
         logLevel=logging.getLevelName(logging.getLogger().getEffectiveLevel())
+        loc = os.path.dirname(bookwormDB.__file__) + "/etc/" + "bookworm_Makefile"
+        logging.debug("Preparing to create " + args.target + " using the makefile at " + loc + "bookworm_Makefile")
         call([
             "make",
-            "-f","bookworm_Makefile",
+            "-f",loc,
             "database=" + self.dbname,
             "logLevel=" + logLevel,
             args.target])
