@@ -11,12 +11,15 @@ The "master" branch is under continuous development: it's likely to be faster an
 
 ## Related projects
 
-This is closely tied to two other projects.
-
-To query the database created here programatically, you should use the Bookworm [API](https://github.com/bookworm-project/BookwormAPI "Bookworm API").
+This builds a database and implements the Bookworm API on particular set of texts.
+There are other projects that 
 
 Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/bookworm-project/BookwormGUI "Bookworm web app"), which runs
 on top of the API. 
+
+
+This is closely tied to two other projects.
+
 
 As of v0.3, all ongoing development has been moved to the `master` branch: those wishing to clone a more stable copy for production may be better off using [the latest release](https://github.com/bookworm-project/BookwormDB/releases), which should be somewhat out of date.
 
@@ -74,7 +77,6 @@ user = foobar
 password = mysecret
 ```
 
-
 With these settings in place, you're ready to begin building a Bookworm. See [the walkthrough](#walkthrough) for a fuller example.
 
 
@@ -82,23 +84,22 @@ With these settings in place, you're ready to begin building a Bookworm. See [th
 
 This distribution also includes two files, general_api.py and SQLapi.py, which together constitute an implementation of the API for Bookworm, written in Python. It primarily implements the API on a MySQL database now, but includes classes for more easily implementing it on top of other platforms (such as Solr).
 
-It is used with the [Bookworm GUI](https://github.com/Bookworm-project/BookwormGUI) and can also be used as a standalone tool to query data from your database.
+It is used with the [Bookworm GUI](https://github.com/Bookworm-project/BookwormGUI) and can also be used as a standalone tool to query data from your database. To run the API in its most basic form, type `bookworm query $string`, where $string is a json-formatted query.
 
-To run the API in its most basic form, type `bookworm query $string`, where $string is a json-formatted query.
+An executable is bundled in the distro at `bookwormdb/bin/dbbindings.py` that, when placed in your cgi-bin folder, will serve the API over to and from the web.
 
 While the point of the command-line tool `bookworm` is generally to *create* a Bookworm, the point of the query API is to retrieve results from it.
-
-The included script dbbindings.py is designed to be run as a cgi module; installing the python script will copy it to your local cgi-bin directory, and allow queries over http. `bookworm serve` will start a server on port 8004. 
 
 For a more interactive explanation of how the GUI works, see the [D3 bookworm browser](http://benschmidt.org/D3/APISandbox)
 
 ### Installing the API.
 
-`sudo python setup.py install` should deposit a copy in an appropriate location on your system (such as `/usr/lib/cgi-bin`). If you are serving from a non-standard location or a program such as apache, you may need to clone that file.
 
-#### OS X caveat.
+On some versions, `sudo python setup.py install` should deposit a copy in an appropriate location on your system (such as `/usr/lib/cgi-bin`).
 
-If using homebrew, the shebang at the beginning of `dbbindings.py` may be incorrect. (It will not load your installed python modules). Change it from `#!/usr/bin/env python` to `#!/usr/local/bin/python`, and it should work.
+If that doesn't work, just run `cp ~/bookwormDB/bin/dbbindings.py /usr/lib/cgi-bin` (exact locations may vary) to place it in the correct place.
+
+If using homebrew on OS X, the shebang at the beginning of `dbbindings.py` may be incorrect. (It will not load your installed python modules). Change it from `#!/usr/bin/env python` to `#!/usr/local/bin/python`, and it should work.
 
 
 Walkthrough
@@ -116,7 +117,7 @@ First off, you need a collection of texts to analyze. Ideally this should be mor
 > To download the congress data, Matt Nicklay has put together a script in another repo that will download everything you'll need. Clone that repo and run `get_and_unzip_data.py` to fetch and unzip the data:
 
 > ```
-> git clone git://github.com/econpy/congress_api
+> git clone git://github.com/bmschmidt/congress_api
 > cd congress_api
 > python get_and_unzip_data.py
 > ```
@@ -126,54 +127,55 @@ First off, you need a collection of texts to analyze. Ideally this should be mor
 
 ## Prep to Build Bookworm ##
 
-If you haven't already, clone this repo and make a few directories where we'll put some files:
+If you haven't already, install this repo on your system.
 
 ```
 git clone git://github.com/Bookworm-project/BookwormDB
-cd BookwormDB
-mkdir -p files/{metadata,texts/raw}
+python setup.py
 ```
 
 ### Required Files ###
 
-To build a bookworm, files are required in three places. Relative to the root directory (which will be called `BookwormDB` 
-if you clone this repo directly), they are all in a subdirectory called `files`. When you've built them all, it will look like this:
+To build a bookworm, you need to build three files in the directory you plan to use. You can have whatever other files you want in the root directory. But these three names are reserved for bookworm use.
 
 ```
-BookwormDB/
- -- files/
-  | -- texts/
-  |  | input.txt <-----  A single file, each line of which is a text ID, a tab, and then the
-  |  |                   full text of the document with tabs and newlines replaced by spaces.       
-  |  | raw/  <---------  Alternate format: directory with text files.
-  | -- metadata/
-  |  | -- jsoncatalog.txt
-  |  | -- field_descriptions.json
-
+congress/
+  | input.txt
+  | jsoncatalog.txt
+  | field_descriptions.json
 ```
 
+#### Required files 1: input.txt:
 
-#### Required files 1: Raw Text files:
+The first is slightly more complicated than it appears.
+It contains the various files you'll be reading in as unicode text.
+These can be input in one of three ways.
 
-These can be input in one of two ways.
+The first, which will be faster in most cases, is as a *single file*.
 
-The first, which will be faster in most cases, is as a *single file*. In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
+* `input.txt`
+
+In this format, each line consists of the file's unique identifier, followed by a tab, followed by the **full text** of that file. Note that you'll have to strip out all newlines and returns from original documents. In the event that an identifier is used twice, behavior is undefined.
 
 By changing the makefile, you can also do some more complex substitutions. (See the metadata parsers for an example of a Bookworm that directly reads hierarchical, bzipped directories without decompressing first).
 
+**Format 2** is as a directory of files:
 
-The second is as a directory of files:
-*  `files/texts/raw`
-This folder should contain a uniquely named .txt file for every item in your collection of texts 
-that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key
-should include the full path to the file (but not the trailing '.txt').
+*  `input/`
+
+This folder should contain a uniquely named .txt file for every item in your collection of texts that you want to build a bookworm around. The files may be stored in subdirectories: if so, their identifier key should include the full path to the file (but not the trailing '.txt'). (NOTE: this is currently unimplemented)
 
 
-> To build the congress API, Fill `files/texts/raw/` with .txt files containing the raw text from summaries of bills introduced into Congress. Each .txt file must be uniquely named and contain the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a .txt file in `files/texts/raw/`. Included in the [congress_api](http://github.com/econpy/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and all the .txt files: Run it as follows:
+**Format 3** is as a shell script named
 
+*  `input_script`
+
+That script when executed, should out a stream formatted the same as input.txt. In some cases, this will allow you to save a lot disk space and/or time. It must be executable and have a shebang on the first line designating the interpreter. (NOTE: currently unimplemented). 
+
+> To build the congress API, we must create an `input.txt` file with raw text from summaries of bills introduced into Congress. Each line contains a unique ID and the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a line in input.txt. Included in the [congress_api](http://github.com/bmschmidt/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and the `input.txt` file.
 
 > ```
-> cd ../congress_api
+> cd congress_api
 > python congress_parser.py
 > ```
 
@@ -192,11 +194,11 @@ In addition to the metadata you choose, two fields are required:
 
 #### Required Files 3: Metadata about the metadata.
 
-Now create a file in the `files/metadata/` folder called `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`.
+Now create a file in the `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`.
 
 Currently, you **do** have to include a `searchstring` definition in this, but **should not** include a filename definition.
 
-> For the Congress demo, copy the following JSON object into `files/metadata/field_descriptions.json`:
+> For the Congress demo, copy the following JSON object into `field_descriptions.json`:
 
 > ```json
 > [
@@ -213,22 +215,36 @@ Currently, you **do** have to include a `searchstring` definition in this, but *
 
 ## Running ##
 
-For a first run, you just want to use `make` to create the entire database (if you want to rebuild parts of a large bookworm--the metadata, for example--that is also possible.)
+For a first run, you just want to use `bookworm init` to create the entire database (if you want to rebuild parts of a large bookworm--the metadata, for example--that is also possible.)
 
 ```
-make all
+bookworm init
 ```
 
+This will walk you through the process of choosing a name for your database.
 
-> For the demo, that would look like this:
+Then to build the bookworm, type
+
+```
+bookworm build all
+```
+
+> For the demo, that still looks like this.
 
 > ```
-> make all bookwormName=bookwormcongress
+> bookworm init
 > ```
 
 > The database **bookwormcongress** will be created if it does not exist.
 
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
+
+Finally, you may want to set up a GUI.
+
+```
+bookworm build linechartGUI
+```
+
 
 ### General Workflow ###
 For reference, the general workflow of the Makefile is the following:
