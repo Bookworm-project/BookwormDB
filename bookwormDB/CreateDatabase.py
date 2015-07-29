@@ -67,7 +67,8 @@ class DB:
                 logging.error("Forcing default engine failed. On some versions of Mysql,\
                 you may need to add \"default-storage-engine=MYISAM\" manually\
                 to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
-                self.connect(setengine=False)                
+                self.connect(setengine=False) 
+        logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
 
@@ -122,6 +123,7 @@ class BookwormSQLDatabase:
         self.conn = None
 
         self.db = DB(dbname=self.dbname)
+        
         if variableFile is not None:
             self.setVariables(originFile=variableFile)
 
@@ -292,6 +294,7 @@ class BookwormSQLDatabase:
             try:
                 cursor = self.db.query("SELECT count(*) FROM %s" %(tablename))
                 currentLength = cursor.fetchall()[0][0]
+                logging.debug("Current Length is %d" %currentLength)
             except:
                 currentLength = 0
             if currentLength==0 or force:
