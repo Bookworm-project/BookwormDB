@@ -15,14 +15,14 @@ def DaysSinceZero(dateobj):
 def ParseFieldDescs():
     global fields_to_derive
     global fields
-    f = open('files/metadata/field_descriptions.json', 'r')
+    f = open('.bookworm/metadata/field_descriptions.json', 'r')
     try:
         fields = json.loads(f.read())
     except ValueError:
         raise ValueError("Error parsing JSON: Check to make sure that your field_descriptions.json file is valid?")
     f.close()
 
-    derivedFile = open('files/metadata/field_descriptions_derived.json', 'w')
+    derivedFile = open('.bookworm/metadata/field_descriptions_derived.json', 'w')
     output = []
 
     for field in fields:
@@ -53,9 +53,9 @@ def ParseFieldDescs():
 def ParseJSONCatalog(target="default",source = "default"):
     global fields_to_derive
     if target=="default":
-        target=open("files/metadata/jsoncatalog_derived.txt", "w")
+        target=open(".bookworm/metadata/jsoncatalog_derived.txt", "w")
     if source=="default":
-        source = open("files/metadata/jsoncatalog.txt", "r")
+        source = open(".bookworm/metadata/jsoncatalog.txt", "r")
         
     f = target
     for data in source:

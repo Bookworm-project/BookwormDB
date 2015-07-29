@@ -45,7 +45,7 @@ def writeWordIDs(featurefile, sep=None):
             comma-delimiting. 
     """
     
-    output = open("files/texts/wordlist/wordlist.txt","w")
+    output = open(".bookworm/texts/wordlist/wordlist.txt","w")
     wordcounts = dict()
     for line in featurefile:
         (bookid,word,count) = line.split(sep)

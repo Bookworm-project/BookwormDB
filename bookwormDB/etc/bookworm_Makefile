@@ -23,38 +23,38 @@ database:=$(shell grep database bookworm.cnf | sed 's/.* = //g')
 webDirectory=/var/www/
 webSite = $(addsuffix database,webDirectory)
 
-all: bookworm.cnf files/targets files/targets/database
+all: bookworm.cnf .bookworm/targets .bookworm/targets/database
 
 bookworm.cnf:
 	bookworm prep configuration
 
 #These are all directories that need to be in place for the other scripts to work properly
-files/targets: 
+.bookworm/targets: 
 #"-building needed directories"
-	@mkdir -p files/texts
-	@mkdir -p files/texts/encoded/{unigrams,bigrams,trigrams,completed}
-	@mkdir -p files/texts/{textids,wordlist}
-	@mkdir -p files/targets
+	@mkdir -p .bookworm/texts
+	@mkdir -p .bookworm/texts/encoded/{unigrams,bigrams,trigrams,completed}
+	@mkdir -p .bookworm/texts/{textids,wordlist}
+	@mkdir -p .bookworm/targets
 
 # A "make clean" removes most things created by the bookworm,
 # but keeps the database and the registry of text and wordids
 
 clean:
 #Remove inputs.txt if it's a pipe.
-	find files/texts -maxdepth 1 -type p -delete
-	rm -rf files/texts/encoded/*/*
-	rm -rf files/targets
-	rm -f files/metadata/catalog.txt
-	rm -f files/metadata/jsoncatalog_derived.txt
-	rm -f files/metadata/field_descriptions_derived.json
+	find .bookworm/texts -maxdepth 1 -type p -delete
+	rm -rf .bookworm/texts/encoded/*/*
+	rm -rf .bookworm/targets
+	rm -f .bookworm/metadata/catalog.txt
+	rm -f .bookworm/metadata/jsoncatalog_derived.txt
+	rm -f .bookworm/metadata/field_descriptions_derived.json
 
 # Make 'pristine' is a little more aggressive
 # This can be dangerous, but lets you really wipe the slate.
 
 pristine: clean
 	-mysql -e "DROP DATABASE $(database)"
-	rm -rf files/texts/textids
-	rm -rf files/texts/wordlist/*
+	rm -rf .bookworm/texts/textids
+	rm -rf .bookworm/texts/wordlist/*
 
 # The wordlist is an encoding scheme for words: it tokenizes in parallel, and should
 # intelligently update an exist vocabulary where necessary. It takes about half the time
@@ -65,25 +65,25 @@ pristine: clean
 # from elsewhere. If so, we use Peter Organisciak's fast_featurecounter.sh on that, instead.
 
 ifneq ("$(wildcard ../unigrams.txt)","")
-wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) files/texts/wordlist/sorted.txt; head -1000000 files/texts/wordlist/sorted.txt > files/texts/wordlist/wordlist.txt
+wordlistBuilder=scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) .bookworm/texts/wordlist/sorted.txt; head -1000000 .bookworm/texts/wordlist/sorted.txt > .bookworm/texts/wordlist/wordlist.txt
 else
 wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe bookworm -l $(logLevel) -d $(database) tokenize token_stream | bookworm -l $(logLevel) -d $(database) tokenize word_db
 endif
 
-files/texts/wordlist/wordlist.txt:
+.bookworm/texts/wordlist/wordlist.txt:
 	$(wordlistBuilder)
 
 # This invokes OneClick on the metadata file to create a more useful internal version
-# (with parsed dates) and to create a lookup file for textids in files/texts/textids
+# (with parsed dates) and to create a lookup file for textids in .bookworm/texts/textids
 
-files/metadata/jsoncatalog_derived.txt: files/metadata/jsoncatalog.txt files/metadata/field_descriptions.json
+.bookworm/metadata/jsoncatalog_derived.txt: .bookworm/metadata/jsoncatalog.txt .bookworm/metadata/field_descriptions.json
 #Run through parallel as well.
-	cat files/metadata/jsoncatalog.txt | parallel --pipe bookworm -l $(logLevel) -d $(database) prep catalog_metadata > $@
+	cat .bookworm/metadata/jsoncatalog.txt | parallel --pipe bookworm -l $(logLevel) -d $(database) prep catalog_metadata > $@
 
 
 # In addition to building files for ingest.
 
-files/metadata/catalog.txt:
+.bookworm/metadata/catalog.txt:
 	bookworm -l $(logLevel) -d $(database) prep preDatabaseMetadata
 
 # This is the penultimate step: creating a bunch of tsv files 
@@ -91,7 +91,7 @@ files/metadata/catalog.txt:
 # and word IDs that MySQL can slurp right up.
 
 # This could be modified to take less space/be faster by using named pipes instead
-# of pre-built files inside the files/targets/encoded files: it might require having
+# of pre-built files inside the .bookworm/targets/encoded files: it might require having
 # hundreds of blocked processes simultaneously, though, so I'm putting that off for now.
 
 # The tokenization script dispatches a bunch of parallel processes to bookworm/tokenizer.py,
@@ -109,31 +109,31 @@ else
 encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm -l $(logLevel) -d $(database) tokenize encode
 endif
 
-files/targets/encoded: files/texts/wordlist/wordlist.txt
+.bookworm/targets/encoded: .bookworm/texts/wordlist/wordlist.txt
 #builds up the encoded lists that don't exist yet.
 #I "Make" the catalog files rather than declaring dependency so that changes to 
 #the catalog don't trigger a db rebuild automatically.
-	make -f bookworm_Makefile files/metadata/jsoncatalog_derived.txt
-	make -f bookworm_Makefile files/texts/textids.dbm
-	make -f bookworm_Makefile files/metadata/catalog.txt
+	make -f bookworm_Makefile .bookworm/metadata/jsoncatalog_derived.txt
+	make -f bookworm_Makefile .bookworm/texts/textids.dbm
+	make -f bookworm_Makefile .bookworm/metadata/catalog.txt
 	$(encoder)
-	touch files/targets/encoded
+	touch .bookworm/targets/encoded
 
 # The database is the last piece to be built: this invocation of OneClick.py
 # uses the encoded files already written to disk, and loads them into a database.
-# It also throws out a few other useful files at the end into files/
+# It also throws out a few other useful files at the end into .bookworm/
 
-files/targets/database: files/targets/database_wordcounts files/targets/database_metadata 
+.bookworm/targets/database: .bookworm/targets/database_wordcounts .bookworm/targets/database_metadata 
 	touch $@
 
-files/texts/textids.dbm: files/texts/textids files/metadata/jsoncatalog_derived.txt files/metadata/catalog.txt
+.bookworm/texts/textids.dbm: .bookworm/texts/textids .bookworm/metadata/jsoncatalog_derived.txt .bookworm/metadata/catalog.txt
 	bookworm -l $(logLevel) -d $(database) prep text_id_database
 
-files/targets/database_metadata: files/targets/encoded files/texts/wordlist/wordlist.txt files/targets/database_wordcounts files/metadata/jsoncatalog_derived.txt files/metadata/catalog.txt 
+.bookworm/targets/database_metadata: .bookworm/targets/encoded .bookworm/texts/wordlist/wordlist.txt .bookworm/targets/database_wordcounts .bookworm/metadata/jsoncatalog_derived.txt .bookworm/metadata/catalog.txt 
 	bookworm -l $(logLevel) -d $(database) prep database_metadata
 	touch $@
 
-files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wordlist.txt
+.bookworm/targets/database_wordcounts: .bookworm/targets/encoded .bookworm/texts/wordlist/wordlist.txt
 	bookworm -l $(logLevel) -d $(database) prep database_wordcounts
 	touch $@
 
@@ -143,16 +143,16 @@ files/targets/database_wordcounts: files/targets/encoded files/texts/wordlist/wo
 $(webDirectory)/$(database):
 	git clone https://github.com/Bookworm-project/BookwormGUI $@
 
-linechartGUI: $(webDirectory)/$(database) files/$(database).json
-	cp files/$(database).json $</static/options.json
+linechartGUI: $(webDirectory)/$(database) .bookworm/$(database).json
+	cp .bookworm/$(database).json $</static/options.json
 
 ### Some defaults to make it easier to clone this directory in:
 
 
 
-files/metadata/jsoncatalog.txt:
+.bookworm/metadata/jsoncatalog.txt:
 # First look for the file in the current directory: then in one directory below.
-	@mkdir -p files/metadata
+	@mkdir -p .bookworm/metadata
 	@if [ -f ../jsoncatalog.txt ]; then \
 		ln -sf ../../../jsoncatalog.txt $@; \
 	fi
@@ -162,9 +162,8 @@ files/metadata/jsoncatalog.txt:
 
 
 
-files/metadata/field_descriptions.json:
-	@mkdir -p files/metadata
-	mkdir -p files/metadata
+.bookworm/metadata/field_descriptions.json:
+	@mkdir -p .bookworm/metadata
 	@if [ -f ../field_descriptions.json ]; then \
 		ln -sf ../../../field_descriptions.json $@; \
 	fi

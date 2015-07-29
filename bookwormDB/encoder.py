@@ -27,8 +27,8 @@ if __name__=="__main__":
     toEncode = []
     for file in passedList:
         basename = re.sub(".*/","",file)
-        if not os.path.exists("files/texts/encoded/unigrams/"+basename + ".txt"):
-            if not os.path.exists("files/texts/encoded/bigrams/"+basename + ".txt"):
+        if not os.path.exists(".bookworm/texts/encoded/unigrams/"+basename + ".txt"):
+            if not os.path.exists(".bookworm/texts/encoded/bigrams/"+basename + ".txt"):
                 toEncode.append(file)
     logging.info("preparing to encode " + str(len(toEncode)) + " files" + " out of " + \
         str(len(passedList)))

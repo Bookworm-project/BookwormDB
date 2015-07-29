@@ -214,7 +214,7 @@ class BookwormManager(object):
         
         if args.process=="text_stream":
             if args.file is None:
-                for file in ["files/texts/input.txt","input.txt","../input.txt","files/texts/raw"]:
+                for file in [".bookworm/texts/input.txt","input.txt","../input.txt",".bookworm/texts/raw"]:
                     if os.path.exists(file):
                         args.file = file
                         break
@@ -255,13 +255,10 @@ class BookwormManager(object):
                 """)
                 return
 
-            if os.path.exists("files"):
+            if os.path.exists(".bookworm"):
                 logging.error("""
-                You already have a folder named 'files'. Bookworm needs that
-                space for itself. (Sorry, we intend to find something less
-                bland soon--but given that you're using it too, you showing
-                any umbrage is kind of the kettle calling the pot black).
-                Please rename your "files" folder and try again.
+                You already have a folder named '.bookworm'.
+                Probably you've already initialized a Bookworm here.
                 """)
                 return
 
@@ -345,7 +342,7 @@ class BookwormManager(object):
     def text_id_database(self):
         """
         This function is defined in Create Database.
-        It builds a file at files/texts/textids.dbm
+        It builds a file at .bookworm/texts/textids.dbm
         """
         text_id_dbm()
         
@@ -359,14 +356,14 @@ class BookwormManager(object):
 
     def guessAtFieldDescriptions(self):
         Bookworm = BookwormSQLDatabase(self.dbname,variableFile=None)
-        Bookworm.setVariables("files/metadata/jsoncatalog.txt",jsonDefinition=None)
+        Bookworm.setVariables(".bookworm/metadata/jsoncatalog.txt",jsonDefinition=None)
         import os
-        if not os.path.exists("files/metadata/field_descriptions.json"):
-            output = open("files/metadata/field_descriptions.json","w")
+        if not os.path.exists(".bookworm/metadata/field_descriptions.json"):
+            output = open(".bookworm/metadata/field_descriptions.json","w")
             output.write(json.dumps(Bookworm.variableSet.guessAtFieldDescriptions()))
         else:
             logging.error("""
-            You already have a file at files/metadata/field_descriptions.json
+            You already have a file at .bookworm/metadata/field_descriptions.json
             Dying rather than overwrite it.
             """)
             exit

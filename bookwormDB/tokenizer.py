@@ -39,14 +39,14 @@ bigregex = None
 
 def readDictionaryFile(prefix=""):
     look = dict()
-    for line in open(prefix + "files/texts/wordlist/wordlist.txt"):
+    for line in open(prefix + ".bookworm/texts/wordlist/wordlist.txt"):
         line = line.rstrip("\n")
         splat = line.split("\t")
         look[splat[1]] = splat[0]
     return look
 
 def readIDfile(prefix=""):
-    return anydbm.open(prefix + "files/texts/textids.dbm")
+    return anydbm.open(prefix + ".bookworm/texts/textids.dbm")
 
 class tokenBatches(object):
     """
@@ -66,10 +66,10 @@ class tokenBatches(object):
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
-        self.completedFile = open("files/texts/encoded/completed/" + self.id,"w")
+        self.completedFile = open(".bookworm/texts/encoded/completed/" + self.id,"w")
         self.outputFiles = dict()
         for level in levels:
-            self.outputFiles[level] = open("files/texts/encoded/" + level + "/" + self.id + ".txt","w")
+            self.outputFiles[level] = open(".bookworm/texts/encoded/" + level + "/" + self.id + ".txt","w")
     
     def attachDictionaryAndID(self):
         self.dictionary = readDictionaryFile()
@@ -242,7 +242,7 @@ def getAlreadySeenList(folder):
     return seen
 
 def encode_text_stream():
-    seen = getAlreadySeenList("files/texts/encoded/completed")
+    seen = getAlreadySeenList(".bookworm/texts/encoded/completed")
     tokenBatch = tokenBatches()
     tokenBatch.attachDictionaryAndID()
     for line in sys.stdin:

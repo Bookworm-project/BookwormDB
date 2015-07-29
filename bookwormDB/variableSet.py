@@ -52,17 +52,17 @@ class textids(dict):
 
     def __init__(self):
         try:
-            subprocess.call(['mkdir','files/texts/textids'])
+            subprocess.call(['mkdir','.bookworm/texts/textids'])
         except:
             pass
-        filelists = os.listdir("files/texts/textids")
+        filelists = os.listdir(".bookworm/texts/textids")
         numbers = [0]
         for filelist in filelists:
-            for line in open("files/texts/textids/%s" % filelist):
+            for line in open(".bookworm/texts/textids/%s" % filelist):
                 parts = line.replace('\n', '').split("\t")
                 self[parts[1]] = int(parts[0])
                 numbers.append(int(parts[0]))
-        self.new = open('files/texts/textids/new', 'a')
+        self.new = open('.bookworm/texts/textids/new', 'a')
         self.max = max(numbers)
 
     def bump(self,newFileName):
@@ -160,7 +160,7 @@ class dataField:
         else:
             self.table = self.field + "Disk"
             self.fasttab = self.field + "heap"
-            self.outputloc = "files/metadata/%s.txt" % self.field
+            self.outputloc = ".bookworm/metadata/%s.txt" % self.field
 
     def slowSQL(self, withIndex=False):
         """
@@ -219,7 +219,7 @@ class dataField:
         dfield = self;
 
         if fileLocation == "default":
-            fileLocation = "files/metadata/" + dfield.field + ".txt"
+            fileLocation = ".bookworm/metadata/" + dfield.field + ".txt"
 
         logging.info("Making a SQL table to hold the data for " + dfield.field)
 
@@ -427,7 +427,7 @@ mySQLreservedWords = set(["ACCESSIBLE", "ADD", "ALL", "ALTER", "ANALYZE", "AND",
             
 class variableSet:
     def __init__(self,
-                originFile="files/metadata/jsoncatalog_derived.txt",
+                originFile=".bookworm/metadata/jsoncatalog_derived.txt",
                 anchorField="bookid",
                 jsonDefinition=None,
                 db=None):
@@ -445,7 +445,7 @@ class variableSet:
             self.jsonDefinition = json.loads(open(jsonDefinition,"r").read())
 
         self.setTableNames()
-        self.catalogLocation = "files/metadata/" + self.tableName + ".txt"
+        self.catalogLocation = ".bookworm/metadata/" + self.tableName + ".txt"
 
 
         self.variables = []
@@ -465,7 +465,7 @@ class variableSet:
         For the base case, they're catalog and fastcat: otherwise, it's just they key
         and the first variable associated with it.
         """
-        if self.originFile == "files/metadata/jsoncatalog_derived.txt":
+        if self.originFile == ".bookworm/metadata/jsoncatalog_derived.txt":
             self.tableName = "catalog"
             self.fastName = "fastcat"
             
