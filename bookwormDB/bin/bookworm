@@ -257,8 +257,11 @@ class BookwormManager(object):
                 Probably you've already initialized a Bookworm here.
                 """)
                 return
+        if args.force:
+            self.configuration()
 
-        self.configuration()
+        if not os.path.exists("bookworm.cnf"):
+            self.configuration()
 
         """
         Hardcoding the files we need right here. Not the prettiest solution:
