@@ -3,7 +3,7 @@ from distutils.core import setup
 
 def figure_out_cgi_directory():
     """
-    Try to place the cgi-scripts in a cgi dir; if that fails, bomb out to /tmp and then the curren t directory.
+    Try to place the cgi-scripts in a cgi dir; if that fails, bomb out to the current directory.
     """
     for dir in ["/usr/lib/cgi-bin","/Library/WebServer/CGI-Executables/","var/www/cgi-bin","/tmp","."]:
         if os.path.exists(dir):
@@ -16,5 +16,5 @@ setup(name='bookwormDB',
       description="Create, deploy, and serve a Bookworm instance.",
       package_data={'bookwormDB':['etc/*']},
       # Copy the cgi-executable to a cgi-dir.
-#      data_files = [(cgi_directory,["dbbindings.py"])]
+      data_files = [(cgi_directory,["dbbindings.py"])]
 )
