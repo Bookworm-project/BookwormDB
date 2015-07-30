@@ -4,24 +4,30 @@ metadata and lexical data in the original source.
 
 A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bookworm-project.github.io/Docs) on this repository (editable at the repo [here](https://github.com/Bookworm-project/Docs)).
 
-Releases
----------------------
 
-The "master" branch is under continuous development: it's likely to be faster and incorporate the latest bugfixes, but will also tend to incorporate the latest bugs. The most recent tagged version (currently 0.3 alpha) may be a good replacement.
+# Installation
+
+1. Download the latest release, either by cloning this git repo or downloading a zip.
+2. Navigate to the folder in the terminal, and type `python setup.py install`.
+   * If `/usr/bin` or `/usr/lib/cgi-bin` is not writeable by your account,
+     you may need to type `sudo python setup.py install` 
+3. Type `bookworm --help` to confirm the executable has worked. If this doesn't work, file
+   a bug report.
+
+## Releases
+
+The "master" branch is under continuous development: it's likely to be faster and incorporate the latest bugfixes,
+but will also tend to incorporate the latest bugs. The most recent tagged version (currently 0.3 alpha)
+may be a good replacement.
 
 ## Related projects
 
 This builds a database and implements the Bookworm API on particular set of texts.
-There are other projects that 
 
-Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/bookworm-project/BookwormGUI "Bookworm web app"), which runs
-on top of the API. 
+Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/bookworm-project/BookwormGUI "Bookworm web app"), which runs on top of the API. 
 
-
-This is closely tied to two other projects.
-
-
-As of v0.3, all ongoing development has been moved to the `master` branch: those wishing to clone a more stable copy for production may be better off using [the latest release](https://github.com/bookworm-project/BookwormDB/releases), which should be somewhat out of date.
+A more wide-ranging set of visualizations is available built on top of D3 in the [Bookworm D3 package](http://github.com/bmschmidt/BookwormD3).
+If you're looking to develop on top of Bookworm, that presents a much more flexible set of tools.
 
 ## Bookworms ##
 Here are a couple of Bookworms built using [BookwormDB](https://github.com/bookworm-project/BookwormDB "Bookworm"):
@@ -34,11 +40,12 @@ Here are a couple of Bookworms built using [BookwormDB](https://github.com/bookw
 
 ## Getting Started ##
 
-
 ### Required MySQL Database ###
 
-At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
+The hardest part about setting up Bookworm is properly configuring the MySQL installation. Since this is a web application.
+The easiest way to test out Bookworm on your home computer may be to use a [preconfigured VM](http://github.com:bookworm-project/bookwormVM). 
 
+At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
 The easiest way to handle this is to have a user with root access defined in your system-wide MySQL configuration files.
 
 This creates a bit of a security risk, though, so we recommend 2 MySQL users: an admin user with the ability to create new databases (i.e. GRANT ALL) and a second user that is only able to select data from databases (i.e. GRANT SELECT). This is for security: your data is safer if the web user can't modify it at all.
