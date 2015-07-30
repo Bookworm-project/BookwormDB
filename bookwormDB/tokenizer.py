@@ -136,7 +136,10 @@ class tokenBatches(object):
                     output.append("\t".join([textid,wordids,str(count)]))
 
             try:
-                outputFile.write("\n".join(output) + "\n")        
+                if len(output) > 0:
+                    # The test is necessary because otherwise this prints a blank line.
+                    outputFile.write("\n".join(output) + "\n")
+                
             except IOError, e:
                 logging.exception(e)
 
