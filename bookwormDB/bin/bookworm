@@ -24,9 +24,15 @@ def run_arguments():
     """
     Parse the command line arguments and run them.
 
+    The actual running is handled by an instance of the class `BookwormManager`,
+    which calls all bookworm-related arguments; that, in turn, calls some specific
+    methods to make things happen (the most important of which is the `BookwormDB`
+    class, which is in charge of MySQL calls).
+    
     I apologize for how ugly and linear this code is: it's not clear to me
     how to write pretty modular code with the argparse module.
-    Refactoring pulls welcome.
+    You just end up with a bunch of individual add argument lines that are full of random text.
+    Refactoring pull requests welcome.
     """
 
     parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm")
@@ -212,12 +218,10 @@ class BookwormManager(object):
         
         if args.process=="encode":
             bookwormDB.tokenizer.encode_text_stream()
-
-
         
         if args.process=="text_stream":
             if args.file is None:
-                for file in [".bookworm/texts/input.txt","input.txt","../input.txt",".bookworm/texts/raw"]:
+                for file in ["input.txt",".bookworm/texts/input.txt","../input.txt",".bookworm/texts/raw"]:
                     if os.path.exists(file):
                         args.file = file
                         break
