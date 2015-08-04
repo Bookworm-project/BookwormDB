@@ -122,11 +122,18 @@ def run_arguments():
     # Not yet implemented.
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
-    init_parser.add_argument("--force","-f",help="Overwrite existing versions of bookworm.cnf, and so forth: makes it easier to pull in changes to the python package into a local repo.",default=False,action="store_true")
-    #init_parser.add_argument("--destroy","-d",help="Destroy any existing ")
+    init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
+
+
+    # Configure the global server.
+
+    configure_parser = subparsers.add_parser("config",help="Some helpers to configure a running bookworm, or to manage your server-wide configuration.")
+    configure_parser.add_argument("target",help="The thing you want help configuring.",choices=["mysql"])
+    configure_parser.add_argument("--users",nargs="+",choices=["admin","global","root"],help="The user levels you want to act on.",default=["admin","global"])
+    configure_parser.add_argument("--force","-f",help="Overwrite existing configurations in potentially bad ways.",action="store_true",default=False)
+
     # Call the function
     args = parser.parse_args()
-
     # Set the logging level based on the input.
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):
@@ -201,6 +208,11 @@ class BookwormManager(object):
             # Passed in dbname takes precedence over config file.
             self.dbname = database
 
+    def config(self,args):
+        if args.target=="mysql":
+            import bookwormDB.fix_config 
+            bookwormDB.fix_config.reconfigure_passwords(args.users,args.force)
+            
     def tokenize(self,args):
 
         """
