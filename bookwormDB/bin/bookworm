@@ -13,8 +13,7 @@ import shutil
 
 # These libraries define the Bookworm-specific methods.
 
-from bookwormDB.MetaParser import *
-from bookwormDB.CreateDatabase import *
+import bookwormDB.CreateDatabase
 import bookwormDB.tokenizer
 import bookwormDB.wordcounter
 
@@ -46,7 +45,8 @@ def run_arguments():
 
 
     ############# build #################
-    build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm. This is a wrapper around `Make`;\
+    build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm.\
+    This is a wrapper around `Make`;\
     if you specify something far along the line (for instance, the linechart GUI), it will\
     build all prior files as well.""")
     
@@ -305,6 +305,7 @@ class BookwormManager(object):
         """
         Creates (or updates) an extension
         """
+        
         if not os.path.exists("extensions"):
             os.makedirs("extensions")
         my_extension = Extension(args)
@@ -337,15 +338,17 @@ class BookwormManager(object):
             "database=" + self.dbname,
             "logLevel=" + logLevel,
             args.target])
-    
+        
     def diskMetadata(self):
+        import bookwormDB.MetaParser
         logging.info("Parsing field_descriptions.json")
-        ParseFieldDescs()
+        bookwormDB.MetaParser.ParseFieldDescs()
         logging.info("Parsing jsoncatalog.txt")
-        ParseJSONCatalog()
+        bookwormDB.MetaParser.ParseJSONCatalog()
         
     def preDatabaseMetadata(self):
-        Bookworm = BookwormSQLDatabase()
+        import bookwormDB.CreateDatabase
+        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         logging.info("Writing metadata to new catalog file...")
         Bookworm.variableSet.writeMetadata()
 
@@ -356,7 +359,8 @@ class BookwormManager(object):
         This function is defined in Create Database.
         It builds a file at .bookworm/texts/textids.dbm
         """
-        text_id_dbm()
+        import bookwormDB.CreateDatabase
+        bookwormDB.CreateDatabase.text_id_dbm()
         
     def metadata(self):
         self.diskMetadata()
@@ -367,7 +371,7 @@ class BookwormManager(object):
         parse_initial_catalog()
 
     def guessAtFieldDescriptions(self):
-        Bookworm = BookwormSQLDatabase(self.dbname,variableFile=None)
+        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
         Bookworm.setVariables(".bookworm/metadata/jsoncatalog.txt",jsonDefinition=None)
         import os
         if not os.path.exists(".bookworm/metadata/field_descriptions.json"):
@@ -383,7 +387,7 @@ class BookwormManager(object):
         dbnames = [self.dbname]
         if args.all==True:
             dbnames = []
-            datahandler = BookwormSQLDatabase(self.dbname,variableFile=None)
+            datahandler = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
             cursor = datahandler.db.query("SELECT TABLE_SCHEMA FROM information_schema.tables WHERE TABLE_NAME='masterTableTable'")
             for row in cursor.fetchall():
                 dbnames.append(row[0])
@@ -392,7 +396,7 @@ class BookwormManager(object):
 
         for database in dbnames:
             logging.debug("Reloading memory tables for %s" %database)
-            Bookworm = BookwormSQLDatabase(database,variableFile=None)
+            Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
     def configuration(self):
@@ -400,7 +404,7 @@ class BookwormManager(object):
         bookwormDB.configuration.create()
             
     def database_metadata(self):
-        Bookworm = BookwormSQLDatabase(self.dbname)
+        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
         Bookworm.load_book_list()
 
         # This creates a table in the database that makes the results of
@@ -421,7 +425,7 @@ class BookwormManager(object):
         Bookworm.grantPrivileges()
 
     def add_metadata(self,args):
-        Bookworm=BookwormSQLDatabase(self.dbname,None)
+        Bookworm=bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
 
         anchorField = args.key
         if args.format=="tsv":
@@ -438,7 +442,7 @@ class BookwormManager(object):
         Builds the wordcount components of the database. This will die
         if you can't connect to the database server.
         """
-        Bookworm = BookwormSQLDatabase()
+        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         Bookworm.load_word_list()
         Bookworm.create_unigram_book_counts()
         Bookworm.create_bigram_book_counts()
@@ -453,7 +457,7 @@ class BookwormManager(object):
         Do some things to update old databases to the newest version.
         This should always be safe to run, but may do more than diagnostics.
         """
-        datahandler = BookwormSQLDatabase(self.dbname)
+        datahandler = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
         cursor = datahandler.db.query("CREATE DATABASE IF NOT EXISTS bookworm_scratch")
         cursor = datahandler.db.query("GRANT ALL ON bookworm_scratch.* TO '%s'@'localhost' IDENTIFIED BY '%s'" %(self.dbuser,self.dbpassword))
         #Just to be safe
