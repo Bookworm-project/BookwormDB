@@ -1,5 +1,6 @@
 import os
-from distutils.core import setup
+from setuptools import setup
+
 
 def figure_out_cgi_directory():
     """
@@ -11,10 +12,34 @@ def figure_out_cgi_directory():
 
 setup(name='bookwormDB',
       packages=["bookwormDB"],
-      version='1.0.0a',
+      version='0.4.0',
       scripts=["bookwormDB/bin/bookworm"],
+      data_files = [(figure_out_cgi_directory(),["bookwormDB/bin/dbbindings.py"])],
       description="Create, deploy, and serve a Bookworm instance.",
+      long_description = open("README.rst").readlines(),
       package_data={'bookwormDB':['etc/*']},
+      url="http://github.com/Bookworm-Project",
+      author="Benjamin Schmidt",
+      author_email="b.schmidt@neu.edu",
+      license="MIT",
       # Copy the cgi-executable to a cgi-dir.
-      data_files = [(figure_out_cgi_directory(),["bookwormDB/bin/dbbindings.py"])]
+      classifiers=[
+        'Development Status :: 4 - Beta',
+
+        'Intended Audience :: Developers',
+        'Intended Audience :: Education',
+        "Natural Language :: English",
+        # Pick your license as you wish (should match "license" above)
+        'License :: OSI Approved :: MIT License',
+        "Operating System :: Unix",
+        # Specify the Python versions you support here. In particular, ensure
+        # that you indicate whether you support Python 2, Python 3 or both.
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        "Topic :: Sociology :: History",
+        "Topic :: Text Processing :: Indexing",
+        "Topic :: Text Processing :: Linguistic"
+        ],
+      install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil"]
+      
 )
