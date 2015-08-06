@@ -4,7 +4,7 @@
 all: README.rst
 
 README.rst: README.md
-	pandoc -o $@
+	pandoc -o $@ $<
 
 clean:
 	rm -rf dist
