@@ -152,6 +152,45 @@ class BookwormManager(object):
         caller = SQLAPIcall(query)
         print caller.execute()
         
+    def serve(self,args):
+
+        import CGIHTTPServer
+        from BaseHTTPServer import HTTPServer
+        import shutil
+
+        base_dir = args.dir
+        base_cgi_dir = os.path.normpath(base_dir + "/" + "cgi-bin")
+        d3_dir = os.path.normpath(base_dir + "/" + "D3")
+        for dir in [base_dir,base_cgi_dir]:
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+                
+        API = os.path.normpath(os.path.dirname(bookwormDB.__file__) + "/bin/dbbindings.py")
+        if not os.path.exists(base_cgi_dir + "/" + API):
+            shutil.copy(API, base_cgi_dir)
+        
+        if not os.path.exists(d3_dir):
+            call(["git","clone","http://github.com/bmschmidt/BookwormD3",d3_dir])
+
+        # Use the Makefile to build the linechartGUI. This is a little Rube Goldberg-y.
+        args.target="linechartGUI"
+        self.build(args)
+        
+        os.chdir(base_dir)
+        # Actually serve it.
+        PORT = args.port
+
+        httpd = HTTPServer(("", PORT), CGIHTTPServer.CGIHTTPRequestHandler)
+
+        print "\n\n" + "****"*20
+        print "A local bookworm server is now running"
+        print "You can now view some charts in a web-browser at http://localhost:%d/D3" % PORT
+        print "If you have a time variable, linecharts are at http://localhost:%d/%s" % (PORT,self.dbname)
+        print "Please note that this is not a very secure way: if you plan to put your bookworm"
+        print "on the open web, consider using apache."
+        httpd.serve_forever()
+
+        
     def extension(self,args):
         """
         Creates (or updates) an extension
@@ -183,12 +222,17 @@ class BookwormManager(object):
         logLevel=logging.getLevelName(logging.getLogger().getEffectiveLevel())
         loc = os.path.dirname(bookwormDB.__file__) + "/etc/" + "bookworm_Makefile"
         logging.debug("Preparing to create " + args.target + " using the makefile at " + loc + "bookworm_Makefile")
-        call([
+        make_args = [
             "make",
             "-f",loc,
             "database=" + self.dbname,
-            "logLevel=" + logLevel,
-            args.target])
+            "logLevel=" + logLevel
+            ]
+        if args.action == "serve":
+            make_args.append("webDirectory=" + args.dir)
+            
+        make_args.append(args.target)
+        call(make_args)
         
     def diskMetadata(self):
         import bookwormDB.MetaParser
