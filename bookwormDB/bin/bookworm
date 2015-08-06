@@ -59,7 +59,7 @@ def run_arguments():
         default="json",type=str.lower,choices=["tsv","json"])
 
     supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
-    supplement_parser.add_argument("--field_descriptions",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
+    supplement_parser.add_argument("--field_descriptions","-d",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
 
     
     ######### Reload Memory #############

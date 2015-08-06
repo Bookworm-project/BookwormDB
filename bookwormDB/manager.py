@@ -286,15 +286,17 @@ class BookwormManager(object):
     def add_metadata(self,args):
         import bookwormDB.CreateDatabase
         import bookwormDB.convertTSVtoJSONarray
-        Bookworm=bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
+        bookworm=bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
         anchorField = args.key
         if args.format=="tsv":
             # TSV is just converted into JSON in a file at tmp.txt, and slurped in that way.
             if args.key is None:
-                anchor = open(args.filename).readline().split("\t")[0]
-            bookwormDB.convertTSVtoJSONarray.convertToJSON(filename)
+                anchor = open(args.file).readline().split("\t")[0]
+            bookwormDB.convertTSVtoJSONarray.convertToJSON(args.file)
             args.file="tmp.txt"
-        Bookworm.importNewFile(args.file,anchorField=args.key,jsonDefinition=field_descriptions)
+        bookworm.importNewFile(args.file,
+                               anchorField=args.key,
+                               jsonDefinition=args.field_descriptions)
 
 
     def database_wordcounts(self):
