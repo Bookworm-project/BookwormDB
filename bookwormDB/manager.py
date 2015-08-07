@@ -71,14 +71,14 @@ class BookwormManager(object):
         
         if args.process=="text_stream":
             if args.file is None:
-                for file in ["input.txt",".bookworm/texts/input.txt","../input.txt",".bookworm/texts/raw"]:
+                for file in ["input.txt",".bookworm/texts/input.txt","../input.txt",".bookworm/texts/raw","input.sh"]:
                     if os.path.exists(file):
                         args.file = file
                         break
                 if args.file is None:
                     # One of those should have worked.
-                    raise IOError("Unable to find an input.txt file in a default location")
-                
+                    raise IOError("Unable to find an input.txt or input.sh file in a default location")
+            
             if os.path.isdir(args.file):
                 for (root,dirs,files) in os.walk(args.file): 
                     for name in files:
@@ -86,10 +86,14 @@ class BookwormManager(object):
                         content = open(path).read().replace("\n"," ").replace("\t"," ").replace("\r"," ")
                         identity = path.replace(args.file,"").replace(".txt","").strip("/")
                         print identity + "\t" + content
-            else:
+            elif os.path.exists(args.file) and (args.file.endswith(".sh")):
+                logging.debug("Attempting to print text stream by executing " + args.file)
+                Popen(["./" + args.file])
+            elif os.path.exists(args.file):
                 # I really don't care about useless use of cat here; processor overhead is being lost elsewhere.
                 Popen(["cat", args.file])
-                
+            else:
+                raise IOError("No input file found.")
         if args.process=="token_stream":
             bookwormDB.tokenizer.print_token_stream()
 
