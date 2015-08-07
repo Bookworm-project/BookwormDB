@@ -1,5 +1,8 @@
 import unittest
 import bookwormDB
+import logging
+
+logging.basicConfig(level=10)
 
 class Bookworm_SQL_Creation(unittest.TestCase):
 
