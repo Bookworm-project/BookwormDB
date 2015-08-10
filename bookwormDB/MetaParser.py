@@ -3,6 +3,7 @@ import datetime
 import dateutil.parser
 import json
 import sys
+import logging
 
 fields_to_derive = []
 fields = []
@@ -174,8 +175,13 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 time = int(inttime/7)*7
                                 #Not starting on Sunday or anything funky like that. Actually, I don't know what we're starting on. Adding an integer here would fix that.
                                 line[k] = time
+                            elif derive['resolution'] == 'day':
+                                k = "%s_day" % field['field']
+                                dt = date(intent[0], intent[1], intent[2])
+                                inttime = DaysSinceZero(dt)
+                                line[k] = inttime
                             else:
-                                sys.stderr.write('Resolution currently not supported.\n')
+                                logging.warning('Resolution %s currently not supported.' %(derive['resolution']))
                                 continue
                     except ValueError:
                         # One of out a million Times articles threw this with
