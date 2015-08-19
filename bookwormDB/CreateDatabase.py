@@ -35,11 +35,17 @@ def text_id_dbm():
     """
     dbm = anydbm.open(".bookworm/texts/textids.dbm","c")
     for file in os.listdir(".bookworm/texts/textids"):
-        for line in open(".bookworm/texts/textids/" + file):        
+        for line in open(".bookworm/texts/textids/" + file):
             line = line.rstrip("\n")
             splat = line.split("\t")
-            dbm[splat[1]] = splat[0]
-        
+            try:
+                dbm[splat[1]] = splat[0]
+            except IndexError:
+                if line=="":
+                    # It's OK to have a blank line, let's say.
+                    continue
+                else:
+                    raise
 class DB:
     def __init__(self,dbname=None):
         config = ConfigParser.ConfigParser(allow_no_value=True)
