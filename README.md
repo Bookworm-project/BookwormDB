@@ -15,7 +15,8 @@ A quick walkthrough is included below: other documentation is at [bookworm.cultu
 
 ## Releases
 
-**As of September 2015, this is now bundled as a python module for installation. Bookworms built under 0.3 can be manipulated using the new server-side API; but if you want to stay on the old version, checkout the version from branch 0.3.1.**
+**The master branch contains the latest changes, and may be buggy. As of September 2015, version 0.4 now bundled as a python module for installation. Bookworms built under 0.3 can be manipulated using the new server-side API; but if you want to stay on the old version, checkout the version from branch 0.3.1; it may be more stable in certain cases. You *can* run the two branches alongside each other.**
+
 
 ## Related projects
 
