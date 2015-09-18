@@ -60,8 +60,12 @@ class textids(dict):
         for filelist in filelists:
             for line in open(".bookworm/texts/textids/%s" % filelist):
                 parts = line.replace('\n', '').split("\t")
-                self[parts[1]] = int(parts[0])
-                numbers.append(int(parts[0]))
+                if len(parts)==2:
+                    # Allowing terminal newline. 
+                    self[parts[1]] = int(parts[0])
+                    numbers.append(int(parts[0]))
+
+                    
         self.new = open('.bookworm/texts/textids/new', 'a')
         self.max = max(numbers)
 

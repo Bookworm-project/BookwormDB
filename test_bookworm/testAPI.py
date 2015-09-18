@@ -21,7 +21,7 @@ class Bookworm_SQL_Creation(unittest.TestCase):
     which isn't strictly necessary for a bookworm to be built.
     """
 
-    def mtest_bookworm_creation(self):
+    def test_bookworm_creation(self):
         """
         Creates a test bookworm. Removes any existing databases called "federalist_bookworm"
         """
@@ -110,7 +110,8 @@ class Bookworm_SQL_Creation(unittest.TestCase):
             field_descriptions = None # Test the guessing at field_descriptions while we're at it
         import os
         os.chdir("/tmp/federalist/federalist-bookworm-master")
-        manager.add_metadata(Dummy)            
+        manager.add_metadata(Dummy)
+        self.assertTrue(1==1)
 
     def test_metadata_addition_can_be_retrieved(self):
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
@@ -121,13 +122,16 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         query = {
                 "database":"federalist_bookworm",
                 "search_limits":{},
-                "counttype":"TextPercent",
+                "counttype":"TextCount",
                 "groups":["oddness"],
                 "method":"return_json"
         }
         
         m = json.loads(SQLAPIcall(query).execute())
+        # Even or odd is one of two things.
         self.assertTrue(len(m)==2)
+        # Since the first paragraph is even, there should be more of those.
+        self.assertTrue(m['odd'][0]>=m['even'][0])
 
         
         

@@ -26,6 +26,14 @@ class BookwormManager(object):
     def __init__(self,cnf_file="bookworm.cnf",database=None,user=None,password=None):
         # This will likely be changed if it isn't None.
         import ConfigParser
+
+        self.basedir = None
+        for i in range(10):
+            basedir = "../"*i
+            if os.path.exists(basedir + ".bookworm"):
+                self.basedir = basedir
+            if self.basedir==None:
+                logging.debug("No bookworm directory found; proceeding on nonetheless.")
         
         self.dbname=database
 
@@ -200,9 +208,9 @@ class BookwormManager(object):
         Creates (or updates) an extension
         """
         
-        if not os.path.exists("extensions"):
-            os.makedirs("extensions")
-        my_extension = Extension(args)
+        if not os.path.exists(self.basedir + ".bookworm/extensions"):
+            os.makedirs(self.basedir + ".bookworm/extensions")
+        my_extension = Extension(args,basedir = self.basedir)
         my_extension.clone_or_pull()
         my_extension.make()
         
@@ -412,9 +420,9 @@ class Extension(object):
     they are build using `make`.
     """
 
-    def __init__(self,args):
+    def __init__(self,args,basedir="./"):
         self.args = args
-        self.dir = "extensions/" + re.sub(".*/","",self.args.url)
+        self.dir = basedir + ".bookworm/extensions/" + re.sub(".*/","",self.args.url)
         
     def clone_or_pull(self):
         if not os.path.exists(self.dir):
