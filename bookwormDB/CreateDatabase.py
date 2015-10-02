@@ -158,11 +158,14 @@ class BookwormSQLDatabase:
         anchorField is the field in the existing dataset it should be anchored onto;
         jsonDefinition is a filename pointing to a file
         of the format of field_descriptions.json describing the new data to ingest.
+        If it is of type None, then one will be guessed at.
         """
         self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition)
         self.variableSet.writeMetadata()
         self.load_book_list()
         self.variableSet.updateMasterVariableTable()
+        for variable in self.variableSet.variables:
+            variable.clear_associated_memory_tables()
         self.reloadMemoryTables()
 
     def create_database(self):
@@ -410,6 +413,8 @@ class BookwormSQLDatabase:
     def addCategoricalFromFile(self,filename,unique=False):
         """
         No longer used: delete this code block.
+
+        Instead, use self.importNewFile()
         """
         file = open(filename)
         firstTwo = file.readline().split("\t")

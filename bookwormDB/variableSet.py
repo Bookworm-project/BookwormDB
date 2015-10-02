@@ -260,7 +260,9 @@ class dataField:
         """
         self.engine = engine
         if self.datatype == 'categorical':
+            logging.debug("Creating a memory lookup table for " + self.field)
             self.setIntType()
+
             self.maxlength = self.dbToPutIn.query("SELECT MAX(CHAR_LENGTH(%(field)s)) FROM %(field)s__id" % self.__dict__)
             self.maxlength = self.maxlength.fetchall()[0][0]
             self.maxlength = max([self.maxlength,1])
@@ -394,9 +396,28 @@ class dataField:
         self.idCode = "%s__id" % self.field
         return returnt
 
+    def clear_associated_memory_tables(self):
+        """
+        Remove all data from memory tables associated with this variable.
+        Useful when refreshing the database.
+        """
+        db = self.dbToPutIn
+        def exists(tablename):
+            return len(db.query("SHOW TABLES LIKE '" + tablename + "'").fetchall())>0
+        if exists(self.fasttab):
+            logging.debug("DELETING FROM " + self.fasttab)
+            self.dbToPutIn.query("DELETE FROM " + self.fasttab)
+        if not self.unique:
+            if exists(self.field+"heap"):
+                self.dbToPutIn.query("DELETE FROM " + self.field + "heap")
+        if self.datatype=="categorical":
+            if exists(self.field+"Lookup"):
+                self.dbToPutIn.query("DELETE FROM " + self.field+"Lookup")
+            
     def updateVariableDescriptionTable(self):
         self.memoryCode = self.fastLookupTableIfNecessary()
-        code = """INSERT IGNORE INTO masterVariableTable
+        code = """DELETE FROM masterVariableTable WHERE dbname="%(field)s";
+        INSERT INTO masterVariableTable
         (dbname,     name,      type,       tablename,     anchor,      alias,     status,description)
            VALUES
         ('%(field)s','%(field)s','%(type)s','%(finalTable)s','%(anchor)s','%(alias)s','%(status)s','') """ % self.__dict__
@@ -410,10 +431,12 @@ class dataField:
             except:
                 parentTab="fastcat"
             self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' % (self.field + "heap"))     
-            self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"heap",parentTab,escape_string(code)))
+            self.dbToPutIn.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"heap",parentTab,escape_string(code)))
         if self.datatype=="categorical":
             #Variable Info
+            
             code = """
+            DELETE FROM masterVariableTable WHERE dbname='%(field)s__id';
             INSERT IGNORE INTO masterVariableTable
                     (dbname,     name,      type,       tablename,
                       anchor,      alias,     status,description)
@@ -424,7 +447,7 @@ class dataField:
             #Separate Table Info
             code = self.fastLookupTableIfNecessary()
             self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %(self.field + "Lookup"))
-            self.dbToPutIn.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
+            self.dbToPutIn.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
 
 
 mySQLreservedWords = set(["ACCESSIBLE", "ADD", "ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE", "BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHANGE", "CHAR", "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE", "CONVERT", "CREATE", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURSOR", "DATABASE", "DATABASES", "DAY_HOUR", "DAY_MICROSECOND", "DAY_MINUTE", "DAY_SECOND", "DEC", "DECIMAL", "DECLARE", "DEFAULT", "DELAYED", "DELETE", "DESC", "DESCRIBE", "DETERMINISTIC", "DISTINCT", "DISTINCTROW", "DIV", "DOUBLE", "DROP", "DUAL", "EACH", "ELSE", "ELSEIF", "ENCLOSED", "ESCAPED", "EXISTS", "EXIT", "EXPLAIN", "FALSE", "FETCH", "FLOAT", "FLOAT4", "FLOAT8", "FOR", "FORCE", "FOREIGN", "FROM", "FULLTEXT", "GENERAL", "GRANT", "GROUP", "HAVING", "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_MINUTE", "HOUR_SECOND", "IF", "IGNORE", "IGNORE_SERVER_IDS", "IN", "INDEX", "INFILE", "INNER", "INOUT", "INSENSITIVE", "INSERT", "INT", "INT1", "INT2", "INT3", "INT4", "INT8", "INTEGER", "INTERVAL", "INTO", "IS", "ITERATE", "JOIN", "KEY", "KEYS", "KILL", "LEADING", "LEAVE", "LEFT", "LIKE", "LIMIT", "LINEAR", "LINES", "LOAD", "LOCALTIME", "LOCALTIMESTAMP", "LOCK", "LONG", "LONGBLOB", "LONGTEXT", "LOOP", "LOW_PRIORITY", "MASTER_HEARTBEAT_PERIOD[c]", "MASTER_SSL_VERIFY_SERVER_CERT", "MATCH", "MAXVALUE", "MEDIUMBLOB", "MEDIUMINT", "MEDIUMTEXT", "MIDDLEINT", "MINUTE_MICROSECOND", "MINUTE_SECOND", "MOD", "MODIFIES", "NATURAL", "NOT", "NO_WRITE_TO_BINLOG", "NULL", "NUMERIC", "ON", "OPTIMIZE", "OPTION", "OPTIONALLY", "OR", "ORDER", "OUT", "OUTER", "OUTFILE", "PRECISION", "PRIMARY", "PROCEDURE", "PURGE", "RANGE", "READ", "READS", "READ_WRITE", "REAL", "REFERENCES", "REGEXP", "RELEASE", "RENAME", "REPEAT", "REPLACE", "REQUIRE", "RESIGNAL", "RESTRICT", "RETURN", "REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SCHEMAS", "SECOND_MICROSECOND", "SELECT", "SENSITIVE", "SEPARATOR", "SET", "SHOW", "SIGNAL", "SLOW[d]", "SMALLINT", "SPATIAL", "SPECIFIC", "SQL", "SQLEXCEPTION", "SQLSTATE", "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "SSL", "STARTING", "STRAIGHT_JOIN", "TABLE", "TERMINATED", "THEN", "TINYBLOB", "TINYINT", "TINYTEXT", "TO", "TRAILING", "TRIGGER", "TRUE", "UNDO", "UNION", "UNIQUE", "UNLOCK", "UNSIGNED", "UPDATE", "USAGE", "USE", "USING", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP", "VALUES", "VARBINARY", "VARCHAR", "VARCHARACTER", "VARYING", "WHEN", "WHERE", "WHILE", "WITH", "WRITE", "XOR", "YEAR_MONTH", "ZEROFILL"])
@@ -440,11 +463,14 @@ class variableSet:
         self.anchorField = anchorField
         self.originFile=originFile
         self.jsonDefinition=jsonDefinition
+        logging.debug(jsonDefinition)
+            
         if jsonDefinition==None:
             #Make a guess, why not?
             logging.warning("""No field_descriptions file specified, so guessing based on variable names.
             Unintended consequences are possible""")
             self.jsonDefinition=self.guessAtFieldDescriptions()
+            jsonDefinition=self.jsonDefinition
         else:
             self.jsonDefinition = json.loads(open(jsonDefinition,"r").read())
 
@@ -487,6 +513,7 @@ class variableSet:
         allMyKeys = dict()
         i=1
         unique = True
+
         for line in open(self.originFile):
             i += 1
             entry = json.loads(line)
@@ -508,6 +535,7 @@ class variableSet:
             if i > stopAfter:
                 break
         myOutput = []
+
         for metadata in allMyKeys:
             bestGuess = guessBasedOnNameAndContents(metadata,allMyKeys[metadata])
             if unique==False:
@@ -541,7 +569,7 @@ class variableSet:
             except:
                 if anchor in ["bookid","filename"]:
                     fastAnchor="bookid"
-                logging.warn("Unable find an alias in the DB for anchor" + anchor + "\n\n")
+                logging.warning("Unable find an alias in the DB for anchor" + anchor + "\n\n")
             self.fastAnchor=fastAnchor
             if fastAnchor != anchor:
                 results = db.query("SELECT * FROM %sLookup;" % (anchor))
@@ -721,7 +749,6 @@ class variableSet:
         fileCommand += "DROP TABLE IF EXISTS %s;\n" % self.fastName
         fileCommand += "RENAME TABLE tmp TO %s;\n" % self.fastName        
         return fileCommand
-
     
     def updateMasterVariableTable(self):
         """
@@ -751,7 +778,7 @@ class variableSet:
                     logging.error("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
                     raise
             self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.fastName)
-            self.db.query("INSERT IGNORE INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))
+            self.db.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))
     
     def createNwordsFile(self):
         """
