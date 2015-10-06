@@ -420,37 +420,3 @@ class BookwormSQLDatabase:
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
                 z = cursor.execute(query)
 
-    def addCategoricalFromFile(self,filename,unique=False):
-        """
-        No longer used: delete this code block.
-
-        Instead, use self.importNewFile()
-        """
-        file = open(filename)
-        firstTwo = file.readline().split("\t")
-        name = firstTwo[1].rstrip("\n")
-        anchor = firstTwo[0]
-        definition = {"field":name,"datatype":"categorical","type":"character","unique":False}
-
-        #Currently the anchortype has to be a MediumInt.
-        #That's a little inefficient if joining on a smaller document..
-        anchorType = "MEDIUMINT"
-
-        thisField = dataField(definition,
-                              self.db,
-                              anchorType,
-                              anchor=firstTwo[0],
-                              table=definition["field"]+"Disk",
-                              fasttab=definition["field"] + "Heap")
-
-        thisField.buildDiskTable(fileLocation=filename)
-
-        thisField.buildLookupTable()
-
-        self.db.query(thisField.updateVariableDescriptionTable())
-
-        query = "SELECT memoryCode FROM masterVariableTable WHERE name='%s'" % (name)
-        logging.debug(query)
-        commands = self.db.query(query).fetchall()[0][0];
-        for query in splitMySQLcode(commands):
-            self.db.query(query)
