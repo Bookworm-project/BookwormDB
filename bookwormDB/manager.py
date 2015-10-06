@@ -356,7 +356,7 @@ class BookwormManager(object):
         if args.format=="tsv":
             # TSV is just converted into JSON in a file at tmp.txt, and slurped in that way.
             if args.key is None:
-                anchor = open(args.file).readline().split("\t")[0]
+                args.key = open(args.file).readline().split("\t")[0]
             bookwormDB.convertTSVtoJSONarray.convertToJSON(args.file)
             args.file="tmp.txt"
         bookworm.importNewFile(args.file,
