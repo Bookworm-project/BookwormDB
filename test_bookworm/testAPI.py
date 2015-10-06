@@ -111,13 +111,14 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         import os
         os.chdir("/tmp/federalist/federalist-bookworm-master")
         manager.add_metadata(Dummy)
-        self.assertTrue(1==1)
 
-    def test_metadata_addition_can_be_retrieved(self):
+        """
+        And then we test if that can be retrieved
+        """
+
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         import os
-        os.chdir("/tmp/federalist/federalist-bookworm-master")
                 
         query = {
                 "database":"federalist_bookworm",
@@ -126,15 +127,17 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "groups":["oddness"],
                 "method":"return_json"
         }
-        
+        SQLAPIcall(query)
         m = json.loads(SQLAPIcall(query).execute())
         # Even or odd is one of two things.
         self.assertTrue(len(m)==2)
-        # Since the first paragraph is even, there should be more of those.
+        # Since the first paragraph is even,
+        # there should be more of those.
+        
         self.assertTrue(m['odd'][0]>=m['even'][0])
 
         
-        
+"""        
 class SQLConnections(unittest.TestCase):
     
         
@@ -157,6 +160,8 @@ class SQLConnections(unittest.TestCase):
             worked = False
 
         self.assertTrue(worked)
+"""
 
+        
 if __name__=="__main__":
     unittest.main()
