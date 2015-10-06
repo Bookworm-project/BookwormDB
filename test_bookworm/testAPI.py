@@ -7,6 +7,7 @@ logging.basicConfig(level=10)
 class Bookworm_SQL_Creation(unittest.TestCase):
 
     def test_server_connection(self):
+        logging.info("\n\nTESTING SERVER CONNECTION\n\n")
         """
         Connect to MySQL and run a simple query.
         """
@@ -21,20 +22,45 @@ class Bookworm_SQL_Creation(unittest.TestCase):
     which isn't strictly necessary for a bookworm to be built.
     """
 
+    def test_config_files(self):
+        logging.info("\n\nTESTING CONFIG FILE ACCESS\n\n")
+        def test_config_file(conf):
+            user = conf.get("client","user")
+            pw = conf.get("client","password")
+
+        global_configuration_file = bookwormDB.configuration.Configfile("global").config
+        admin_configuration_file = bookwormDB.configuration.Configfile("admin").config
+
+        test_config_file(global_configuration_file)
+        test_config_file(admin_configuration_file)
+
+
     def test_bookworm_creation(self):
         """
         Creates a test bookworm. Removes any existing databases called "federalist_bookworm"
         """
-        
+        logging.info("\n\nTESTING BOOKWORM CREATION\n\n")
         import MySQLdb
         from warnings import filterwarnings
         filterwarnings('ignore', category = MySQLdb.Warning)
         
         import bookwormDB.CreateDatabase
         db = bookwormDB.CreateDatabase.DB(dbname="mysql")
-        if len(db.query("SHOW DATABASES LIKE 'federalist_bookworm'").fetchall()) > 0:
+        try:
             db.query("DROP DATABASE federalist_bookworm")
-
+        except MySQLdb.OperationalError as e:
+            if e[0]==1008:
+                pass
+            else:
+                raise
+        except Exception, e:
+            """
+            This is some weird MariaDB exception. It sucks that I'm compensating for it here.
+            """
+            if e[0]=="Cannot load from mysql.proc. The table is probably corrupted":
+                pass
+            else:
+                logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
         from subprocess import call as call
 
         from urllib2 import urlopen, URLError, HTTPError
@@ -55,8 +81,14 @@ class Bookworm_SQL_Creation(unittest.TestCase):
             zip = zipfile.ZipFile(r'/tmp/federalist.zip')  
             zip.extractall(r'/tmp/federalist')
 
+        import bookwormDB.configuration
+            
+        globalc = bookwormDB.configuration.Configfile("global").config
+        password = globalc.get("client","password")
+        user = globalc.get("client","user")
+
         with open("/tmp/federalist/federalist-bookworm-master/bookworm.cnf","w") as output:
-            output.write("""[client]\ndatabase = federalist_bookworm\nuser=\npassword=\n""")
+            output.write("""[client]\ndatabase = federalist_bookworm\nuser=%s\npassword=%s\n""" % (user,password))
             # This doesn't worry about client-side passwords.
 
         call(["make"],shell=True,cwd="/tmp/federalist/federalist-bookworm-master")
@@ -67,8 +99,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         # we change the tokenization rules or miscellaneous things about encoding.
         self.assertTrue(wordCount>100000)
 
-        
-    def test_api(self):
+        """
+        Then we test whether the API can make queries on that bookworm.
+        """
+
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -83,7 +117,9 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         m = json.loads(SQLAPIcall(query).execute())
         self.assertTrue(len(m)==5)
 
-    def test_metadata_addition_posts(self):
+        """
+        And then we test if we can add metadata to the bookworm.
+        """
         
         from bookwormDB.manager import BookwormManager
         manager = BookwormManager(database="federalist_bookworm")
