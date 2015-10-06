@@ -13,7 +13,11 @@ def figure_out_cgi_directory():
 setup(name='bookwormDB',
       packages=["bookwormDB"],
       version='0.4.0',
-      scripts=["bookwormDB/bin/bookworm"],
+      entry_points={
+            'console_scripts': [
+                'bookworm = bookwormDB.manager:run_arguments'
+            ],
+      },
       data_files = [(figure_out_cgi_directory(),["bookwormDB/bin/dbbindings.py"])],
       description="Create, deploy, and serve a Bookworm instance.",
       long_description = open("README.rst").readlines(),

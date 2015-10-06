@@ -5,6 +5,7 @@ import logging
 import sys
 import os
 import bookwormDB
+import argparse
 
 """
 Some modules, especially bookworm-specific ones,
@@ -437,3 +438,149 @@ class Extension(object):
         Popen(["make"],cwd=self.dir)
         
 # Initiate MySQL connection.
+
+
+# Pull a method from command line input.
+
+def run_arguments():
+    """
+    Parse the command line arguments and run them.
+
+    The actual running is handled by an instance of the class `BookwormManager`,
+    which calls all bookworm-related arguments; that, in turn, calls some specific
+    methods to make things happen (the most important of which is the `BookwormDB`
+    class, which is in charge of MySQL calls).
+    
+    I apologize for how ugly and linear this code is: it's not clear to me
+    how to write pretty modular code with the argparse module.
+    You just end up with a bunch of individual add argument lines that are full of random text.
+    Refactoring pull requests welcome.
+    """
+
+    parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm")
+    parser.add_argument("--configuration","-c",help="The name of the configuration file to read options from: by default, 'bookworm.cnf' in the current directory.", default="bookworm.cnf")
+    parser.add_argument("--database","-d",help="The name of the bookworm database in MySQL to connect to: by default, read from the active configuration file.", default=None)
+
+    parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
+
+    # Use subparsers to have an action syntax, like git.
+    subparsers = parser.add_subparsers(title="action",help='The commands to run with Bookworm',dest="action")
+
+
+    ############# build #################
+    build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm.\
+    This is a wrapper around `Make`;\
+    if you specify something far along the line (for instance, the linechart GUI), it will\
+    build all prior files as well.""")
+    
+    build_parser.add_argument("target",help="The make that you want to build. To build a full bookworm, type 'build all'. To destroy your bookworm, type 'build pristine'")
+
+    # Grep out all possible targets from the Makefile
+
+    ############# supplement #################
+    supplement_parser = subparsers.add_parser("add_metadata",help="""Supplement the\
+    metadata with new items. They can be keyed to any field already in the database.""")
+    supplement_parser.add_argument("-f","--file",help="""The location of a file with additional metadata to incorporate into your bookworm.""",required=True)
+        
+    supplement_parser.add_argument(
+        "--format",
+        help="""The file format of the new metadata.\
+        Must be "json" or "tsv". For JSON, the format is the same as the default\
+        jsoncatalog.txt (a text file of json lines, each corresponding to a metadata field);\
+        for TSV, a tsv with first line of which is column names,\
+        and the first column of which is shared key (like filename). The TSV format,\
+        particularly without field descriptions, is much easier to use, but doesn't\
+        permit multiple values for the same key.""",
+        default="json",type=str.lower,choices=["tsv","json"])
+
+    supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
+    supplement_parser.add_argument("--field_descriptions","-d",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
+
+    
+    ######### Reload Memory #############
+    memory_tables_parser = subparsers.add_parser("reload_memory",help="Reload the memory\
+    tables for the designated Bookworm; this must be done after every MySQL restart")
+    memory_tables_parser.add_argument("--force-reload",dest="force",action="store_true",
+                                      help="Force reload on all memory tables. Use\
+                                      '--skip-reload' for faster execution. On by default\
+                                      .")
+    memory_tables_parser.add_argument("--skip-reload",dest="force",action="store_false",
+                                      help="Don't reload memory tables which have at least\
+                                      one entry in them. Significantly faster, but may produce\
+                                      bad results if the underlying tables have been\
+                                      changed. Good for maintenance, bad for actively updated\
+                                      installations.")
+    memory_tables_parser.set_defaults(force=False)
+    memory_tables_parser.add_argument("--all",action="store_true",default=False,
+                                      help="Search for all bookworm installations on\
+                                      the server, and reload memory tables for each of them.")
+
+
+    ########## Clone and run extensions
+    extensions_parser = subparsers.add_parser("extension", help="Install Extensions to the current directory")
+    extensions_parser.add_argument("url",help="A cloneable url for the extension you want to pul: passed as an argument to 'git clone,' so may be either using the https protocol or the git protocol")
+
+
+    ########## Clone and run extensions
+    extensions_parser = subparsers.add_parser("query", help="Run a query using the Bookworm API")
+    extensions_parser.add_argument("APIcall",help="The json-formatted query to be run.")
+
+
+    
+    ### Handle tokenization
+    tokenization_parser = subparsers.add_parser("tokenize", help="tokenize (and optionally, encode) text. Requires a stream to stdin as input.")
+    tokenization_subparsers = tokenization_parser.add_subparsers(title="process",help='The part of the subparser to run: see help for more details.',dest="process")
+    encode_parser = tokenization_subparsers.add_parser("encode",
+                                     help="Encode according to the stored numeric IDs.")
+    text_stream_parser = tokenization_subparsers.add_parser("text_stream",
+                                                            help="Print text from various sources to stdout in a standard form.")
+    text_stream_parser.add_argument("--file","-f",help="location of a formatted input file: leave blank for sensible defaults as described in the documentation.",default=None)
+    
+    token_stream_parser = tokenization_subparsers.add_parser("token_stream",
+                                                            help="Turn input from text_stream into delimited list of tokens using standard tokenization rules.")
+    token_stream_parser.add_argument("--token-regex","-t",
+        help="Regular expression defining tokens. Not currently implemented")
+
+    word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
+    ########## Build components
+    extensions_parser = subparsers.add_parser("prep", help="Build individual components: primarily used by the Makefile.")
+    extensions_parser.add_argument("goal",help="The name of the target.")
+
+    """
+    Some special functions
+    """
+    # Not yet implemented.
+    
+    init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
+    init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
+
+
+    # Serve the current bookworm
+    serve_parser = subparsers.add_parser("serve",help="Launch a webserver on the current bookworm. This is much easier than configuring apache, but considerably less secure.")
+    serve_parser.add_argument("--port","-p",default="8005",help="The port over which to serve the bookworm",type=int)
+    serve_parser.add_argument("--dir","-d",default="http_server",help="A filepath for a directory to serve from. Will be created if it does not exist.")
+    
+    # Configure the global server.
+    configure_parser = subparsers.add_parser("config",help="Some helpers to configure a running bookworm, or to manage your server-wide configuration.")
+    configure_parser.add_argument("target",help="The thing you want help configuring.",choices=["mysql"])
+    configure_parser.add_argument("--users",nargs="+",choices=["admin","global","root"],help="The user levels you want to act on.",default=["admin","global"])
+    configure_parser.add_argument("--force","-f",help="Overwrite existing configurations in potentially bad ways.",action="store_true",default=False)
+
+    # Call the function
+    args = parser.parse_args()
+    # Set the logging level based on the input.
+    numeric_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level)
+    # While we're at it, log with line numbers
+
+    FORMAT = "[%(filename)s:%(lineno)s - %(funcName)25s() ] %(message)s"
+    logging.basicConfig(format=FORMAT)
+
+    # Create the bookworm 
+    my_bookworm = BookwormManager(args.configuration,args.database)
+
+    # Call the current action with the arguments passed in.
+    getattr(my_bookworm,args.action)(args)
+    
