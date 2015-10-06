@@ -48,8 +48,18 @@ def text_id_dbm():
                     raise
 class DB:
     def __init__(self,dbname=None):
-        config = ConfigParser.ConfigParser(allow_no_value=True)
-        config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
+        from bookwormDB.configuration import Configfile
+        try:
+            configuration = Configfile("local")
+            logging.debug("Connecting from the local config file")
+        except IOError:
+            try:
+                configuration = Configfile("global")
+                logging.debug("No bookworm.cnf in local file: connecting from global defaults")
+            except IOError:
+                configuration = Configfile("admin")
+                logging.debug("No bookworm.cnf in local file: connecting from admin defaults")
+        config = configuration.config
         if dbname==None:
             self.dbname = config.get("client","database")
         else:
@@ -84,7 +94,7 @@ class DB:
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
         the connection and starts up nicely again.
         """
-        logging.debug(sql)
+        logging.debug(" -- Preparing to execute SQL code -- " + sql)
         try:
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -94,7 +104,7 @@ class DB:
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
             except:
-                #sys.stderr.write("Query failed: \n" + sql + "\n")
+                logging.error("Query failed: \n" + sql + "\n")
                 raise
         return cursor
 

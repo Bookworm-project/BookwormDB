@@ -30,32 +30,36 @@ general_prefs["default"] = {"fastcat": "fastcat",
                             "fullword": "words",
                             "read_default_file": "/etc/mysql/my.cnf"}
 
-def find_my_cnf():
-    """
-    The password will be looked for in these places.
-    """
-    for file in ["etc/bookworm/my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","/root/.my.cnf"]:
-        if os.path.exists(file):
-            return file
-
 class DbConnect(object):
     #This is a read-only account
     def __init__(self,prefs=general_prefs['default'],database=None,host="localhost"):
         self.dbname = database
-
+        
         #For back-compatibility:
         if "HOST" in prefs:
             host=prefs['HOST']
+        
+        import bookwormDB.configuration
 
+        try:
+            configuration_file = bookwormDB.configuration.Configfile("global")
+        except IOError:
+            configuration_file = bookwormDB.configuration.Configfile("admin")
+
+        self.config_file = configuration_file
+            
         if database is None:
             database = prefs['database']
-            
-        self.db = MySQLdb.connect(host=host,
+
+        try:
+            self.db = MySQLdb.connect(host=host,
                                   db=database,
-                                  read_default_file = find_my_cnf(),
+                                  read_default_file = configuration_file.location,
                                   use_unicode='True',
                                   charset='utf8')
-
+        except:
+            logging.error(configuration_file.location)
+            raise
         self.cursor = self.db.cursor()
 
 
