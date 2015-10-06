@@ -8,7 +8,7 @@ import decimal
 import re
 from MySQLdb import escape_string
 import logging
-
+import collections
 
 def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
@@ -449,6 +449,7 @@ class dataField:
             self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %(self.field + "Lookup"))
             self.dbToPutIn.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
 
+# Ugh! This could probably be solved just by putting a lot of backticks in the code!
 
 mySQLreservedWords = set(["ACCESSIBLE", "ADD", "ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE", "BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHANGE", "CHAR", "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE", "CONVERT", "CREATE", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURSOR", "DATABASE", "DATABASES", "DAY_HOUR", "DAY_MICROSECOND", "DAY_MINUTE", "DAY_SECOND", "DEC", "DECIMAL", "DECLARE", "DEFAULT", "DELAYED", "DELETE", "DESC", "DESCRIBE", "DETERMINISTIC", "DISTINCT", "DISTINCTROW", "DIV", "DOUBLE", "DROP", "DUAL", "EACH", "ELSE", "ELSEIF", "ENCLOSED", "ESCAPED", "EXISTS", "EXIT", "EXPLAIN", "FALSE", "FETCH", "FLOAT", "FLOAT4", "FLOAT8", "FOR", "FORCE", "FOREIGN", "FROM", "FULLTEXT", "GENERAL", "GRANT", "GROUP", "HAVING", "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_MINUTE", "HOUR_SECOND", "IF", "IGNORE", "IGNORE_SERVER_IDS", "IN", "INDEX", "INFILE", "INNER", "INOUT", "INSENSITIVE", "INSERT", "INT", "INT1", "INT2", "INT3", "INT4", "INT8", "INTEGER", "INTERVAL", "INTO", "IS", "ITERATE", "JOIN", "KEY", "KEYS", "KILL", "LEADING", "LEAVE", "LEFT", "LIKE", "LIMIT", "LINEAR", "LINES", "LOAD", "LOCALTIME", "LOCALTIMESTAMP", "LOCK", "LONG", "LONGBLOB", "LONGTEXT", "LOOP", "LOW_PRIORITY", "MASTER_HEARTBEAT_PERIOD[c]", "MASTER_SSL_VERIFY_SERVER_CERT", "MATCH", "MAXVALUE", "MEDIUMBLOB", "MEDIUMINT", "MEDIUMTEXT", "MIDDLEINT", "MINUTE_MICROSECOND", "MINUTE_SECOND", "MOD", "MODIFIES", "NATURAL", "NOT", "NO_WRITE_TO_BINLOG", "NULL", "NUMERIC", "ON", "OPTIMIZE", "OPTION", "OPTIONALLY", "OR", "ORDER", "OUT", "OUTER", "OUTFILE", "PRECISION", "PRIMARY", "PROCEDURE", "PURGE", "RANGE", "READ", "READS", "READ_WRITE", "REAL", "REFERENCES", "REGEXP", "RELEASE", "RENAME", "REPEAT", "REPLACE", "REQUIRE", "RESIGNAL", "RESTRICT", "RETURN", "REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SCHEMAS", "SECOND_MICROSECOND", "SELECT", "SENSITIVE", "SEPARATOR", "SET", "SHOW", "SIGNAL", "SLOW[d]", "SMALLINT", "SPATIAL", "SPECIFIC", "SQL", "SQLEXCEPTION", "SQLSTATE", "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "SSL", "STARTING", "STRAIGHT_JOIN", "TABLE", "TERMINATED", "THEN", "TINYBLOB", "TINYINT", "TINYTEXT", "TO", "TRAILING", "TRIGGER", "TRUE", "UNDO", "UNION", "UNIQUE", "UNLOCK", "UNSIGNED", "UPDATE", "USAGE", "USE", "USING", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP", "VALUES", "VARBINARY", "VARCHAR", "VARCHARACTER", "VARYING", "WHEN", "WHERE", "WHILE", "WITH", "WRITE", "XOR", "YEAR_MONTH", "ZEROFILL"])
             
@@ -555,11 +556,31 @@ class variableSet:
         db = self.db
         anchor = self.anchorField
         self.fastAnchor = self.anchorField
-        if anchor=="bookid" or anchor=="filename":
+        
+        if anchor=="bookid" and self.tableName!="catalog":
+            self.fastAnchor="bookid"
+            bookids = DummyDict()
+            
+        elif anchor=="filename" or anchor=="bookid":
             self.fastAnchor = "bookid"
-            bookids = textids()
-            for variable in self.variables:
-                variable.anchor=self.fastAnchor
+            bookids = dict()
+            try:
+                """
+                It is faster, better, and (on the first run only) sometimes necessary
+                to pull the textids from the original files, not the database.
+                """
+                bookids = textids()
+                for variable in self.variables:
+                    variable.anchor=self.fastAnchor
+            except IOError:
+                logging.info("Pulling bookids from catalog...")
+                results = db.query("SELECT bookid,filename FROM catalog;")
+                logging.info("... bookids have been retrieved.")
+                for row in results.fetchall():
+                    bookids[row[1]] = row[0]
+                logging.info("... and are loaded into a dictionary.")
+                for variable in self.variables:
+                    variable.anchor=self.fastAnchor
         else:
             query = """SELECT alias FROM masterVariableTable WHERE dbname='%s'""" % (anchor)
             bookids = dict()
@@ -580,7 +601,7 @@ class variableSet:
                     variable.anchor = fastAnchor
             else:
                 #construct a phony dictionary that just returns what you gave
-                bookids = selfDictionary()
+                bookids = DummyDict()
 
         return bookids
 
@@ -598,7 +619,12 @@ class variableSet:
 
 
         #Open files for writing to
-        catalog = open(self.catalogLocation,'w')
+        try:
+            catalog = open(self.catalogLocation,'w')
+        except IOError:
+            os.makedirs(os.path.dirname(self.catalogLocation))
+            catalog = open(self.catalogLocation,'w')
+
         for variable in [variable for variable in variables if not variable.unique]:
             variable.output = open(variable.outputloc, 'w')
 
@@ -613,7 +639,7 @@ class variableSet:
 
             #We always lead with the bookid and the filename.
             #Unicode characters in filenames may cause problems?
-            if self.anchorField=="bookid":
+            if self.anchorField=="bookid" and self.tableName=="catalog":
                 self.anchorField="filename"
 
             filename = to_unicode(entry[self.anchorField])
@@ -716,7 +742,7 @@ class variableSet:
             }
 
             loadEntries['loadingFields'] = loadEntries['loadingFields'].rstrip(',')
-            
+            logging.debug("loading in data from " + self.catalogLocation)
             loadcode = """LOAD DATA LOCAL INFILE '%(catLoc)s'
                        INTO TABLE %(tabName)s FIELDS ESCAPED BY ''
                        (%(loadingFields)s)""" % loadEntries
@@ -792,13 +818,13 @@ class variableSet:
         db.query("UPDATE catalog JOIN nwords USING (bookid) SET catalog.nwords = nwords.nwords")
 
 
-class selfDictionary():
+
+class DummyDict(dict):
     """
     Stupid little hack.
     Looks like a dictionary, but just returns itself.
     Used in cases where we don't actually need the dictionary.
     """
-    def __init__(self):
-        pass
-    def __getitem__(self,string):
-        return string
+    # we need to have it there.
+    def __missing__(self,key):
+        return key        
