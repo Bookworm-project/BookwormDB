@@ -155,7 +155,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 k = "%s_hour_day" % field["field"]
                                 line[k] = time.hour*60 + time.minute
                             else:
-                                sys.stderr.write('Problem with aggregate resolution.')
+                                logging.warning('Problem with aggregate resolution.')
                                 continue
                         else:
                             if derive["resolution"] == 'year':
@@ -166,7 +166,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     dt = date(intent[0], intent[1], 1)
                                     line[k] = DaysSinceZero(dt)
                                 except:
-                                    sys.stderr.write("Problem with date fields\n")
+                                    logging.warning("Problem with date fields\n")
                                     pass
                             elif derive['resolution'] == 'week':
                                 k = "%s_week" % field['field']
@@ -187,14 +187,14 @@ def ParseJSONCatalog(target="default",source = "default"):
                         # One of out a million Times articles threw this with
                         # a year of like 111,203. It's not clear how best to
                         # handle this.
-                        sys.stderr.write( "ERROR: %s " % line[field["field"]] + \
+                        logging.warning( "ERROR: %s " % line[field["field"]] + \
                               "did not convert to proper date. Moving on...")
                         #raise
                         pass
                     except Exception, e:
-                        sys.stderr.write( '*'*50)
-                        sys.stderr.write('ERROR: %s\nINFO: %s\n' % (str(e), e.__doc__))
-                        sys.stderr.write( '*'*50)
+                        logging.warning( '*'*50)
+                        logging.warning('ERROR: %s\nINFO: %s\n' % (str(e), e.__doc__))
+                        logging.warning( '*'*50)
                 line.pop(field["field"])
         f.write('%s\n' % json.dumps(line))
         f.flush()
