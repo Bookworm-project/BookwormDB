@@ -57,8 +57,8 @@ def calculateAggregates(df,parameters):
     def DunningLog(df=df,a = "WordCount_x",b = "WordCount_y"):
         from numpy import log as log
         destination = "Dunning"
-        df[a] = df[a].replace(0,1)
-        df[b] = df[b].replace(0,1)
+        df[a] = df[a].replace(0,0.01)
+        df[b] = df[b].replace(0,0.01)
         if a=="WordCount_x":
             # Dunning comparisons should be to the sums if counting:
             c = sum(df[a])
@@ -271,15 +271,15 @@ class APIcall(object):
         return final_DataFrame
 
     def execute(self):
+
         method = self.query['method']
 
-        
         if isinstance(self.query['search_limits'],list):
             if self.query['method'] not in ["json","return_json"]:
                 self.query['search_limits'] = self.query['search_limits'][0]
             else:
                 return self.multi_execute()
-        
+
         if method=="return_json" or method=="json":
             frame = self.data()
             return self.return_json()
@@ -385,8 +385,6 @@ class SQLAPIcall(APIcall):
         """
         con=DbConnect(prefs,self.query['database'])
         q = userquery(call).query()
-        if self.query['method']=="debug":
-            print q
         df = read_sql(q, con.db)
         return df
 
