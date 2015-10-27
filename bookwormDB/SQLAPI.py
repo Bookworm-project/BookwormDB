@@ -75,20 +75,16 @@ def all_keys(input):
     Iterates down on list and dict structures to search for more dicts with keys.
     """
     values = []
-    print "yo"
     if isinstance(input,dict):
-        print "dict"
         values = input.keys()
         for key in input.keys():
-            print values
             values = values + all_keys(input[key])
-    print "yoo"            
     if isinstance(input,list):
         for value in input:
-            values.append(all_keys(value))
-    print "yooo"            
+            valleys = all_keys(value)
+            for val in valleys:
+                values.append(val)
     return values
-
 
 # The basic object here is a 'userquery:' it takes dictionary as input, as defined in the API, and returns a value
 # via the 'execute' function whose behavior
@@ -97,52 +93,13 @@ def all_keys(input):
 # The "Search_limits" array in the passed dictionary determines how many elements it returns; this lets multiple queries be bundled together.
 # Most functions describe a subquery that might be combined into one big query in various ways.
 
-class userqueries:
-    #This is a set of userqueries that are bound together; each element in search limits is iterated over, and we're done.
-    #currently used for various different groups sent in a bundle (multiple lines on a Bookworm chart).
-    #A sufficiently sophisticated 'group by' search might make this unnecessary.
-    #But until that day, it's useful to be able to return lists of elements, which happens in here.
-
-    def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
-        fail_if_nonword_characters_in_columns(outside_dictionary)
-        try:
-            self.database = outside_dictionary.setdefault('database', 'default')
-            prefs = general_prefs[self.database]
-        except KeyError: #If it's not in the option, use some default preferences and search on localhost. This will work in most cases here on out.
-            prefs = general_prefs['default']
-            prefs['database'] = self.database
-        self.prefs = prefs
-
-        self.wordsheap = prefs['fastword']
-        self.words = prefs['fullword']
-        if 'search_limits' not in outside_dictionary.keys():
-            outside_dictionary['search_limits'] = [{}]
-        #coerce one-element dictionaries to an array.
-        if isinstance(outside_dictionary['search_limits'],dict):
-            #(allowing passing of just single dictionaries instead of arrays)
-            outside_dictionary['search_limits'] = [outside_dictionary['search_limits']]
-        self.returnval = []
-        self.queryInstances = []
-        db = DbConnect(prefs)
-        databaseScheme = databaseSchema(db)
-        for limits in outside_dictionary['search_limits']:
-            mylimits = copy.deepcopy(outside_dictionary)
-            mylimits['search_limits'] = limits
-            localQuery = userquery(mylimits,db=db,databaseScheme=databaseScheme)
-            self.queryInstances.append(localQuery)
-            self.returnval.append(localQuery.execute())
-
-    def execute(self):
-        
-        return self.returnval
-
-
 class userquery:
     """
     The base class for a bookworm search.
     """
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
         #Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
+        fail_if_nonword_characters_in_columns(outside_dictionary)
         try:
             self.prefs = general_prefs[outside_dictionary['database']]
         except KeyError:
