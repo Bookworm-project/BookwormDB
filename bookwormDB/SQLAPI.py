@@ -63,6 +63,33 @@ class DbConnect(object):
         self.cursor = self.db.cursor()
 
 
+def fail_if_nonword_characters_in_columns(input):
+    keys = all_keys(input)
+    for key in keys:
+        if re.search(r"[^A-Za-z_$*]",key):
+            raise
+        
+def all_keys(input):
+    """
+    Recursive function. Get every keyname in every descendant of a dictionary.
+    Iterates down on list and dict structures to search for more dicts with keys.
+    """
+    values = []
+    print "yo"
+    if isinstance(input,dict):
+        print "dict"
+        values = input.keys()
+        for key in input.keys():
+            print values
+            values = values + all_keys(input[key])
+    print "yoo"            
+    if isinstance(input,list):
+        for value in input:
+            values.append(all_keys(value))
+    print "yooo"            
+    return values
+
+
 # The basic object here is a 'userquery:' it takes dictionary as input, as defined in the API, and returns a value
 # via the 'execute' function whose behavior
 # depends on the mode that is passed to it.
@@ -77,6 +104,7 @@ class userqueries:
     #But until that day, it's useful to be able to return lists of elements, which happens in here.
 
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":[{"word":["polka dot"],"LCSH":["Fiction"]}]},db = None):
+        fail_if_nonword_characters_in_columns(outside_dictionary)
         try:
             self.database = outside_dictionary.setdefault('database', 'default')
             prefs = general_prefs[self.database]
@@ -110,6 +138,9 @@ class userqueries:
 
 
 class userquery:
+    """
+    The base class for a bookworm search.
+    """
     def __init__(self,outside_dictionary = {"counttype":["Percentage_of_Books"],"search_limits":{"word":["polka dot"],"LCSH":["Fiction"]}},db=None,databaseScheme=None):
         #Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         try:
@@ -463,7 +494,6 @@ class userquery:
                     raise
             self.catalog += " NATURAL JOIN %s "%(tmpcatalog)
 
-
     def make_wordwheres(self):
         self.wordswhere = " TRUE "
         self.max_word_length = 0
@@ -496,7 +526,8 @@ class userquery:
                     if self.word_field=="case_insensitive" or self.word_field=="Case_Insensitive":
                         searchingFor = searchingFor.lower()
 
-                    selectString =  "SELECT wordid FROM wordsheap WHERE %s = '%s'" %(self.word_field,searchingFor)
+                    selectString =  "SELECT wordid FROM wordsheap WHERE %s = '%s'" %(self.word_field,MySQLdb.escape_string(searchingFor))
+
                     logging.debug(selectString)
                     cursor = self.db.cursor;
                     cursor.execute(selectString)
@@ -1019,86 +1050,7 @@ class derived_table(object):
         else:
             return False
 
-
-    def createFromCacheWithDataFromBookworm(self,temp,postDataToCache=False):
-        """
-        If the create code exists but the data does not.
-        This uses a form of query that MySQL can cache,
-        unlike the normal subqueries OR the CREATE TABLE ... INSERT
-        used by materializeFromBookworm.
-
-        You can also post the data itself, but that's turned off by default:
-        because why wouldn't it have been posted the first time?
-        Probably it's too large or something, is why.
-        """
-        if self.createCode==None:
-            return False
-        self.db.cursor.execute(self.createCode)
-        self.db.cursor.execute(self.query)
-        data = [row for row in self.db.cursor.fetchall()]
-        self.newdata = pickle.dumps(data,protocol=-1)
-        self.fillTableWithData(data)
-        if postDataToCache:
-            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET data='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newdata),self.queryID)])
-        else:
-            self.updateCache()
-        return True
             
-    def materializeFromBookworm(self,temp,postDataToCache=True,postCreateToCache=True):
-        import cPickle as pickle
-        self.db.cursor.execute("CREATE %(tempString)s TABLE %(queryID)s %(indices)s ENGINE=%(engine)s %(query)s;" % self.__dict__)
-        self.db.cursor.execute("SHOW CREATE TABLE %s" %self.queryID)
-        self.newCreateCode = self.db.cursor.fetchall()[0][1]
-        self.db.cursor.execute("SELECT * FROM %s" %self.queryID)
-        #coerce the results to a list of tuples, then pickle it.
-        self.newdata = pickle.dumps([row for row in self.db.cursor.fetchall()],protocol=-1)
-
-        if postDataToCache:
-            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET data='%s',createCode='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newdata),MySQLdb.escape_string(self.newCreateCode),self.queryID)])
-
-        if postCreateToCache:
-            self.updateCache(postQueries=["UPDATE bookworm_scratch.cache SET createCode='%s' WHERE fieldname='%s'" %(MySQLdb.escape_string(self.newCreateCode),self.queryID)])
-        
-        
-    def updateCache(self,postQueries=[]):
-        q1 = """
-        INSERT INTO bookworm_scratch.cache (fieldname,created,modified,count) VALUES
-        ('%s',NOW(),NOW(),1) ON DUPLICATE KEY UPDATE count = count + 1,modified=NOW();""" %self.queryID
-        result = self.db.cursor.execute(q1)
-        for query in postQueries:
-            self.db.cursor.execute(query)
-        self.db.db.commit()
-        
-    def materialize(self,temp="default"):
-        """
-        materializes the table, by default in memory in the bookworm_scratch
-        database. If temp is false, the table will be stored on disk, available
-        for future users too. This should be used sparingly, because you can't have too many
-        tables on disk.
-
-        Returns the tableID, which the superquery to this one may need to know.
-        """
-        if temp=="default":
-            temp=True
-
-        self.checkCache()
-        self.setStorageEngines(temp)
-
-        try:
-            if not self.materializeFromCache(temp):
-                if not self.createFromCacheWithDataFromBookworm(temp):
-                    self.materializeFromBookworm(temp)
-    
-        except MySQLdb.OperationalError,e:
-            #Often the error will be 1050, which is a good thing:
-            #It means we don't need to
-            #create the table, because it's there already.
-            #But if it's not, something bad is happening.
-            if not re.search("1050.*already exists",str(e)):
-                raise
-        
-        return self.queryID
-        
 class databaseSchema:
     """
     This class stores information about the database setup that is used to optimize query creation query
@@ -1248,10 +1200,10 @@ def where_from_hash(myhash,joiner=" AND ",comp = " = ",escapeStrings=True):
                 else:
                     def escape(value): return to_unicode(value)
                     quotesep=""
-
                 #Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 #Obviously that's no great loss, but there might be something I'm missing that would be desire a similar format somehow.
                 #(In cases where the same book could have two different years associated with it)
+            
                 whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+escape(value)+quotesep+") " for value in values])+ ") ")
     return "(" + joiner.join(whereterm) + ")"
     #This works pretty well, except that it requires very specific sorts of terms going in, I think.
