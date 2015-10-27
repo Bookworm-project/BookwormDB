@@ -52,14 +52,10 @@ class tokenBatches(object):
     """
     A tokenBatches is a manager for tokenizers. Each one corresponds to 
     a reasonable number of texts to read in to memory on a single processor:
-    during the initial loads, there will probably be one per core. It doesn't store the original text, just the unigram and bigram tokenizations from the pickled object in its attached self.counts arrays.
+    during the initial loads, there will probably be one per core. It doesn't store the original text, just the unigram and bigram tokenizations in its attached self.counts arrays.
     
-    It writes out its data using cPickle to a single file: in this way, a batch of several hundred thousand individual files is grouped into a single file.
+    It writes out its dat to a single file: in this way, a batch of several hundred thousand individual files is grouped into a single file.
     It also has a method that encodes and writes its wordcounts into a tsv file appropriate for reading with mysql, with 3-byte integer encoding for wordid and bookid.
-
-    The pickle writeout happens in between so that there's a chance to build up a vocabular using the tokenBatches.unigramCounts method. If the vocabulary were preset, it could proceed straight to writing out the encoded results.
-
-    The pickle might be slower than simply using a fast csv module: this should eventually be investigated. But it's nice for the pickled version to just keep all the original methods.
     """
     
     def __init__(self,levels=["unigrams","bigrams"]):
@@ -130,7 +126,12 @@ class tokenBatches(object):
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
                         """
-                        skip = True
+                        try:
+                            # This may not be the most efficient place to check this,
+                            # but `dict["gut"] is not the same as dict[u"gut"]
+                            wordList.append(dictionary[word.encode("utf-8")])
+                        except KeyError:
+                            skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
                     output.append("\t".join([textid,wordids,str(count)]))
