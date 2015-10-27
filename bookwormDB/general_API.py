@@ -57,8 +57,8 @@ def calculateAggregates(df,parameters):
     def DunningLog(df=df,a = "WordCount_x",b = "WordCount_y"):
         from numpy import log as log
         destination = "Dunning"
-        df[a] = df[a].replace(0,1)
-        df[b] = df[b].replace(0,1)
+        df[a] = df[a].replace(0,0.01)
+        df[b] = df[b].replace(0,0.01)
         if a=="WordCount_x":
             # Dunning comparisons should be to the sums if counting:
             c = sum(df[a])
@@ -271,36 +271,40 @@ class APIcall(object):
         return final_DataFrame
 
     def execute(self):
+
         method = self.query['method']
+        try:
+            if isinstance(self.query['search_limits'],list):
+                if self.query['method'] not in ["json","return_json"]:
+                    self.query['search_limits'] = self.query['search_limits'][0]
+                else:
+                    return self.multi_execute()
 
-        
-        if isinstance(self.query['search_limits'],list):
-            if self.query['method'] not in ["json","return_json"]:
-                self.query['search_limits'] = self.query['search_limits'][0]
-            else:
-                return self.multi_execute()
-        
-        if method=="return_json" or method=="json":
-            frame = self.data()
-            return self.return_json()
+            if method=="return_json" or method=="json":
+                frame = self.data()
+                return self.return_json()
 
-        if method=="return_tsv" or method=="tsv":
-            import csv
-            frame = self.data()
-            return frame.to_csv(sep="\t",encoding="utf8",index=False,quoting=csv.QUOTE_NONE,escapechar="\\")
+            if method=="return_tsv" or method=="tsv":
+                import csv
+                frame = self.data()
+                return frame.to_csv(sep="\t",encoding="utf8",index=False,quoting=csv.QUOTE_NONE,escapechar="\\")
 
-        if method=="return_pickle" or method=="DataFrame":
-            frame = self.data()
-            from cPickle import dumps as pickleDumps
-            return pickleDumps(frame,protocol=-1)
+            if method=="return_pickle" or method=="DataFrame":
+                frame = self.data()
+                from cPickle import dumps as pickleDumps
+                return pickleDumps(frame,protocol=-1)
 
-        # Temporary catch-all pushes to the old methods:
-        if method in ["returnPossibleFields","search_results","return_books"]:
-            query = userquery(self.query)
-            if method=="return_books":
-                return query.execute()
-            return json.dumps(query.execute())
-
+            # Temporary catch-all pushes to the old methods:
+            if method in ["returnPossibleFields","search_results","return_books"]:
+                query = userquery(self.query)
+                if method=="return_books":
+                    return query.execute()
+                return json.dumps(query.execute())
+        except Error:
+            """
+            Do some real type 500 errors here or something.
+            """
+            raise
 
 
     def multi_execute(self):
@@ -385,8 +389,6 @@ class SQLAPIcall(APIcall):
         """
         con=DbConnect(prefs,self.query['database'])
         q = userquery(call).query()
-        if self.query['method']=="debug":
-            print q
         df = read_sql(q, con.db)
         return df
 
