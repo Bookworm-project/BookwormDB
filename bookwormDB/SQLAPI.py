@@ -481,13 +481,13 @@ class userquery:
                         from nltk import PorterStemmer
                         searchingFor = PorterStemmer().stem_word(searchingFor)
                     if self.word_field=="case_insensitive" or self.word_field=="Case_Insensitive":
+                        # That's a little joke. Get it?
                         searchingFor = searchingFor.lower()
-
-                    selectString =  "SELECT wordid FROM wordsheap WHERE %s = '%s'" %(self.word_field,MySQLdb.escape_string(searchingFor))
+                    selectString =  "SELECT wordid FROM wordsheap WHERE %s = %%s" % self.word_field
 
                     logging.debug(selectString)
                     cursor = self.db.cursor;
-                    cursor.execute(selectString)
+                    cursor.execute(selectString,(searchingFor))
                     for row in cursor.fetchall():
                         wordid = row[0]
                         try:
