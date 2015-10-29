@@ -66,7 +66,7 @@ class DbConnect(object):
 def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
     for key in keys:
-        if re.search(r"[^A-Za-z_$*]",key):
+        if re.search(r"[^A-Za-z_$*0-9]",key):
             raise
         
 def all_keys(input):
