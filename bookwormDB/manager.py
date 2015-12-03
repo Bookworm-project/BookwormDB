@@ -23,6 +23,7 @@ for the command-line executable,
 even though it's not best practice otherwise.
 """
 
+logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', datefmt="%d/%Y %H:%M:%S")
 
 class BookwormManager(object):
     """
@@ -81,21 +82,29 @@ class BookwormManager(object):
         Should eventually be able to accept arguments like "token-regex"
         and already-tokenized documents.
         """
-
         
         if args.process=="encode":
-            bookwormDB.tokenizer.encode_text_stream()
-        
+            if args.feature_counts:
+                # Ideally the infile would be described by a specific file location here.
+                bookwormDB.tokenizer.encodePreTokenizedStream(infile=sys.stdin,levels=["unigrams"])
+                #bookwormDB.tokenizer.encodePreTokenizedStream(sys.stdin,levels=["bigrams"])
+            else:
+                bookwormDB.tokenizer.encode_text_stream()
+            
         if args.process=="text_stream":
+            if args.feature_counts:
+                logging.error("Can't print the raw text from feature counts.")
+                raise
+            textfile_locations = ["input.txt",".bookworm/texts/input.txt","../input.txt",".bookworm/texts/raw","input.sh"]
             if args.file is None:
-                for file in ["input.txt",".bookworm/texts/input.txt","../input.txt",".bookworm/texts/raw","input.sh"]:
+                for file in textfile_locations:
                     if os.path.exists(file):
                         args.file = file
                         break
                 if args.file is None:
                     # One of those should have worked.
-                    raise IOError("Unable to find an input.txt or input.sh file in a default location")
-            
+                    import json
+                    raise IOError("Unable to find an input.txt or input.sh file in a default location: those are " + json.dumps(textfile_locations))
             if os.path.isdir(args.file):
                 for (root,dirs,files) in os.walk(args.file): 
                     for name in files:
@@ -104,7 +113,7 @@ class BookwormManager(object):
                         identity = path.replace(args.file,"").replace(".txt","").strip("/")
                         print identity + "\t" + content
             elif os.path.exists(args.file) and (args.file.endswith(".sh")):
-                logging.debug("Attempting to print text stream by executing " + args.file)
+                logging.debug("Attempting to print text stream by executing the script at" + args.file)
                 Popen(["./" + args.file])
             elif os.path.exists(args.file):
                 # I really don't care about useless use of cat here; processor overhead is being lost elsewhere.
@@ -117,9 +126,13 @@ class BookwormManager(object):
         if args.process=="word_db":
             import bookwormDB.wordcounter
             """
-            Read an endless string of space-delimited characters, and 
+            Read an endless string of space-delimited characters, and build it into
+            a words table.
             """
-            bookwormDB.wordcounter.WordsTableCreate()
+            if args.feature_counts:
+                bookwormDB.wordcounter.write_word_ids_from_feature_counts(sys.stdin)
+            else:
+                bookwormDB.wordcounter.WordsTableCreate()
             
     def init(self,args):
         """
@@ -139,28 +152,6 @@ class BookwormManager(object):
         else:
             self.configuration()
         
-        """
-        UPDATE--This section blocked out:
-        trying a new strategy of just running the code from inside the python dir.
-        
-        Hardcoding the files we need right here. Not the prettiest solution:
-        should potentially just copy the whole tree to the current dir.
-
-        import shutil
-        loc = os.path.dirname(bookwormDB.__file__) + "/etc/"
-
-        needed_files={"bookworm_Makefile":"bookworm_Makefile"}
-        
-        for key,val in needed_files.iteritems():
-            src = loc + key
-            dst = val
-            newdir = os.path.dirname(dst)
-            if not os.path.exists(newdir) and newdir != "":
-                # Create dir if not exists.
-                os.makedirs(os.path.dirname(dst))
-            shutil.copyfile(src, dst)
-        """
-
     def query(self,args):
         """
         Run a query against the API.
@@ -251,7 +242,8 @@ class BookwormManager(object):
             ]
         if args.action == "serve":
             make_args.append("webDirectory=" + args.dir)
-            
+        if args.feature_counts:
+            make_args.append("maybe_feature_counts=--feature-counts")
         make_args.append(args.target)
         call(make_args)
         
@@ -433,6 +425,13 @@ def run_arguments():
 
     parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
 
+
+    parser.add_argument("--feature-counts",action="store_true",default=False,
+                                 help="Use pre-calculated feature counts rather than tokenizing complete text on the fly. Off by default")
+
+    parser.add_argument("--ngrams",nargs="+",default=["unigrams","bigrams"],help="What levels to parse with. Multiple arguments should be unquoted in spaces. This option currently does nothing.")
+
+    
     # Use subparsers to have an action syntax, like git.
     subparsers = parser.add_subparsers(title="action",help='The commands to run with Bookworm',dest="action")
 
@@ -495,10 +494,10 @@ def run_arguments():
     extensions_parser = subparsers.add_parser("query", help="Run a query using the Bookworm API")
     extensions_parser.add_argument("APIcall",help="The json-formatted query to be run.")
 
-
     
-    ### Handle tokenization
-    tokenization_parser = subparsers.add_parser("tokenize", help="tokenize (and optionally, encode) text. Requires a stream to stdin as input.")
+    ### Handle tokenization and wordcounts and encode
+    tokenization_parser = subparsers.add_parser("tokenize", help="tokenize (and optionally, encode) text. Currently requires a stream to stdin as input.")
+    
     tokenization_subparsers = tokenization_parser.add_subparsers(title="process",help='The part of the subparser to run: see help for more details.',dest="process")
     encode_parser = tokenization_subparsers.add_parser("encode",
                                      help="Encode according to the stored numeric IDs.")
@@ -508,7 +507,7 @@ def run_arguments():
     
     token_stream_parser = tokenization_subparsers.add_parser("token_stream",
                                                             help="Turn input from text_stream into delimited list of tokens using standard tokenization rules.")
-    token_stream_parser.add_argument("--token-regex","-t",
+    token_stream_parser.add_argument("--token-regex",
         help="Regular expression defining tokens. Not currently implemented")
 
     word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")

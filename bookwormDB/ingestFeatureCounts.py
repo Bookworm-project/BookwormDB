@@ -23,7 +23,7 @@ def main():
         numeric_level = getattr(logging, args.log_level.upper(), None)
         if not isinstance(numeric_level, int):
                 raise ValueError('Invalid log level: %s' % loglevel)
-        logging.basicConfig(filename="ingestFeatureCounts.log", level=numeric_level,
+        logging.basicConfig(level=numeric_level,
                             format='%(asctime)s:%(levelname)s:%(message)s', datefmt="%d/%Y %H:%M:%S")
 
     if args.action == "wordIds":

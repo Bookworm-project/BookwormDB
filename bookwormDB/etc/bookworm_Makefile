@@ -1,6 +1,8 @@
 #invoke with any of these variable: eg, `make`
 
-textStream:=bookworm -l $(logLevel) -d $(database) tokenize text_stream
+
+optional_args=$(maybe_feature_counts) -l $(logLevel) -d $(database)
+textStream:=bookworm $(optional_args) tokenize text_stream
 
 # The maximum size of each input block for parallel processing.
 # 100M should be appropriate for a machine with 8-16GB of memory: if you're
@@ -8,6 +10,8 @@ textStream:=bookworm -l $(logLevel) -d $(database) tokenize text_stream
 
 blockSize:=100M
 
+# By default, we read full text rather than feature counts.
+maybe_feature_counts=""
 
 logLevel="WARNING"
 
@@ -26,7 +30,7 @@ webSite = $(addsuffix database,webDirectory)
 all: bookworm.cnf .bookworm/targets .bookworm/targets/database
 
 bookworm.cnf:
-	bookworm prep configuration
+	bookworm $(optional_args) prep configuration
 
 #These are all directories that need to be in place for the other scripts to work properly
 .bookworm/targets: 
@@ -64,11 +68,14 @@ pristine: clean
 # The build method is dependent on whether we're using an accumulated wordcount list
 # from elsewhere. If so, we use Peter Organisciak's fast_featurecounter.sh on that, instead.
 
-ifneq ("$(wildcard ../unigrams.txt)","")
-wordlistBuilder=.bookworm/scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) .bookworm/texts/wordlist/sorted.txt; head -1000000 .bookworm/texts/wordlist/sorted.txt > .bookworm/texts/wordlist/wordlist.txt
+ifeq ($(maybe_feature_counts),--feature-counts)
+#wordlistBuilder=.bookworm/scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) .bookworm/texts/wordlist/sorted.txt; head -1000000 .bookworm/texts/wordlist/sorted.txt > .bookworm/texts/wordlist/wordlist.txt
+wordlistBuilder=cat unigrams.txt | bookworm $(optional_args) tokenize word_db
 else
-wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe bookworm -l $(logLevel) -d $(database) tokenize token_stream | bookworm -l $(logLevel) -d $(database) tokenize word_db
+wordlistBuilder=$(textStream) | parallel --block-size $(blockSize) --pipe bookworm $(optional_args) tokenize token_stream | bookworm $(optional_args) tokenize word_db
 endif
+
+$(warning $(wordlistBuilder))
 
 .bookworm/texts/wordlist/wordlist.txt:
 	$(wordlistBuilder)
@@ -78,13 +85,13 @@ endif
 
 .bookworm/metadata/jsoncatalog_derived.txt: .bookworm/metadata/jsoncatalog.txt .bookworm/metadata/field_descriptions.json
 #Run through parallel as well.
-	cat .bookworm/metadata/jsoncatalog.txt | parallel --pipe bookworm -l $(logLevel) -d $(database) prep catalog_metadata > $@
+	cat .bookworm/metadata/jsoncatalog.txt | parallel --pipe bookworm $(optional_args) prep catalog_metadata > $@
 
 
 # In addition to building files for ingest.
 
 .bookworm/metadata/catalog.txt:
-	bookworm -l $(logLevel) -d $(database) prep preDatabaseMetadata
+	bookworm $(optional_args) prep preDatabaseMetadata
 
 # This is the penultimate step: creating a bunch of tsv files 
 # (one for each binary blob) with 3-byte integers for the text
@@ -102,12 +109,13 @@ endif
 
 #Use an alternate method to ingest feature counts if the file is defined immediately below.
 
-ifneq ("$(wildcard ../unigrams.txt)","")
-#This line is broken
-encoder=cat ../unigrams.txt | parallel --block-size $(blockSize) -u --pipe python bookworm/ingestFeatureCounts.py encode
+ifeq ($(maybe_feature_counts),--feature-counts)
+encoder=cat unigrams.txt | parallel --block-size $(blockSize) -u --pipe bookworm $(optional_args) tokenize encode
 else
-encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm -l $(logLevel) -d $(database) tokenize encode
+encoder=$(textStream) | parallel --block-size $(blockSize) -u --pipe bookworm $(optional_args) tokenize encode
 endif
+
+$(warning $(encoder))
 
 this_makefile := $(lastword $(MAKEFILE_LIST))
 

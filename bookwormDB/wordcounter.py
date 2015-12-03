@@ -5,6 +5,34 @@ import sys
 import subprocess
 import timeit
 
+
+def write_word_ids_from_feature_counts(featurefile, sep=None):
+    """
+    The wordids are counted directly from the unigrams file.
+
+    Filename: location of unigrams.txt
+    sep: Delimiter. Defaults to None (whitespace), use this for tab- or 
+            comma-delimiting. 
+    """
+    
+    output = open(".bookworm/texts/wordlist/wordlist.txt","w")
+    wordcounts = dict()
+    for line in featurefile:
+        (bookid,word,count) = line.split(sep)
+        count = int(count)
+        try:
+            wordcounts[word] += count
+        except KeyError:
+            wordcounts[word] = count
+    tuples = [(v,k) for k,v in wordcounts.iteritems()]
+    tuples.sort()
+    tuples.reverse()
+    wordid = 0
+    for (count,word) in tuples:
+        wordid += 1
+        output.write("\t".join([str(wordid),word.replace("\\","\\\\"),str(count)]) + "\n")
+
+        
 def exportToDisk(wordcounts,diskFile,keepThreshold=5):
     """
     Periodically, the wordcounter writes what it knows to disk for dictionary values below a certain frequency:
