@@ -764,12 +764,12 @@ class variableSet:
             if variable.datatype=="categorical":
                 variable.buildIDTable()
 
-    def uniqueVariableFastSetup(self):
+    def uniqueVariableFastSetup(self,engine="MEMORY"):
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
         (""" + self.fastAnchor + """ MEDIUMINT, PRIMARY KEY (""" + self.fastAnchor + """),
         """ +",\n".join([variable.fastSQL() for variable in self.variables if (variable.unique and variable.fastSQL() is not None)]) + """
-        ) ENGINE=MEMORY;\n"""
+        ) ENGINE=%s;\n""" % engine
 
         fileCommand += "INSERT INTO tmp SELECT " + self.fastAnchor + ", " + ",".join([variable.fastField for variable in self.variables if variable.unique and variable.fastSQL() is not None]) + " FROM %s " % self.tableName + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";\n"
         fileCommand += "DROP TABLE IF EXISTS %s;\n" % self.fastName
