@@ -236,6 +236,7 @@ def update_settings_for(name):
     if name=="root":
         change_root_password_if_necessary()
     if name=="admin":
+        default_cnf_file = raw_input("Please enter the full path (no tildes) for the home directory of the user who will be the administrator. For example, if your username is 'mrubio', on OS X it might be /Users/mrubio/")
         admin = Configfile("admin",[default_cnf_file_location],default=default_cnf_file_location)
         admin.change_client_password()
         admin.write_out()
