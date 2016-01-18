@@ -487,7 +487,7 @@ class userquery:
 
                     logging.debug(selectString)
                     cursor = self.db.cursor;
-                    cursor.execute(selectString,(searchingFor))
+                    cursor.execute(selectString,(searchingFor,))
                     for row in cursor.fetchall():
                         wordid = row[0]
                         try:
