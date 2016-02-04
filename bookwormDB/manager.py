@@ -33,7 +33,7 @@ class BookwormManager(object):
     This is what calls the various other bookworm scripts, whether Python or not.
     """
     
-    def __init__(self,cnf_file="bookworm.cnf",database=None,user=None,password=None):
+    def __init__(self,cnf_file=None,database=None,user=None,password=None):
         # This will likely be changed if it isn't None.
         import ConfigParser
 
@@ -47,6 +47,9 @@ class BookwormManager(object):
         
         self.dbname=database
 
+        if cnf_file is None:
+            cnf_file=self.basedir + "/bookworm.cnf"
+            
         config = ConfigParser.ConfigParser(allow_no_value=True)
         config.read([cnf_file])
         if config.has_section("client"):
