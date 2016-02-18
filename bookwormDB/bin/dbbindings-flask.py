@@ -36,6 +36,11 @@ def main(JSONinput):
     else:
         resp.headers['Content-Type'] = "text/html"
 
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
+    resp.headers['Access-Control-Allow-Headers'] = 'Origin, Accept, '\
+            'Content-Type, X-Requested-With, X-CSRF-Token'
+
     return resp
 
 if __name__ == '__main__':
