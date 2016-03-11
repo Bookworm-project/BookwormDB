@@ -2,43 +2,39 @@
 
 import sys
 import json
-import cgi
 import re
 import copy
-import decimal
 import MySQLdb
-import warnings
 import hashlib
 import logging
-import os
-
 """
-#There are 'fast' and 'full' tables for books and words;
-#that's so memory tables can be used in certain cases for fast, hashed matching, but longer form data (like book titles)
-can be stored on disk. Different queries use different types of calls.
-#Also, certain metadata fields are stored separately from the main catalog table;
+# There are 'fast' and 'full' tables for books and words;
+# that's so memory tables can be used in certain cases for fast, hashed
+# matching, but longer form data (like book titles) can be stored on disk.
+# Different queries use different types of calls.
+# Also, certain metadata fields are stored separately from the main catalog
+# table;
 """
 
-# If you have bookworms stored on a different host, you can create more lines like this.
-# A different host and read_default_file will let you import things onto a different server.
+# If you have bookworms stored on a different host, you can create more lines
+# like this.
+# A different host and read_default_file will let you import things onto a
+# different server.
 general_prefs = dict()
 general_prefs["default"] = {"fastcat": "fastcat",
-                            "HOST": "localhost",
                             "fastword": "wordsheap",
                             "database": "YourDatabaseNameHere",
                             "fullcat": "catalog",
                             "fullword": "words",
                             "read_default_file": "/etc/mysql/my.cnf"}
 
+
 class DbConnect(object):
-    #This is a read-only account
-    def __init__(self,prefs=general_prefs['default'],database=None,host="localhost"):
+    # This is a read-only account
+    def __init__(self, prefs=general_prefs['default'], database=None,
+                 host=None):
         self.dbname = database
-        
-        #For back-compatibility:
-        if "HOST" in prefs:
-            host=prefs['HOST']
-        
+
         import bookwormDB.configuration
 
         try:
@@ -47,16 +43,25 @@ class DbConnect(object):
             configuration_file = bookwormDB.configuration.Configfile("admin")
 
         self.config_file = configuration_file
-            
+
         if database is None:
             database = prefs['database']
 
+        connargs = {
+                "db": database,
+                "read_default_file": configuration_file.location,
+                "use_unicode": 'True',
+                "charset": 'utf8'
+                }
+
+        if host:
+            connargs['host'] = host
+        # For back-compatibility:
+        elif "HOST" in prefs:
+            connargs['host'] = prefs['HOST']
+
         try:
-            self.db = MySQLdb.connect(host=host,
-                                  db=database,
-                                  read_default_file = configuration_file.location,
-                                  use_unicode='True',
-                                  charset='utf8')
+            self.db = MySQLdb.connect(**connargs)
         except:
             logging.error(configuration_file.location)
             raise
@@ -66,32 +71,38 @@ class DbConnect(object):
 def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
     for key in keys:
-        if re.search(r"[^A-Za-z_$*0-9]",key):
+        if re.search(r"[^A-Za-z_$*0-9]", key):
             raise
-        
+
+
 def all_keys(input):
     """
     Recursive function. Get every keyname in every descendant of a dictionary.
-    Iterates down on list and dict structures to search for more dicts with keys.
+    Iterates down on list and dict structures to search for more dicts with
+    keys.
     """
     values = []
-    if isinstance(input,dict):
+    if isinstance(input, dict):
         values = input.keys()
         for key in input.keys():
             values = values + all_keys(input[key])
-    if isinstance(input,list):
+    if isinstance(input, list):
         for value in input:
             valleys = all_keys(value)
             for val in valleys:
                 values.append(val)
     return values
 
-# The basic object here is a 'userquery:' it takes dictionary as input, as defined in the API, and returns a value
+# The basic object here is a 'userquery:' it takes dictionary as input,
+# as defined in the API, and returns a value
 # via the 'execute' function whose behavior
 # depends on the mode that is passed to it.
 # Given the dictionary, it can return a number of objects.
-# The "Search_limits" array in the passed dictionary determines how many elements it returns; this lets multiple queries be bundled together.
-# Most functions describe a subquery that might be combined into one big query in various ways.
+# The "Search_limits" array in the passed dictionary determines how many
+# elements it returns; this lets multiple queries be bundled together.
+# Most functions describe a subquery that might be combined into one big query
+# in various ways.
+
 
 class userquery:
     """

@@ -9,6 +9,12 @@ import json
 cgitb.enable()
 
 def headers(method):
+
+    print 'Access-Control-Allow-Origin: *'
+    print 'Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS'
+    print 'Access-Control-Allow-Headers: Origin, Accept, Content-Type, ' \
+            'X-Requested-With, X-CSRF-Token'
+
     if method!="return_tsv":
         print "Content-type: text/html\n"
 
