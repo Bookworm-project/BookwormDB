@@ -97,7 +97,9 @@ class Configfile:
         if possible_locations is None:
             possible_locations = self.default_locations_from_type(usertype)
         self.location = None
-
+        
+        self.config = ConfigParser.ConfigParser(allow_no_value=True)
+        
         for string in possible_locations:
             if os.path.exists(string):
                 self.location=string
@@ -111,9 +113,47 @@ class Configfile:
         else:
             logging.info("Reading configuration file for %s from %s" %(self.usertype,self.location))
         
-        self.config = ConfigParser.ConfigParser(allow_no_value=True)        
-        self.config.read([self.location])
+    def meta_locations_from_type(self):
+        """
+        Set the local ConfigParser to contain values from an appropriate stack 
+        of configuration files for MySQL.
 
+        For 'local' access, for example, it uses a local file at "bookworm.cnf", 
+        and then looks for global (select-only) settings, and finally uses 
+        administrative settings for values that exist nowhere else.
+
+        They appear front-to-back in the arrays below because 
+
+        For sanity sake, only admin has any chance at getting root access.
+        """
+        admin = self.default_locations_from_type("admin")
+        glob = self.default_locations_from_type("global")
+        root = self.default_locations_from_type("root")
+        local = self.default_locations_from_type("local")
+        if self.usertype=="admin":
+            return glob + root + admin
+        if self.usertype=="global":
+            return admin + local + glob
+        if self.usertype=="local":
+            return admin + glob + local
+
+    def read_config_files(self):
+        used_files = self.meta_locations_from_type()
+        try:
+            self.config.read(used_files)
+        except ConfigParser.MissingSectionHeaderError:
+            """
+            Some files throw this error if you have an empty
+            my.cnf. This throws those out of the list, and tries again.
+            """
+            for file in used_files:
+                try:
+                    self.config.read(file)
+                except ConfigParser.MissingSectionHeaderError:
+                    used_files.remove(file)
+            successes = self.config.read(used_files)
+            print successes
+            
     def default_locations_from_type(self,usertype):
         if usertype == "root":
             return ["/root/.my.cnf"]
@@ -121,7 +161,7 @@ class Configfile:
             return [os.path.abspath(os.path.expanduser("~/.my.cnf"))
                     ,os.path.abspath(os.path.expanduser("~/my.cnf"))]
         if usertype=="global":
-            return ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf","/etc/bookworm/my.cnf"]
+            return ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf","/etc/mysql/conf.d/mysql.cnf","/etc/bookworm/my.cnf"]
         if usertype=="local":
             # look for a bookworm.cnf file in or above the current directory.
             # Max out at 20 directory levels deep because let's be reasonable.
