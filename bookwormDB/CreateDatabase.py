@@ -7,7 +7,6 @@ import re
 import sys
 import json
 import os
-import ConfigParser
 from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
@@ -59,6 +58,8 @@ class DB:
             except IOError:
                 configuration = Configfile("admin")
                 logging.debug("No bookworm.cnf in local file: connecting from admin defaults")
+                
+        configuration.read_config_files()
         config = configuration.config
         if dbname==None:
             self.dbname = config.get("client","database")
@@ -130,8 +131,10 @@ class BookwormSQLDatabase:
         This is a little wonky, and may
         be deprecated in favor of a cleaner interface.
         """
-        config = ConfigParser.ConfigParser(allow_no_value=True)
-        config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
+        import bookwormDB.configuration
+        self.config_manager = bookwormDB.configuration.Configfile("local")
+        self.config_manager.read_config_files()
+        config = self.config_manager.config
         if dbname==None:
             self.dbname = config.get("client","database")
         else:
