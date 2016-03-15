@@ -167,7 +167,7 @@ class Configfile:
                 break
             confirmation = raw_input("Please re-enter the new password for " + user + ": ")
         try:
-            cur.execute("SET PASSWORD FOR '%s'@'localhost'=PASSWORD('%s')" % (user,new_password))
+            cur.execute("SET PASSWORD FOR '%s'@'localhost'=PASSWORD('%s')" % (user.strip('"').strip("'"),new_password.strip('"').strip("'")))
         except MySQLdb.OperationalError, message:	# handle trouble
             errorcode = message[0]
             if errorcode==1133:
@@ -193,7 +193,7 @@ class Configfile:
                 self.config.set("mysqld",option,mysqldoptions[option])
             else:
                 if mysqldoptions[option] != self.config.get("mysqld",option):
-                    choice = raw_input("Do you want to change the value for " + option + " from " + self.config.get("mysqld",option) + " to the bookworm-recommended " + mysqldoptions[option] + "? (y/N)")
+                    choice = raw_input("Do you want to change the value for " + option + " from " + self.config.get("mysqld",option) + " to the bookworm-recommended " + mysqldoptions[option] + "? (y/N): ")
                     if choice=="y":
                         self.config.set("mysqld",option,mysqldoptions[option])
                                        
@@ -236,8 +236,8 @@ def update_settings_for(name):
     if name=="root":
         change_root_password_if_necessary()
     if name=="admin":
-        default_cnf_file = raw_input("Please enter the full path (no tildes) for the home directory of the user who will be the administrator. For example, if your username is 'mrubio', on OS X it might be /Users/mrubio/")
-        admin = Configfile("admin",[default_cnf_file_location],default=default_cnf_file_location)
+        default_cnf_file_location = raw_input("Please enter the full path (no tildes) for the home directory of the user who will be the administrator.\nFor example, if your username is 'mrubio', on OS X it might be /Users/mrubio/: ")
+        admin = Configfile("admin",[default_cnf_file_location + "/" + ".my.cnf"],default=default_cnf_file_location + ".my.cnf")
         admin.change_client_password()
         admin.write_out()
     if name=="global":
