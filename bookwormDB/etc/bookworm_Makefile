@@ -1,8 +1,6 @@
 #invoke with any of these variable: eg, `make`
 
 
-optional_args=$(maybe_feature_counts) -l $(logLevel) -d $(database)
-textStream:=bookworm $(optional_args) tokenize text_stream
 
 # The maximum size of each input block for parallel processing.
 # 100M should be appropriate for a machine with 8-16GB of memory: if you're
@@ -11,8 +9,16 @@ textStream:=bookworm $(optional_args) tokenize text_stream
 blockSize:=100M
 
 # By default, we read full text rather than feature counts.
-maybe_feature_counts=""
+maybe_feature_counts=
 
+ifeq ($(maybe_feature_counts),--feature-counts)
+optional_args=$(maybe_feature_counts) -l $(logLevel) -d $(database)
+else
+optional_args=-l $(logLevel) -d $(database)
+endif
+textStream:=bookworm $(optional_args) tokenize text_stream
+
+#logLevel can be set here.
 logLevel="WARNING"
 
 #New syntax requires bash
@@ -69,6 +75,7 @@ pristine: clean
 # from elsewhere. If so, we use Peter Organisciak's fast_featurecounter.sh on that, instead.
 
 ifeq ($(maybe_feature_counts),--feature-counts)
+
 #wordlistBuilder=.bookworm/scripts/fast_featurecounter.sh ../unigrams.txt /tmp $(blockSize) .bookworm/texts/wordlist/sorted.txt; head -1000000 .bookworm/texts/wordlist/sorted.txt > .bookworm/texts/wordlist/wordlist.txt
 wordlistBuilder=cat unigrams.txt | bookworm $(optional_args) tokenize word_db
 else
