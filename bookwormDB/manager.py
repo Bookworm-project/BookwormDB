@@ -308,11 +308,12 @@ class BookwormManager(object):
             cursor = datahandler.db.query("SELECT TABLE_SCHEMA FROM information_schema.tables WHERE TABLE_NAME='masterTableTable'")
             for row in cursor.fetchall():
                 dbnames.append(row[0])
-            logging.debug("Reloading the following tables:")
-            logging.debug(dbnames)
+            logging.info("The following databases are bookworms to be reloaded:")
+            for name in dbnames:
+                logging.info("\t" + name)
 
         for database in dbnames:
-            logging.debug("Reloading memory tables for %s" %database)
+            logging.info("Reloading memory tables for %s" %database)
             Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
