@@ -153,6 +153,8 @@ class BookwormSQLDatabase:
 
         The Username for these privileges is pulled from the bookworm.cnf file.
         """
+        import ConfigParser
+        # This should be using the global configparser module, not the custom code here
         config = ConfigParser.ConfigParser(allow_no_value=True)
         config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
         username=config.get("client","user")
