@@ -13,6 +13,17 @@ from SQLAPI import userquery
 import re
 import json
 
+
+"""
+The general API is some functions for working with pandas to calculate
+bag-of-words summary statistics according to the API description.
+
+It is not bound to any particular backend: instead, a subset of 
+methods in the API must be supported by subclassing APICall().
+
+The only existing example of this is "SQLAPICall."
+"""
+
 #Some settings can be overridden here, if no where else.
 prefs = dict()
 
@@ -35,7 +46,7 @@ def calculateAggregates(df,parameters):
         df["SumWords"] = df["WordCount_y"] + df["WordCount_x"]
     if "WordsRatio" in parameters:
         df["WordsRatio"] = df["WordCount_x"]/df["WordCount_y"]
-
+        
     if "TextPercent" in parameters:
         df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
     if "TextCount" in parameters:
