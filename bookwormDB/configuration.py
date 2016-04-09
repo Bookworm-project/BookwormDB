@@ -92,10 +92,11 @@ class Configfile:
         If default is set, a file will be created at that location if none of the files in possible_locations exist.
         """
 
+        logging.info("Creating user of type " + usertype)
         self.usertype = usertype
 
         if possible_locations is None:
-            possible_locations = self.default_locations_from_type(usertype)
+            possible_locations = self.meta_locations_from_type()
         self.location = None
         
         self.config = ConfigParser.ConfigParser(allow_no_value=True)
@@ -105,6 +106,8 @@ class Configfile:
                 self.location=string
 
         if self.location is None:
+            import json
+            logging.warning("No configuration file found in any of %s" %(json.dumps(possible_locations)))
             if default is None:
                 raise IOError("No mysql configuration file could be found for the %s user, and no default to create" %usertype)
             else:
@@ -152,7 +155,6 @@ class Configfile:
                 except ConfigParser.MissingSectionHeaderError:
                     used_files.remove(file)
             successes = self.config.read(used_files)
-            print successes
             
     def default_locations_from_type(self,usertype):
         if usertype == "root":
