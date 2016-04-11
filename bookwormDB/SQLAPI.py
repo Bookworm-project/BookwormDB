@@ -171,7 +171,7 @@ class userquery:
             # Set an arbitrary column name that will always be true if nothing else is set.
             groups.insert(0, "1 as In_Library")
 
-        if (len (groups) > 1):
+        if (len(groups) > 1):
             pass
             # self.groups = credentialCheckandClean(self.groups)
             # Define some sort of limitations here, if not done in dbbindings.py
@@ -295,7 +295,6 @@ class userquery:
         except:
             self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
 
-
     def derive_variables(self):
         # These are locally useful, and depend on the search limits put in.
         self.limits = self.search_limits
@@ -327,7 +326,7 @@ class userquery:
                 while parent not in ['fastcat', 'wordsheap']:
                     parent = tableDepends[current]
                     neededTables.add(parent)
-                    current = parent;
+                    current = parent
                     n+=1
                     if n > 100:
                         raise TypeError("Unable to handle this; seems like a recursion loop in the table definitions.")
@@ -355,7 +354,6 @@ class userquery:
         """
         Here it just pulls every variable and where to look for it.
         """
-
 
         self.relevantTables = set()
 
@@ -471,7 +469,7 @@ class userquery:
         """
 
         for gramterm in ['unigram', 'bigram']:
-            if gramterm in self.limits.keys() and not "word" in self.limits.keys():
+            if gramterm in self.limits.keys() and "word" not in self.limits.keys():
                 self.limits['word'] = self.limits[gramterm]
                 del self.limits[gramterm]
 
@@ -497,7 +495,7 @@ class userquery:
                     selectString = "SELECT wordid FROM wordsheap WHERE %s = %%s" % self.word_field
 
                     logging.debug(selectString)
-                    cursor = self.db.cursor;
+                    cursor = self.db.cursor
                     cursor.execute(selectString,(searchingFor,))
                     for row in cursor.fetchall():
                         wordid = row[0]
@@ -518,7 +516,6 @@ class userquery:
                 # In the case that nothing has been found, tell it explicitly to search for
                 # a condition when nothing will be found.
                 self.wordswhere = "words1.wordid=-1"
-
 
         wordlimits = dict()
 
@@ -568,8 +565,8 @@ class userquery:
         elif needsTopics and needsUnigrams:
             self.maintable = 'master_topicWords'
             self.main = '''
-                NATURAL JOIN 
-            master_topicWords as main
+                NATURAL JOIN
+             master_topicWords as main
             '''
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
@@ -623,7 +620,6 @@ class userquery:
 
         All can be removed when we kill back compatibility ! It's all handled now by the general_API, not the SQL_API.
         """
-
 
         backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion", "Raw_Counts":"WordCount", "Percentage_of_Books":"TextPercent", "Number_of_Books":"TextCount"}
 
@@ -745,7 +741,8 @@ class userquery:
         self.mainquery = self.counts_query()
         self.countcommand = ','.join(self.finaloperations)
         self.totalselections = ",".join([group for group in self.outerGroups if group!="1 as In_Library" and group != ""])
-        if self.totalselections != "": self.totalselections += ", "
+        if self.totalselections != "":
+            self.totalselections += ", "
 
         query = """
         SELECT
@@ -757,7 +754,6 @@ class userquery:
         GROUP BY %(groupings)s;""" % self.__dict__
 
         return query
-
 
     def returnPossibleFields(self):
         try:
@@ -820,7 +816,6 @@ class userquery:
         # in the event of a multiple search.
         self.idfterm = ""
         prep = self.counts_query()
-
 
         if self.main == " ":
             self.ordertype="RAND()"
@@ -934,7 +929,6 @@ class userquery:
         except:
             return{'values':mydict}
 
-
     def return_tsv(self, query = "ratio_query"):
         if self.outside_dictionary['counttype'] == "Raw_Counts" or self.outside_dictionary['counttype'] == ["Raw_Counts"]:
             query="counts_query"
@@ -982,7 +976,7 @@ class derived_table(object):
         # Each query is identified by a unique key hashed
         # from the query and the dbname.
         self.queryID = dbToPutIn + "." + "derived" + hashlib.sha1(self.query + db.dbname).hexdigest()
-        self.indices = "(" + ",".join(["INDEX(%s)" % index  for index in indices]) + ")" if indices != [] else ""
+        self.indices = "(" + ",".join(["INDEX(%s)" % index for index in indices]) + ")" if indices != [] else ""
 
     def setStorageEngines(self, temp):
         """
@@ -1046,7 +1040,7 @@ class databaseSchema:
             self.aliases = dict()
 
         try:
-            # First build using the new streamlined tables; if that fails, 
+            # First build using the new streamlined tables; if that fails,
             # build using the old version that hits the INFORMATION_SCHEMA,
             # which is bad practice.
             self.newStyle(db)
@@ -1055,13 +1049,11 @@ class databaseSchema:
             # for oldness, though of course something else might be causing the failure.
             self.oldStyle(db)
 
-
     def newStyle(self, db):
         self.tableToLookIn['bookid'] = 'fastcat'
         self.anchorFields['bookid'] = 'fastcat'
         self.anchorFields['wordid'] = 'wordid'
         self.tableToLookIn['wordid'] = 'wordsheap'
-
 
         tablenames = dict()
         tableDepends = dict()
@@ -1076,7 +1068,7 @@ class databaseSchema:
 
         # This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
 
-        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY DESC;" % self.db.__dict__);
+        self.cursor.execute("SELECT ENGINE,TABLE_NAME,COLUMN_NAME,COLUMN_KEY,TABLE_NAME='fastcat' OR TABLE_NAME='wordsheap' AS privileged FROM information_schema.COLUMNS JOIN INFORMATION_SCHEMA.TABLES USING (TABLE_NAME,TABLE_SCHEMA) WHERE TABLE_SCHEMA='%(dbname)s' ORDER BY privileged,ENGINE DESC,TABLE_NAME,COLUMN_KEY DESC;" % self.db.__dict__)
         columnNames = self.cursor.fetchall()
 
         parent = 'bookid'
@@ -1111,7 +1103,7 @@ class databaseSchema:
         self.anchorFields['wordid'] = 'wordid'
         self.tableToLookIn['wordid'] = 'wordsheap'
     #############
-    ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
+    # ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
     #############
 
 def to_unicode(obj, encoding='utf-8'):
@@ -1126,7 +1118,7 @@ def to_unicode(obj, encoding='utf-8'):
 
 def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
     whereterm = []
-    #The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
+    # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
     # For more complicated bits, it gets all recursive until the bits are all in terms of list.
     for key in myhash.keys():
         values = myhash[key]
@@ -1187,8 +1179,6 @@ try:
     print json.dumps(result)
 except:
     pass
-
-
 
 def debug(string):
     """
