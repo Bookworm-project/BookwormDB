@@ -901,34 +901,6 @@ class userquery:
             newarray = returnarray
         return newarray
 
-    def return_query_values(self, query = "ratio_query"):
-        # The API returns a dictionary with years pointing to values.
-        """
-        DEPRECATED: use 'return_json' or 'return_tsv' (the latter only works with single 'search_limits' options) instead
-        """
-        values = []
-        querytext = getattr(self, query)()
-        silent = self.cursor.execute(querytext)
-            # Gets the results
-        mydict = dict(self.cursor.fetchall())
-        try:
-            for key in mydict.keys():
-                # Only return results inside the time limits
-                if key >= self.time_limits[0] and key <= self.time_limits[1]:
-                    mydict[key] = str(mydict[key])
-                else:
-                    del mydict[key]
-            mydict = smooth_function(mydict, smooth_method = self.smoothingType, span = self.smoothingSpan)
-
-        except:
-            mydict = {0:"0"}
-
-        # This is a good place to change some values.
-        try:
-            return {'index':self.index, 'Name':self.words_searched, "values":mydict, 'words_searched':""}
-        except:
-            return{'values':mydict}
-
     def return_tsv(self, query = "ratio_query"):
         if self.outside_dictionary['counttype'] == "Raw_Counts" or self.outside_dictionary['counttype'] == ["Raw_Counts"]:
             query="counts_query"
@@ -946,10 +918,6 @@ class userquery:
                 items.append(item)
             results.append("\t".join(items))
         return "\n".join(results)
-
-    def export_data(self, query1="ratio_query"):
-        self.smoothing=0
-        return self.return_query_values(query=query1)
 
     def execute(self):
         # This performs the query using the method specified in the passed parameters.
@@ -1000,15 +968,6 @@ class derived_table(object):
         dataCode = "INSERT INTO %s values ("%self.queryID + ", ".join(["%s"]*len(data[0])) + ")"
         self.db.cursor.executemany(dataCode, data)
         self.db.db.commit()
-
-    def materializeFromCache(self, temp):
-        if self.data is not None:
-            # Datacode should never exist without createCode also.
-            self.db.cursor.execute(self.createCode)
-            self.fillTableWithData(pickle.loads(self.data, protocol=-1))
-            return True
-        else:
-            return False
 
 
 class databaseSchema:
@@ -1165,27 +1124,3 @@ def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
                 whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+escape(value)+quotesep+") " for value in values])+ ") ")
     return "(" + joiner.join(whereterm) + ")"
     # This works pretty well, except that it requires very specific sorts of terms going in, I think.
-
-
-# I'd rather have all this smoothing stuff done at the client side, but currently it happens here.
-
-# The idea is: this works by default by slurping up from the command line, but you could also load the functions in and run results on your own queries.
-try:
-    command = str(sys.argv[1])
-    command = json.loads(command)
-# Got to go before we let anything else happen.
-    p = userqueries(command)
-    result = p.execute()
-    print json.dumps(result)
-except:
-    pass
-
-def debug(string):
-    """
-    Makes it easier to debug through a web browser by handling the headers.
-    Despite being called a `string`, it can be anything that python can print.
-    """
-    print headers('1')
-    print "<br>"
-    print string
-    print "<br>"
