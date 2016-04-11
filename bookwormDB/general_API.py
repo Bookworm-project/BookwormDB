@@ -1,17 +1,14 @@
 #!/usr/bin/python
 
-import MySQLdb
 from pandas import merge
 from pandas.io.sql import read_sql
-from pandas import set_option
 from copy import deepcopy
 from collections import defaultdict
-import ConfigParser
-import os.path
 from SQLAPI import DbConnect
 from SQLAPI import userquery
 import re
 import json
+import logging
 
 #Some settings can be overridden here, if no where else.
 prefs = dict()
@@ -19,7 +16,7 @@ prefs = dict()
 def calculateAggregates(df,parameters):
 
     """
-    We only collect "WordCoun" and "TextCount" for each query,
+    We only collect "WordCount and "TextCount" for each query,
     but there are a lot of cool things you can do with those:
     basic things like frequency, all the way up to TF-IDF.
     """
@@ -274,11 +271,17 @@ class APIcall(object):
 
         method = self.query['method']
 
-        if isinstance(self.query['search_limits'],list):
-            if self.query['method'] not in ["json","return_json"]:
+        if isinstance(self.query['search_limits'], list):
+            if self.query['method'] not in ["json", "return_json"]:
                 self.query['search_limits'] = self.query['search_limits'][0]
             else:
                 return self.multi_execute()
+
+        if method in ["return_json", "return_tsv", "return_pickle", "json",
+                      "tsv", "pickle"]:
+            form = method[7:] if method[:6] == 'return' else method
+            logging.warn("method==\"%s\" is deprecated. Use method=\"data\" "
+                         "with format=\"%s\" instead." % (method, form))
 
         if method=="return_json" or method=="json":
             frame = self.data()
