@@ -17,7 +17,7 @@ def headers(method, errorcode=False):
           'X-Requested-With, X-CSRF-Token'
 
     if errorcode:
-        print "Status: %d" % errorcode
+	print "Status: %d" % errorcode
 
     if method != "return_tsv":
         print "Content-type: text/html\n"
@@ -50,14 +50,23 @@ def main(JSONinput):
     # run the query.
     resp = p.execute()
 
-    # Print appropriate HTML headers
-    if 'status' in resp and resp['status'] == 'error':
-        code = resp['code'] if 'code' in resp else 500
-        headers(query['method'], errorcode=code)
+    if query['method'] == 'data' and 'format' in query and query['format'] == 'json':
+        try:
+            resp = json.loads(resp)
+        except:
+            resp = dict(status="error", code=500,
+                        message="Internal error: server did not return json")
+
+        # Print appropriate HTML headers
+        if 'status' in resp and resp['status'] == 'error':
+            code = resp['code'] if 'code' in resp else 500
+            headers(query['method'], errorcode=code)
+        else:
+            headers(query['method'])
+        print json.dumps(resp)
     else:
         headers(query['method'])
-
-    print resp
+        print resp
 
     return True
 
