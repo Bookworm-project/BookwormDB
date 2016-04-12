@@ -263,13 +263,7 @@ class APIcall(object):
         if len(intersections) > 0:
             merged = merge(df1, df2, on=intersections, how='outer')
         else:
-            """
-            Pandas doesn't seem to have a full, unkeyed merge,
-            so I simulate it with a dummy.
-            """
-            df1['dummy_merge_variable'] = 1
-            df2['dummy_merge_variable'] = 1
-            merged = merge(df1, df2, on=["dummy_merge_variable"], how='outer')
+            merged = df1.join(df2, lsuffix='_x', rsuffix='_y')
 
         merged = merged.fillna(int(0))
 
