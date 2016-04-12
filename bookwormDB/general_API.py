@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from pandas import merge
+from pandas import merge, Series
 from pandas.io.sql import read_sql
 from copy import deepcopy
 from collections import defaultdict
@@ -218,6 +218,13 @@ class APIcall(object):
         where it handles storage_format.
         """
 
+        required_fields = ['counttype', 'groups']
+        for field in required_fields:
+            if field not in self.query:
+                logging.error("Missing field: %s" % field)
+                return Series({"status": "error", "message": "Bad query. "
+                               "Missing \"%s\" field" % field, "code": 400})
+
         call1 = deepcopy(self.query)
 
         # The individual calls need only the base counts: not "Percentage of
@@ -252,8 +259,13 @@ class APIcall(object):
         This could use any method other than pandas_SQL:
         You'd just need to name objects df1 and df2 as pandas dataframes
         """
-        df1 = self.generate_pandas_frame(call1)
-        df2 = self.generate_pandas_frame(call2)
+        try:
+            df1 = self.generate_pandas_frame(call1)
+            df2 = self.generate_pandas_frame(call2)
+        except:
+            logging.exception("Database error")
+            return Series({"status": "error", "message": "Database error. "
+                           "Try checking field names."})
 
         intersections = intersectingNames(df1, df2)
 
@@ -281,6 +293,7 @@ class APIcall(object):
     def execute(self):
 
         method = self.query['method']
+        fmt = self.query['format']
 
         if isinstance(self.query['search_limits'], list):
             if self.query['method'] not in ["json", "return_json"]:
@@ -294,9 +307,11 @@ class APIcall(object):
             logging.warn("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
 
+        if method == "data" and fmt == "json":
+            return self.return_json(version=2)
+
         if method == "return_json" or method == "json":
-            frame = self.data()
-            return self.return_json()
+            return self.return_json(version=1)
 
         if method == "return_tsv" or method == "tsv":
             import csv
@@ -331,9 +346,19 @@ class APIcall(object):
 
         return json.dumps(returnable)
 
-    def return_json(self, raw_python_object=False):
+    def return_json(self, raw_python_object=False, version=1):
+        '''
+        Format JSON response.
+
+        version: 1 returns just the data, using method=return_json.
+                 2 formats the response according to the JSend spec.
+        '''
         query = self.query
         data = self.data()
+
+        if 'status' in data:
+            # If data has a status, Bookworm is trying to send us an error
+            return data.to_json()
 
         def fixNumpyType(input):
             # This is, weirdly, an occasional problem but not a constant one.
@@ -364,13 +389,18 @@ class APIcall(object):
         if raw_python_object:
             return returnt
 
+        if version == 1:
+            resp = returnt
+        elif version == 2:
+            resp = dict(status="success", data=returnt)
+        else:
+            resp = dict(status="error",
+                        data="Internal error: unknown response version")
+
         try:
-            return json.dumps(returnt, allow_nan=False)
+            return json.dumps(resp, allow_nan=False)
         except ValueError:
-            return json.dumps(returnt)
-            kludge = json.dumps(returnt)
-            kludge = kludge.replace("Infinity", "null")
-            print kludge
+            return json.dumps(resp)
 
 
 class SQLAPIcall(APIcall):
