@@ -17,7 +17,7 @@ def headers(method, errorcode=False):
           'X-Requested-With, X-CSRF-Token'
 
     if errorcode:
-        print "Status: %d" % errorcode
+	print "Status: %d" % errorcode
 
     if method != "return_tsv":
         print "Content-type: text/html\n"
@@ -50,7 +50,7 @@ def main(JSONinput):
     # run the query.
     resp = p.execute()
 
-    if query['method'] == 'data' and format in query and query['format'] == 'json':
+    if query['method'] == 'data' and 'format' in query and query['format'] == 'json':
         try:
             resp = json.loads(resp)
         except:
@@ -63,7 +63,7 @@ def main(JSONinput):
             headers(query['method'], errorcode=code)
         else:
             headers(query['method'])
-            print json.dumps(resp)
+        print json.dumps(resp)
     else:
         headers(query['method'])
         print resp
