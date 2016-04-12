@@ -293,7 +293,7 @@ class APIcall(object):
     def execute(self):
 
         method = self.query['method']
-        fmt = self.query['format']
+        fmt = self.query['format'] if 'format' in self.query else False
 
         if isinstance(self.query['search_limits'], list):
             if self.query['method'] not in ["json", "return_json"]:
