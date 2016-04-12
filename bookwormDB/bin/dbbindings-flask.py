@@ -30,7 +30,8 @@ def main(JSONinput):
     p = SQLAPIcall(query)
     result = p.execute()
 
-    if 'format' in query and query['format'] == 'json':
+    if (query['method'] == 'data' and 'format' in query and
+            query['format'] == 'json'):
         # New format for response
         jresp = json.loads(result)
         resp = jsonify(jresp)

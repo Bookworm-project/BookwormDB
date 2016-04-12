@@ -294,35 +294,44 @@ class APIcall(object):
 
         method = self.query['method']
         fmt = self.query['format'] if 'format' in self.query else False
+        version = 2 if method == 'data' else 1
 
+        # What to do with multiple search_limits
         if isinstance(self.query['search_limits'], list):
-            if self.query['method'] not in ["json", "return_json"]:
-                self.query['search_limits'] = self.query['search_limits'][0]
+            if version == 2 and fmt == "json":
+                return self.multi_execute(version=version)
+            elif version == 1 and method in ["json", "return_json"]:
+                return self.multi_execute(version=version)
             else:
-                return self.multi_execute()
+                # Only return first search limit if not return in json
+                self.query['search_limits'] = self.query['search_limits'][0]
 
-        if method in ["return_json", "return_tsv", "return_pickle", "json",
-                      "tsv", "pickle"]:
+        if version == 1:
             form = method[7:] if method[:6] == 'return' else method
             logging.warn("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
 
-        if method == "data" and fmt == "json":
-            return self.return_json(version=2)
+            if method == "return_json" or method == "json":
+                return self.return_json(version=1)
 
-        if method == "return_json" or method == "json":
-            return self.return_json(version=1)
+            elif method == "return_tsv" or method == "tsv":
+                import csv
+                frame = self.data()
+                return frame.to_csv(sep="\t", encoding="utf8", index=False,
+                                    quoting=csv.QUOTE_NONE, escapechar="\\")
 
-        if method == "return_tsv" or method == "tsv":
-            import csv
-            frame = self.data()
-            return frame.to_csv(sep="\t", encoding="utf8", index=False,
-                                quoting=csv.QUOTE_NONE, escapechar="\\")
+            elif method == "return_pickle" or method == "DataFrame":
+                frame = self.data()
+                from cPickle import dumps as pickleDumps
+                return pickleDumps(frame, protocol=-1)
 
-        if method == "return_pickle" or method == "DataFrame":
-            frame = self.data()
-            from cPickle import dumps as pickleDumps
-            return pickleDumps(frame, protocol=-1)
+        elif version == 2:
+            if fmt == "json":
+                return self.return_json(version=2)
+            else:
+                err = dict(status="error", code="200",
+                           message="Only format=json currently supported")
+                return json.dumps(err)
 
         # Temporary catch-all pushes to the old methods:
         if method in ["returnPossibleFields", "search_results",
@@ -332,7 +341,7 @@ class APIcall(object):
                 return query.execute()
             return json.dumps(query.execute())
 
-    def multi_execute(self):
+    def multi_execute(self, version=1):
         """
         Queries may define several search limits in an array
         if they use the return_json method.
@@ -341,14 +350,15 @@ class APIcall(object):
         for limits in self.query['search_limits']:
             child = deepcopy(self.query)
             child['search_limits'] = limits
-            q = self.__class__(child).return_json(raw_python_object=True)
+            q = self.__class__(child).return_json(raw_python_object=True,
+                                                  version=version)
             returnable.append(q)
 
-        return json.dumps(returnable)
+        return self._prepare_response(returnable, version)
 
     def return_json(self, raw_python_object=False, version=1):
         '''
-        Format JSON response.
+        Get JSON data for a single search_limit.
 
         version: 1 returns just the data, using method=return_json.
                  2 formats the response according to the JSend spec.
@@ -388,11 +398,14 @@ class APIcall(object):
                 destination = destination[key]
         if raw_python_object:
             return returnt
+        else:
+            return self._prepare_response(returnt, version)
 
+    def _prepare_response(self, data, version=1):
         if version == 1:
-            resp = returnt
+            resp = data
         elif version == 2:
-            resp = dict(status="success", data=returnt)
+            resp = dict(status="success", data=data)
         else:
             resp = dict(status="error",
                         data="Internal error: unknown response version")
