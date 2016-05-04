@@ -124,7 +124,17 @@ class BookwormManager(object):
             else:
                 raise IOError("No input file found.")
         if args.process=="token_stream":
-            bookwormDB.tokenizer.print_token_stream()
+            """
+            It is currently not possible to tokenize a bookworm-formatted file directly,
+            *and* have the ids removed from the start.
+            """
+            require_id = False
+            if args.file is None:
+                args.file = sys.stdin
+                require_id = True
+            else:
+                args.file = open(args.file)
+            bookwormDB.tokenizer.print_token_stream(args.file,require_ids = require_id)
 
         if args.process=="word_db":
             import bookwormDB.wordcounter
@@ -284,20 +294,18 @@ class BookwormManager(object):
     def guessAtFieldDescriptions(self):
         import bookwormDB.CreateDatabase
         import json
-
-        
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
-        Bookworm.setVariables(".bookworm/metadata/jsoncatalog.txt",jsonDefinition=None)
+        Bookworm.setVariables("jsoncatalog.txt",jsonDefinition=None)
         import os
-        if not os.path.exists(".bookworm/metadata/field_descriptions.json"):
-            output = open(".bookworm/metadata/field_descriptions.json","w")
+        if not os.path.exists("field_descriptions.json"):
+            output = open("field_descriptions.json","w")
             output.write(json.dumps(Bookworm.variableSet.guessAtFieldDescriptions()))
         else:
             logging.error("""
-            You already have a file at .bookworm/metadata/field_descriptions.json
+            You already have a file at field_descriptions.json
             Dying rather than overwrite it.
             """)
-            exit
+            sys.exit()
             
     def reload_memory(self,args):
         import bookwormDB.CreateDatabase
@@ -510,9 +518,12 @@ def run_arguments():
     text_stream_parser.add_argument("--file","-f",help="location of a formatted input file: leave blank for sensible defaults as described in the documentation.",default=None)
     
     token_stream_parser = tokenization_subparsers.add_parser("token_stream",
-                                                            help="Turn input from text_stream into delimited list of tokens using standard tokenization rules.")
+        help="Turn text into space-delimited tokens using a regular expression.  use options ")
     token_stream_parser.add_argument("--token-regex",
         help="Regular expression defining tokens. Not currently implemented")
+    token_stream_parser.add_argument("--file","-f",
+        help="A file to tokenize. By default, reads the output of text_stream from stdin.",
+        default=None)
 
     word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
     ########## Build components
@@ -522,7 +533,6 @@ def run_arguments():
     """
     Some special functions
     """
-    # Not yet implemented.
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
     init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
