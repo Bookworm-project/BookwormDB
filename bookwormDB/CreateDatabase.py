@@ -131,8 +131,18 @@ class BookwormSQLDatabase:
         This is a little wonky, and may
         be deprecated in favor of a cleaner interface.
         """
-        import bookwormDB.configuration
-        self.config_manager = bookwormDB.configuration.Configfile("local")
+        from bookwormDB.configuration import Configfile
+        try:
+            self.config_manager = Configfile("local")
+            logging.debug("Connecting from the local config file")
+        except IOError:
+            try:
+                self.config_manager = Configfile("global")
+                logging.debug("No bookworm.cnf in local file: connecting from global defaults")
+            except IOError:
+                self.config_manager = Configfile("admin")
+                logging.debug("No bookworm.cnf in local file: connecting from admin defaults")
+                
         self.config_manager.read_config_files()
         config = self.config_manager.config
         if dbname==None:
