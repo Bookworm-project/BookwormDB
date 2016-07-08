@@ -5,7 +5,7 @@ import os
 import re
 
 
-def create():
+def create(ask_about_defaults=True,database=None):
     """
     Through interactive prompts at the command line, builds up a file at 
     bookworm.cnf that can be used to set preferences for the installation.
@@ -37,7 +37,12 @@ def create():
 
     defaults = dict()
     #The default bookwormname is just the current location
-    defaults['database'] = os.path.relpath(".","..")
+
+    if database is None:
+        defaults['database'] = os.path.relpath(".","..")
+    else:
+        defaults['database'] = database
+        
     defaults["user"] = ""
     defaults["password"] = ""
 
@@ -56,15 +61,19 @@ def create():
     for section in ["client"]:
         config.add_section(section)
 
-    database = raw_input("What is the name of the bookworm [" + defaults['database'] + "]: ")
+    if ask_about_defaults:
+        database = raw_input("What is the name of the bookworm [" + defaults['database'] + "]: ")
+        password = raw_input("What is the *client* password for MySQL [" + defaults["password"] + "]: ")
+        user = raw_input("What is the *client* username for MySQL [" + defaults["user"] + "]: ")
+    else:
+        (database,password,user) = ("","","")
+         
     if database=="":
         database = defaults['database']
 
-    user = raw_input("What is the *client* username for MySQL [" + defaults["user"] + "]: ")
     if user=="":
         user = defaults["user"]
 
-    password = raw_input("What is the *client* password for MySQL [" + defaults["password"] + "]: ")
     if password =="":
         password = defaults["password"]
 
