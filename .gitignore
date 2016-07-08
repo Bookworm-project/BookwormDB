@@ -43,3 +43,4 @@ genderizer*
 bookwormDB.egg-info
 MANIFEST
 dist
+tests/test_bookworm_files/.bookworm/
