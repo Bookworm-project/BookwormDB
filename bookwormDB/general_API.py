@@ -50,6 +50,8 @@ def calculateAggregates(df, parameters):
         df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
     if "TextCount" in parameters:
         df["TextCount"] = df["TextCount_x"]
+    if "TextRatio" in parameters:
+        df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]        
     if "TotalTexts" in parameters:
         df["TotalTexts"] = df["TextCount_y"]
 
