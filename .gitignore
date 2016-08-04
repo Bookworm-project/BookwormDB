@@ -43,3 +43,4 @@ genderizer*
 bookwormDB.egg-info
 MANIFEST
 dist
+demos/.ipynb_checkpoints
