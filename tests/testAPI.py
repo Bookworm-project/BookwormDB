@@ -1,10 +1,12 @@
 import unittest
 import bookwormDB
 import bookwormDB.CreateDatabase
+from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import logging
 import os
 from subprocess import call as call
 import sys
+import json
 
 def setup_bookworm():
     """
@@ -87,7 +89,6 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         for n in range(500):
             newMetadata.write("%d\t%s\n" %(n,even_even(n)))
 
-
         class Dummy:
             """
             Just quickly create a namespace to stand in for the command-line args.
@@ -96,6 +97,7 @@ class Bookworm_SQL_Creation(unittest.TestCase):
             format = "tsv"
             file = "/tmp/test_bookworm_metadata.tsv"
             field_descriptions = None # Test the guessing at field_descriptions while we're at it
+
         import os
         manager.add_metadata(Dummy)
 
@@ -103,10 +105,6 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         And then we test if that can be retrieved
         """
 
-        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
-        import json
-        import os
-                
         query = {
                 "database":"federalist_bookworm",
                 "search_limits":{},
@@ -114,6 +112,7 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "groups":["oddness"],
                 "method":"return_json"
         }
+        
         SQLAPIcall(query)
         m = json.loads(SQLAPIcall(query).execute())
         # Even or odd is one of two things.
@@ -123,6 +122,65 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         # there should be more of those.
         
         self.assertTrue(m['odd'][0]>=m['even'][0])
+        
+    def test_case_sensitivity(self):
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{"word":["the"]},
+                "counttype":"WordCount",
+                "groups":[],
+                "words_collation":"Case_Sensitive",
+                "method":"return_json"
+        }
+        
+        SQLAPIcall(query)
+        val1 = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(val1[0] > 0)
+        
+        query["words_collation"] = "Case_Insensitive"        
+
+        SQLAPIcall(query)        
+        val2 = json.loads(SQLAPIcall(query).execute())
+        # The words ('The','the') appear more often than ('the') alone.
+        self.assertTrue(val2[0] > val1[0])
+
+
+    def test_case_insensitivity_works_without_search_term(self):
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{"word":["hOwEvEr"]},
+                "counttype":"WordCount",
+                "groups":[],
+                "words_collation":"Case_Insensitive",
+                "method":"return_json"
+        }        
+        SQLAPIcall(query)
+        val1 = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(val1[0] > 0)
+
+    def test_asterisks_in_search_limits(self):
+        """
+        The following two queries should, by definition, produce the same result.
+        """
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{"word":["on"],"author":["HAMILTON"]},
+                "compare_limits":{"word":["on"]},                
+                "counttype":"WordsPerMillion",
+                "groups":[],
+                "method":"return_json"
+        }        
+        val1 = json.loads(SQLAPIcall(query).execute())
+
+        query = {
+            "database":"federalist_bookworm",
+            "search_limits":{"word":["on"],"*author":["HAMILTON"]},
+            "counttype":"WordsPerMillion",
+            "groups":[],
+            "method":"return_json"
+            }
+        val2 = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(val1[0] == val2[0])        
 
         
 """        
