@@ -481,7 +481,7 @@ class userquery:
             """
             for phrase in self.limits['word']:
                 locallimits = dict()
-                array = phrase.split(" ")
+                array = phrase.split()
                 n = 0
                 for word in array:
                     n += 1
