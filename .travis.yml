@@ -3,8 +3,8 @@ language: python
 python:
   - "2.7"
   
-sudo: required
-dist: trusty
+#sudo: required
+#dist: trusty
 
 services:
   - mysql
@@ -13,13 +13,14 @@ addons:
   apt:
     packages:
       - apache2
-      - mysql-server-5.6
-      - mysql-client-core-5.6
-      - mysql-client-5.6      
+      - mysql-server
+      - mysql-client-core
+      - mysql-client
+      - libmysqlclient-dev
       
 install:
-  - sudo pip install .
-  - sudo python setup.py install
+  - pip install .
+#  - sudo python setup.py install
 
 before_script:
   - bookworm config --force mysql
