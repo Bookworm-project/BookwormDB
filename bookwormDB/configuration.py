@@ -360,7 +360,6 @@ def update_settings_for(name,force=False):
         client = Configfile("global",
             default=default_cnf_file_location,
             ask_about_defaults = not force)
-            ask_about_defaults = not force)
         client.change_client_password()
         client.set_bookworm_options()
         client.write_out()
