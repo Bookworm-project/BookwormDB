@@ -1,7 +1,7 @@
 language: generic
 
 python:
-  - "2.7"
+  - "2.7.10"
   
 sudo: required
 dist: trusty
@@ -16,9 +16,13 @@ addons:
       - mysql-server-5.6
       - mysql-client-core-5.6
       - mysql-client-5.6
-      
+
+before_install:
+  # necessary for the pip installation, unfortunately?
+  - sudo chown travis /usr/lib/cgi-bin
+  
 install:
-  - sudo pip install .
+  - pip install .
   #- sudo python setup.py install
 
 before_script:
