@@ -10,6 +10,7 @@ import os
 from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
+from bookwormDB.configuration import ConfigFile
 import logging
 import warnings
 import anydbm
@@ -47,7 +48,6 @@ def text_id_dbm():
                     raise
 class DB:
     def __init__(self,dbname=None):
-        from bookwormDB.configuration import Configfile
         try:
             configuration = Configfile("local")
             logging.debug("Connecting from the local config file")
@@ -71,7 +71,16 @@ class DB:
         
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
+        conf = Configfile("admin")
+        conf.read_config_files()
+
+        self.conn = MySQLdb.connect(
+            user         = conf.config.get("client","user"),
+            passwd       = conf.config.get("client","password"),
+            use_unicode  = 'True',
+            charset      = 'utf8',
+            db           = '',
+            local_infile = 1)
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
         #Don't use native query attribute here to avoid infinite loops
@@ -131,7 +140,6 @@ class BookwormSQLDatabase:
         This is a little wonky, and may
         be deprecated in favor of a cleaner interface.
         """
-        from bookwormDB.configuration import Configfile
         try:
             self.config_manager = Configfile("local")
             logging.debug("Connecting from the local config file")
@@ -163,12 +171,11 @@ class BookwormSQLDatabase:
 
         The Username for these privileges is pulled from the bookworm.cnf file.
         """
-        import ConfigParser
-        # This should be using the global configparser module, not the custom code here
-        config = ConfigParser.ConfigParser(allow_no_value=True)
-        config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
-        username=config.get("client","user")
-        password=config.get("client","password")
+        globalfile = Configfile("global")
+        globalfile.read_config_files()
+
+        username=globalfile.config.get("client","user")
+        password=globalfile.config.get("client","password")
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
     def setVariables(self,originFile,anchorField="bookid",
