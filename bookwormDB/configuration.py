@@ -215,7 +215,7 @@ class Configfile:
                 db = MySQLdb.connect(user=user,passwd=password)
             else:
                 # Hail-mary that maybe works on travis
-                db = MySQLdb.connect(user="root",passwd="")
+                db = MySQLdb.connect(user="root",passwd="",host="127.0.0.1")
 
         cur = db.cursor()
         self.ensure_section("client")
