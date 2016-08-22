@@ -7,6 +7,8 @@ import copy
 import MySQLdb
 import hashlib
 import logging
+from bwExceptions import BookwormException
+
 """
 # There are 'fast' and 'full' tables for books and words;
 # that's so memory tables can be used in certain cases for fast, hashed
@@ -27,7 +29,6 @@ general_prefs["default"] = {"fastcat": "fastcat",
                             "fullcat": "catalog",
                             "fullword": "words",
                             "read_default_file": "/etc/mysql/my.cnf"}
-
 
 class DbConnect(object):
     # This is a read-only account
@@ -543,6 +544,11 @@ class userquery:
 
         needsBigrams = (self.max_word_length == 2 or re.search("words2", self.selections))
         needsUnigrams = self.max_word_length == 1 or re.search("[^h][^a][^s]word", self.selections)
+
+        if self.max_word_length > 2:
+            err = dict(code=400, message="Phrase is longer than what Bookworm supports")
+            raise BookwormException(err)
+
         needsTopics = bool(re.search("topic", self.selections)) or ("topic" in self.limits.keys())
 
         if needsBigrams:

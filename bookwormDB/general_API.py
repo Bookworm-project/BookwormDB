@@ -6,6 +6,7 @@ from copy import deepcopy
 from collections import defaultdict
 from SQLAPI import DbConnect
 from SQLAPI import userquery
+from bwExceptions import BookwormException
 import re
 import json
 import logging
@@ -23,7 +24,6 @@ The only existing example of this is "SQLAPICall."
 # Some settings can be overridden here, if no where else.
 
 prefs = dict()
-
 
 def calculateAggregates(df, parameters):
 
@@ -235,8 +235,9 @@ class APIcall(object):
         for field in required_fields:
             if field not in self.query:
                 logging.error("Missing field: %s" % field)
-                return Series({"status": "error", "message": "Bad query. "
-                               "Missing \"%s\" field" % field, "code": 400})
+                err = dict(message="Bad query. Missing \"%s\" field" % field,
+                           code=400)
+                raise BookwormException(err)
 
         call1 = deepcopy(self.query)
 
@@ -272,13 +273,8 @@ class APIcall(object):
         This could use any method other than pandas_SQL:
         You'd just need to name objects df1 and df2 as pandas dataframes
         """
-        try:
-            df1 = self.generate_pandas_frame(call1)
-            df2 = self.generate_pandas_frame(call2)
-        except:
-            logging.exception("Database error")
-            return Series({"status": "error", "message": "Database error. "
-                           "Try checking field names."})
+        df1 = self.generate_pandas_frame(call1)
+        df2 = self.generate_pandas_frame(call2)
 
         intersections = intersectingNames(df1, df2)
 
@@ -309,17 +305,15 @@ class APIcall(object):
         fmt = self.query['format'] if 'format' in self.query else False
         version = 2 if method == 'data' else 1
 
-        # What to do with multiple search_limits
-        if isinstance(self.query['search_limits'], list):
-            if version == 2 and fmt == "json":
-                return self.multi_execute(version=version)
-            elif version == 1 and method in ["json", "return_json"]:
-                return self.multi_execute(version=version)
-            else:
-                # Only return first search limit if not return in json
-                self.query['search_limits'] = self.query['search_limits'][0]
-
         if version == 1:
+            # What to do with multiple search_limits
+            if isinstance(self.query['search_limits'], list):
+                if method in ["json", "return_json"]:
+                    return self.multi_execute(version=version)
+                else:
+                    # Only return first search limit if not return in json
+                    self.query['search_limits'] = self.query['search_limits'][0]
+
             form = method[7:] if method[:6] == 'return' else method
             logging.warn("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
@@ -339,20 +333,43 @@ class APIcall(object):
                 return pickleDumps(frame, protocol=-1)
 
         elif version == 2:
-            if fmt == "json":
-                return self.return_json(version=2)
-            else:
-                err = dict(status="error", code="200",
-                           message="Only format=json currently supported")
+            try:
+                # What to do with multiple search_limits
+                if isinstance(self.query['search_limits'], list):
+                    if fmt == "json":
+                        return self.multi_execute(version=version)
+                    else:
+                        # Only return first search limit if not return in json
+                        self.query['search_limits'] = self.query['search_limits'][0]
+
+                if fmt == "json":
+                    return self.return_json(version=2)
+                else:
+                    err = dict(status="error", code=200,
+                               message="Only format=json currently supported")
+                    return json.dumps(err)
+            except BookwormException as e:
+                # Error status codes are HTTP codes
+                # http://www.restapitutorial.com/httpstatuscodes.html
+                err = e.args[0]
+                err['status'] = "error"
                 return json.dumps(err)
+            except:
+                # General Uncaught error.
+                logging.exception("Database error")
+                return json.dumps({"status": "error", "message": "Database error. "
+                               "Try checking field names."})
 
         # Temporary catch-all pushes to the old methods:
         if method in ["returnPossibleFields", "search_results",
                       "return_books"]:
-            query = userquery(self.query)
-            if method == "return_books":
-                return query.execute()
-            return json.dumps(query.execute())
+                try:
+                    query = userquery(self.query)
+                    if method == "return_books":
+                        return query.execute()
+                    return json.dumps(query.execute())
+                except:
+                    return "General error"
 
     def multi_execute(self, version=1):
         """
