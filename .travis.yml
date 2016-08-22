@@ -19,6 +19,7 @@ addons:
       
 install:
   - sudo pip install .
+  - sudo python setup.py install
 
 before_script:
   - bookworm config --force mysql
