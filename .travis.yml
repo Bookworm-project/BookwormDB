@@ -3,8 +3,8 @@ language: python
 python:
   - "2.7"
   
-#sudo: required
-#dist: trusty
+sudo: required
+dist: trusty
 
 services:
   - mysql
@@ -19,11 +19,12 @@ addons:
       - libmysqlclient-dev
       
 install:
-  - pip install .
-#  - sudo python setup.py install
+  - sudo pip install .
+  #- sudo python setup.py install
 
 before_script:
   - bookworm config --force mysql
-
+  - which python
+  
 script:
   - cd tests && python test_mysql.py && python test_API.py
