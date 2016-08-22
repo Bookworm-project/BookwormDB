@@ -171,11 +171,13 @@ class BookwormSQLDatabase:
 
         The Username for these privileges is pulled from the bookworm.cnf file.
         """
+
         globalfile = Configfile("global")
         globalfile.read_config_files()
 
         username=globalfile.config.get("client","user")
         password=globalfile.config.get("client","password")
+
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
     def setVariables(self,originFile,anchorField="bookid",
