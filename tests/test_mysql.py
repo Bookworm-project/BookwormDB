@@ -43,7 +43,8 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
 
         (admin_user,admin_pw) = test_config_file(global_configuration_file)
         (client_user,client_pw) = test_config_file(admin_configuration_file)
-        
+        logging.info("admin user is {} and password is {}".format(admin_user,admin_pw))
+        logging.info("client user is {} and password is {}".format(client_user,client_pw))
         logging.info("Checking that admin and client users are distinct")
         self.assertTrue(admin_user != client_user)
         
