@@ -22,6 +22,7 @@ before_install:
   - sudo chown travis /usr/lib/cgi-bin
   
 install:
+  - sudo pip install .
   - pip install .
   #- sudo python setup.py install
 
