@@ -207,12 +207,16 @@ class Configfile:
             db = MySQLdb.connect(read_default_file="~/.my.cnf")
             db.cursor().execute("GRANT SELECT ON *.* to root@localhost")
         except MySQLdb.OperationalError, message:
-            user = raw_input("""Can't log in automatically:
-            Please enter an *administrative* username for your mysql with
-            grant privileges: """)
-            password = raw_input("Now enter the password for that user: ")
-            db = MySQLdb.connect(user=user,passwd=password)
-            
+            if self.ask_about_defaults:
+                user = raw_input("""Can't log in automatically:
+                Please enter an *administrative* username for your mysql with
+                grant privileges: """)
+                password = raw_input("Now enter the password for that user: ")
+                db = MySQLdb.connect(user=user,passwd=password)
+            else:
+                # Hail-mary that maybe works on travis
+                db = MySQLdb.connect(user="root",passwd="")
+
         cur = db.cursor()
         self.ensure_section("client")
         try:
