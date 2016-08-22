@@ -14,7 +14,10 @@ addons:
     packages:
       - apache2
       - libmysqlclient-dev
-
+      - mysql-server
+      - mysql-client-core
+      - mysql-client
+      
 install:
   - sudo pip install .
 
