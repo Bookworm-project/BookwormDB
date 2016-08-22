@@ -356,9 +356,9 @@ def update_settings_for(name,force=False):
         admin.write_out()
     if name=="global":
         make_bookworm_folder("/etc/bookworm")
-        default_cnf_file_location = "/etc/bookworm/client.cnf"
+        default_cnf_file_location = "/etc/msyql/my.cnf"
         client = Configfile("global",
-            default="/etc/my.cnf",
+            default=default_cnf_file_location,
             ask_about_defaults = not force)
         client.change_client_password()
         client.set_bookworm_options()
