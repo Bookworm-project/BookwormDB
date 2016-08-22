@@ -36,13 +36,17 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
             conf.read_config_files()
             user = conf.config.get("client","user")
             pw = conf.config.get("client","password")
+            return (user,pw)
 
         global_configuration_file = bookwormDB.configuration.Configfile("global")
         admin_configuration_file = bookwormDB.configuration.Configfile("admin")
 
-        test_config_file(global_configuration_file)
-        test_config_file(admin_configuration_file)
-
+        (admin_user,admin_pw) = test_config_file(global_configuration_file)
+        (client_user,client_pw) = test_config_file(admin_configuration_file)
+        
+        logging.info("Checking that admin and client users are distinct")
+        self.assertTrue(admin_user != client_user)
+        
     def test_createDB_permission(self):
         logging.info("\nTESTING ABILITY TO CREATE DATABASES\n\n")
         import bookwormDB.configuration
