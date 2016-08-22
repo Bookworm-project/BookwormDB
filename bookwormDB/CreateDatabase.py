@@ -10,7 +10,7 @@ import os
 from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
-from bookwormDB.configuration import ConfigFile
+from bookwormDB.configuration import Configfile
 import logging
 import warnings
 import anydbm
