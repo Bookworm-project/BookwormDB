@@ -12,6 +12,7 @@ services:
 addons:
   apt:
     packages:
+      - parallel
       - apache2
       - mysql-server-5.6
       - mysql-client-core-5.6
