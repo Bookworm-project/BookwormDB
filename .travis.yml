@@ -1,0 +1,20 @@
+language: python
+
+python:
+  - "2.7"
+
+services:
+  - mysql
+  
+addons:
+  apt:
+    packages:
+      - apache2
+      - libmysqlclient-dev
+
+install:
+  - pip install .
+
+
+script:
+  - cd tests && python test_mysql.py && python test_API.py
