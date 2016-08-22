@@ -19,7 +19,7 @@ install:
   - sudo pip install .
 
 before_script:
-  - bookworm config mysql
+  - bookworm config --force mysql
 
 script:
   - cd tests && python test_mysql.py && python test_API.py
