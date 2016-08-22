@@ -160,10 +160,10 @@ class BookwormManager(object):
                 """)
                 return
             if not os.path.exists("bookworm.cnf"):
-                self.configuration()
+                self.configuration(args.yes)
             os.makedirs(".bookworm")
         else:
-            self.configuration()
+            self.configuration(args.yes)
         
     def query(self,args):
         """
@@ -325,9 +325,9 @@ class BookwormManager(object):
             Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
-    def configuration(self):
+    def configuration(self,askk):
         import bookwormDB.configuration
-        bookwormDB.configuration.create()
+        bookwormDB.configuration.create(ask_about_defaults=askk)
             
     def database_metadata(self):
         import bookwormDB.CreateDatabase
@@ -476,7 +476,6 @@ def run_arguments():
 
     supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
     supplement_parser.add_argument("--field_descriptions","-d",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
-
     
     ######### Reload Memory #############
     memory_tables_parser = subparsers.add_parser("reload_memory",help="Reload the memory\
@@ -536,6 +535,7 @@ def run_arguments():
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
     init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
+    init_parser.add_argument("--yes","-y",help="Automatically use default values with no prompts",default=False,action="store_true")    
 
 
     # Serve the current bookworm

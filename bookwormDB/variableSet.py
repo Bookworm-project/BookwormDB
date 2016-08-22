@@ -172,11 +172,11 @@ class dataField:
         a small definition string with an index, potentially.
         """
         mysqltypes = {
-                      "character": "VARCHAR(255)",
-                      "integer": "INT",
-                      "text": "VARCHAR(5000)",
-                      "decimal": "DECIMAL (9,4)"
-                     }
+            "character": "VARCHAR(255)",
+            "integer": "INT",
+            "text": "VARCHAR(5000)",
+            "decimal": "DECIMAL (9,4)"
+        }
         # Indexing both the field and against the anchor for fast memory table creation.
         indexstring = ", INDEX (%(field)s), INDEX (%(anchor)s, %(field)s " % self.__dict__
         #need to specify fixed prefix length on text strings: (http://dev.mysql.com/doc/refman/5.0/en/create-index.html)

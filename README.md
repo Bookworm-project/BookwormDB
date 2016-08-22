@@ -1,6 +1,6 @@
-[BookwormDB](https://github.com/bookworm-project/BookwormDB "BookwormDB") is the code repository for transforming a large
-set of files and their metadata into an efficient and easily queryable database that can make full use of all the
-metadata and lexical data in the original source.
+![Travis status](https://travis-ci.org/Bookworm-project/BookwormDB.svg)
+
+[BookwormDB](https://github.com/bookworm-project/BookwormDB "BookwormDB") is the main code repository for the Bookworm project. Given simply formatted files and metadata, it creates an efficient and easily queryable MySQL database that can make full use of all the metadata and lexical data in the original source.
 
 A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bookworm-project.github.io/Docs) on this repository (editable at the repo [here](https://github.com/Bookworm-project/Docs)).
 
@@ -50,7 +50,7 @@ The easiest way to handle this is to have a user with root access defined in you
 
 This creates a bit of a security risk, though, so we recommend 2 MySQL users: an admin user with the ability to create new databases (i.e. GRANT ALL) and a second user that is only able to select data from databases (i.e. GRANT SELECT). This is for security: your data is safer if the web user can't modify it at all.
 
-Running `bookworm config mysql` will take care of most of these tasks interactively: but if you have a MySQL configuration you do not want to risk hurting, you may want to proceed by hand.
+**Running `bookworm config mysql` will take care of most of these tasks interactively:** but if you have an existing MySQL configuration you do not want to risk hurting, you may want to proceed by hand.
 
 First, that admin user:
 
