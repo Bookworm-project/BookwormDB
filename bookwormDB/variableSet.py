@@ -178,15 +178,15 @@ class dataField:
         }
         # Indexing both the field and against the anchor for fast memory table creation.
         indexstring = ", INDEX (%(field)s), INDEX (%(anchor)s, %(field)s " % self.__dict__
-        #need to specify fixed prefix length on text strings: (http://dev.mysql.com/doc/refman/5.0/en/create-index.html)
+        # Need to specify fixed prefix length on text strings: (http://dev.mysql.com/doc/refman/5.0/en/create-index.html)
         # If it's a text field, we need to curtail the index at 255 characters
         # or else indexes start timing out or eating up all the memory.
         indextypes = {
-                      "character": "%s)" % indexstring,
-                      "integer": "%s)" % indexstring,
-                      "text": "%s (255) )" % indexstring,
-                      "decimal": "%s)" % indexstring
-                     }
+            "character": "%s)" % indexstring,
+            "integer": "%s)" % indexstring,
+            "text": "%s (255) )" % indexstring,
+            "decimal": "%s)" % indexstring
+        }
         createstring = " %s %s" % (self.field, mysqltypes[self.type])
 
         if withIndex and self.type != 'text':
