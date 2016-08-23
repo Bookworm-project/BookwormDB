@@ -6,12 +6,16 @@ A quick walkthrough is included below: other documentation is at [bookworm.cultu
 
 # Installation
 
-1. Download the latest release, either by cloning this git repo or downloading a zip.
-2. Navigate to the folder in the terminal, and type `python setup.py install`.
-   * If `/usr/bin` or `/usr/lib/cgi-bin` is not writeable by your account,
-     you may need to type `sudo python setup.py install` 
-3. Type `bookworm --help` to confirm the executable has worked. If this doesn't work, file
+Installation is tested on Ubuntu and OS X. It may work on other Unixes, but will not work on Windows.
+
+1. Install some dependencies; mysql or mariadb, GNU parallel, 
+2. Download the latest release, either by cloning this git repo or downloading a zip.
+3. Navigate to the folder in the terminal, and type `pip install .`.
+   * If `/usr/lib/cgi-bin` is not writeable by your account,
+     you may need to type `sudo pip install .` 
+4. Type `bookworm --help` to confirm the executable has worked. If this doesn't work, file
    a bug report.
+5. Type `bookworm config mysql` for some interactive prompts to allow Bookworm to edit MySQL databases on your server. (Note that this makes some other changes to your mysql configuration files; you may want to copy them first if you're using it for other things.)
 
 ## Releases
 
