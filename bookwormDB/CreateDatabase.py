@@ -1,13 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import subprocess
 import MySQLdb
 import re
-import sys
 import json
 import os
-from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
 from bookwormDB.configuration import Configfile
@@ -75,15 +72,15 @@ class DB:
         conf.read_config_files()
 
         self.conn = MySQLdb.connect(
-            user         = conf.config.get("client","user"),
-            passwd       = conf.config.get("client","password"),
-            use_unicode  = 'True',
-            charset      = 'utf8',
-            db           = '',
-            local_infile = 1)
+            user=conf.config.get("client","user"),
+            passwd=conf.config.get("client","password"),
+            use_unicode='True',
+            charset='utf8',
+            db='',
+            local_infile=1)
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
-        #Don't use native query attribute here to avoid infinite loops
+        # Don't use native query attribute here to avoid infinite loops
         cursor.execute("SET NAMES 'utf8'")
         cursor.execute("SET CHARACTER SET 'utf8'")
         if setengine:
@@ -93,10 +90,9 @@ class DB:
                 logging.error("Forcing default engine failed. On some versions of Mysql,\
                 you may need to add \"default-storage-engine=MYISAM\" manually\
                 to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
-                self.connect(setengine=False) 
+                self.connect(setengine=False)
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
-
 
     def query(self, sql):
         """
@@ -326,7 +322,7 @@ class BookwormSQLDatabase:
         Checks to see if memory tables need to be repopulated (by seeing if they are empty)
         and then does so if necessary.
         """
-        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
+        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall()
         for row in existingCreateCodes:
             """
             For each table, it checks to see if the table is currently populated; if not,
@@ -396,7 +392,7 @@ class BookwormSQLDatabase:
                 ui_components.append(newdict)
         try:
             mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-            output['default_search']  = [
+            output['default_search'] = [
                                          {
                                           "search_limits": [{"word":["test"]}],
                                           "time_measure": mytime,
@@ -433,12 +429,14 @@ class BookwormSQLDatabase:
         """
         logging.info("Updating stems from Porter algorithm...")
         from nltk import PorterStemmer
+        db = self.db
+
         stemmer = PorterStemmer()
         cursor = db.query("""SELECT word FROM words""")
         words = cursor.fetchall()
         for local in words:
-            word = ''.join(local) #Could probably take the first element of the tuple as well?
-            #Apostrophes have the save stem as the word, if they're included
+            word = ''.join(local)  # Could probably take the first element of the tuple as well?
+            # Apostrophes have the save stem as the word, if they're included
             word = word.replace("'s","")
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""

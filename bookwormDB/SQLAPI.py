@@ -1,6 +1,5 @@
 #!/usr/local/bin/python
 
-import sys
 import json
 import re
 import copy
@@ -895,7 +894,7 @@ class userquery:
             for string in returnarray:
                 try:
                     base = re.findall(urlRegEx, string)[0]
-                    newcore = ' <a href = "' +  base  + preface + joiner.join(self.actualWords) + '"> search inside </a>'
+                    newcore = ' <a href = "' + base + preface + joiner.join(self.actualWords) + '"> search inside </a>'
                     string = re.sub("^<td>", "", string)
                     string = re.sub("</td>$", "", string)
                     string = string+newcore
@@ -1116,13 +1115,17 @@ def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
                 # Note that about a third of the code is spent on escaping strings.
                 if escapeStrings:
                     if isinstance(values[0], basestring):
-                        quotesep="'"
+                        quotesep = "'"
                     else:
                         quotesep = ""
-                    def escape(value): return MySQLdb.escape_string(to_unicode(value))
+
+                    def escape(value):
+                        return MySQLdb.escape_string(to_unicode(value))
                 else:
-                    def escape(value): return to_unicode(value)
-                    quotesep=""
+
+                    def escape(value):
+                        return to_unicode(value)
+                    quotesep = ""
                 # Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 # Obviously that's no great loss, but there might be something I'm missing that would be desire a similar format somehow.
                 # (In cases where the same book could have two different years associated with it)

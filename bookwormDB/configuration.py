@@ -3,14 +3,19 @@
 import ConfigParser
 import os
 import re
+import MySQLdb
+import argparse
+import getpass
+import subprocess
+import logging
 
 
 def create(ask_about_defaults=True,database=None):
     """
-    Through interactive prompts at the command line, builds up a file at 
+    Through interactive prompts at the command line, builds up a file at
     bookworm.cnf that can be used to set preferences for the installation.
     """
-    
+ 
     print("""Welcome to Bookworm.
     ~~~~~~~~~~~~~~~~~~~~
     First off, let's build a configuration file. This will live
@@ -22,7 +27,6 @@ def create(ask_about_defaults=True,database=None):
 
     """)
 
-
     """
     First, we go to great efforts to find some sensible defaults
     Usually the user can just hit enter.
@@ -30,12 +34,12 @@ def create(ask_about_defaults=True,database=None):
 
     systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
 
-    #It checks each of these files for defaults in turn
+    # It checks each of these files for defaults in turn
 
-    systemConfigFile.read(["/.my.cnf",os.path.expanduser("~/my.cnf"),os.path.expanduser("~/.my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf","bookworm.cnf"]);
+    systemConfigFile.read(["/.my.cnf",os.path.expanduser("~/my.cnf"),os.path.expanduser("~/.my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf","bookworm.cnf"])
 
     defaults = dict()
-    #The default bookwormname is just the current location
+    # The default bookwormname is just the current location
 
     if database is None:
         defaults['database'] = os.path.relpath(".","..")
@@ -44,8 +48,6 @@ def create(ask_about_defaults=True,database=None):
 
     defaults["user"] = ""
     defaults["password"] = ""
-
-
 
     for field in ["user","password"]:
         try:
@@ -84,14 +86,6 @@ def create(ask_about_defaults=True,database=None):
     config.write(open("bookworm.cnf","w"))
 
 
-import ConfigParser
-import os
-import MySQLdb
-import sys
-import argparse
-import getpass
-import subprocess
-import logging
 
 class Configfile:
     def __init__(self,usertype,possible_locations=None,default=None,ask_about_defaults=True):
@@ -181,16 +175,16 @@ class Configfile:
         if usertype == "root":
             return ["/root/.my.cnf"]
         if usertype=="admin":
-            return [os.path.abspath(os.path.expanduser("~/.my.cnf"))
-                    ,os.path.abspath(os.path.expanduser("~/my.cnf"))
-                    ,"/etc/bookworm/admin.cnf"]
-        if usertype=="global":
+            return [os.path.abspath(os.path.expanduser("~/.my.cnf")),
+                    os.path.abspath(os.path.expanduser("~/my.cnf")),
+                    "/etc/bookworm/admin.cnf"]
+        if usertype == "global":
             return ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf",
-            "/etc/mysql/conf.d/mysql.cnf","/etc/bookworm/client.cnf"]
-        if usertype=="local":
+                    "/etc/mysql/conf.d/mysql.cnf","/etc/bookworm/client.cnf"]
+        if usertype == "local":
             # look for a bookworm.cnf file in or above the current directory.
             # Max out at 20 directory levels deep because let's be reasonable.
-            return ["../"*i + "bookworm.cnf" for i in range(20,-1,-1)]
+            return ["../" * i + "bookworm.cnf" for i in range(20,-1,-1)]
         else:
             return []
 
@@ -222,24 +216,24 @@ class Configfile:
         try:
             user = self.config.get("client","user")
         except ConfigParser.NoOptionError:
-            if self.usertype=="root":
+            if self.usertype == "root":
                 user = "root"
                 self.config.set("client","user","root")
             else:
                 if self.ask_about_defaults:
                     user = raw_input("""No username found for the user in the %s role.\
-                    Please enter the name for the %s user: """ %(self.usertype,self.usertype))
+                    Please enter the name for the %s user: """ % (self.usertype,self.usertype))
                     self.config.set("client","user",user)
                 else:
                     defaults = {
                         "global": "bookworm_client",
-                        "admin":  "bookworm_admin"
+                        "admin": "bookworm_admin"
                     }
-                    
+
                     user = defaults[self.usertype]
                     self.config.set("client","user",user)
-                    
-        if self.ask_about_defaults:            
+
+        if self.ask_about_defaults:
             confirmation = 1
             new_password = 0
 

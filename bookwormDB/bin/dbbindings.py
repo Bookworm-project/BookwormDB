@@ -17,7 +17,7 @@ def headers(method, errorcode=False):
           'X-Requested-With, X-CSRF-Token'
 
     if errorcode:
-	print "Status: %d" % errorcode
+        print "Status: %d" % errorcode
 
     if method != "return_tsv":
         print "Content-type: text/html\n"

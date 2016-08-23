@@ -1,14 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import warnings
 import json
 import os
 import decimal
 import re
 from MySQLdb import escape_string
 import logging
-import collections
+import subprocess
+
 
 def to_unicode(obj, encoding='utf-8'):
     if isinstance(obj, basestring):
@@ -27,9 +27,10 @@ def splitMySQLcode(string):
     try:
         output = ['%s;\n' % query for query in string.split(';') if re.search(r"\w", query)]
     except AttributeError:
-        #Occurs when the field is completely empty
+        # Occurs when the field is completely empty
         output = []
     return output
+
 
 class textids(dict):
     """
@@ -60,12 +61,11 @@ class textids(dict):
         for filelist in filelists:
             for line in open(".bookworm/texts/textids/%s" % filelist):
                 parts = line.replace('\n', '').split("\t")
-                if len(parts)==2:
-                    # Allowing terminal newline. 
+                if len(parts) == 2:
+                    # Allowing terminal newline.
                     self[parts[1]] = int(parts[0])
                     numbers.append(int(parts[0]))
 
-                    
         self.new = open('.bookworm/texts/textids/new', 'a')
         self.max = max(numbers)
 
@@ -89,9 +89,10 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
 
     example = dictionary.keys()[0]
 
-    if type(example)==int:
+    if type(example) == int:
         description["type"] = "integer"
-    if type(example)==list:
+
+    if type(example) == list:
         description["unique"] = False
 
     if metadataname == "searchstring":
@@ -101,14 +102,12 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
         description["datatype"] = "time"
 
     values = [dictionary[key] for key in dictionary]
-    averageNumberOfEntries = sum(values)/len(values)
-    maxEntries = max(values)
+    averageNumberOfEntries = sum(values) / len(values)
 
     if averageNumberOfEntries > 2:
         description["datatype"] = "categorical"
 
     return description
-
 
 
 class dataField:
@@ -220,35 +219,35 @@ class dataField:
         Builds a disk table for a nonunique variable.
         """
         db = self.dbToPutIn
-        dfield = self;
+        dfield = self
 
         if fileLocation == "default":
             fileLocation = ".bookworm/metadata/" + dfield.field + ".txt"
 
         logging.info("Making a SQL table to hold the data for " + dfield.field)
 
-        q1 = """DROP TABLE IF EXISTS """       + dfield.field + "Disk"
+        q1 = """DROP TABLE IF EXISTS """ + dfield.field + "Disk"
         db.query(q1)
         db.query("""CREATE TABLE IF NOT EXISTS """ + dfield.field + """Disk (
-        """ + self.anchor + " " +  self.anchorType + """,
+        """ + self.anchor + " " + self.anchorType + """,
         """ + dfield.slowSQL(withIndex=True) + """
         );""")
         db.query("ALTER TABLE " + dfield.field + "Disk DISABLE KEYS;")
-        loadcode = """LOAD DATA LOCAL INFILE '""" + fileLocation +  """'
+        loadcode = """LOAD DATA LOCAL INFILE '""" + fileLocation + """'
                INTO TABLE """ + dfield.field + """Disk
                FIELDS ESCAPED BY '';"""
         db.query(loadcode)
-        #cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
+        # cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
     def buildIDTable(self):
         IDcode = self.buildIdTable()
         for query in splitMySQLcode(IDcode):
             self.dbToPutIn.query(query)
-        
+
     def buildLookupTable(self):
-        dfield = self;
-        lookupCode = dfield.buildIdTable();
+        dfield = self
+        lookupCode = dfield.buildIdTable()
         lookupCode = lookupCode + dfield.fastSQLTable()
         for query in splitMySQLcode(lookupCode):
             dfield.dbToPutIn.query(query)
@@ -507,8 +506,8 @@ class variableSet:
                 #if it's only one element long, just name it after the variable itself.
                 #Plus the string 'unique', to prevent problems of dual-named tables;
                 self.tableName = "unick_" + self.jsonDefinition[0]['field']
-    
-            self.fastName  = self.tableName + "heap"
+
+            self.fastName = self.tableName + "heap"
 
     def guessAtFieldDescriptions(self,stopAfter=30000):
         allMyKeys = dict()
@@ -657,7 +656,7 @@ class variableSet:
                 #It can get problematic to have them both, so we're just writing over the
                 #anchorField here.
                 mainfields = [str(bookid)]
-            #First, pull the unique variables and write them to the 'catalog' table
+            # First, pull the unique variables and write them to the 'catalog' table
             for var in [variable for variable in variables if variable.unique]:
                 if var.field not in [self.anchorField,self.fastAnchor]:
                     myfield = entry.get(var.field, "")
@@ -666,9 +665,9 @@ class variableSet:
                     mainfields.append(to_unicode(myfield))
             catalogtext = '%s\n' % '\t'.join(mainfields)
             catalog.write(catalogtext.encode('utf-8'))
-                
+
             for variable in [variable for variable in variables if not variable.unique]:
-                 #Each of these has a different file it must write to...
+                # Each of these has a different file it must write to...
                 outfile = variable.output
                 lines = entry.get(variable.field, [])
                 if isinstance(lines,(basestring,int)):
@@ -686,7 +685,7 @@ class variableSet:
                         logging.warning("some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines))
                         pass
             if linenum > limit:
-               break
+                break
             linenum=linenum+1
         for variable in [variable for variable in variables if not variable.unique]:
             variable.output.close()
@@ -735,10 +734,10 @@ class variableSet:
                 anchorFields = "bookid,filename"
                 
             loadEntries = {
-                "catLoc" : self.catalogLocation,
-                "tabName" : self.tableName,
-                "anchorFields" : anchorFields,
-                "loadingFields" :  anchorFields+ "," + ','.join([field.field for field in self.variables if field.unique])
+                "catLoc": self.catalogLocation,
+                "tabName": self.tableName,
+                "anchorFields": anchorFields,
+                "loadingFields": anchorFields + "," + ','.join([field.field for field in self.variables if field.unique])
             }
 
             loadEntries['loadingFields'] = loadEntries['loadingFields'].rstrip(',')
@@ -785,7 +784,7 @@ class variableSet:
             # Make sure the variables know who their parent is
             variable.fastAnchor = self.fastAnchor
             # Update the referents for everything
-            variable.updateVariableDescriptionTable();
+            variable.updateVariableDescriptionTable()
 
         inCatalog = self.uniques()
         if len(inCatalog) > 0 and self.tableName!="catalog":
