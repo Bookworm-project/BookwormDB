@@ -91,8 +91,9 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
 
     if type(example) == int:
         description["type"] = "integer"
+
     if type(example) == list:
-        unique(example) == False
+        description["unique"] = False
 
     if metadataname == "searchstring":
         return {"datatype": "searchstring", "field": "searchstring", "unique": True, "type": "text"}
@@ -102,7 +103,6 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
 
     values = [dictionary[key] for key in dictionary]
     averageNumberOfEntries = sum(values) / len(values)
-    maxEntries = max(values)
 
     if averageNumberOfEntries > 2:
         description["datatype"] = "categorical"
