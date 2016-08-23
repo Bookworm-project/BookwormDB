@@ -29,10 +29,6 @@ install:
 
 before_script:
   - bookworm config --force mysql
-  - which python
-  - cat /etc/mysql/my.cnf
-  - ls /etc/bookworm
-  - cat /etc/bookworm/admin.cnf
   
 script:
   - cd tests && python test_mysql.py && python test_API.py
