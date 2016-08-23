@@ -35,4 +35,4 @@ before_script:
   - cat /etc/bookworm/admin.cnf
   
 script:
-  - cd tests && python test_mysql.py && python test_API.py
+  - cd tests && python test_mysql.py && python test_API.py && python test_webserver.py
