@@ -92,7 +92,7 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
     if type(example)==int:
         description["type"] = "integer"
     if type(example)==list:
-        unique(example)==False
+        description["unique"] = False
 
     if metadataname == "searchstring":
         return {"datatype": "searchstring", "field": "searchstring", "unique": True, "type": "text"}
