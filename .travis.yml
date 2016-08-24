@@ -21,6 +21,8 @@ addons:
 before_install:
   # necessary for the pip installation, unfortunately?
   - sudo chown travis /usr/lib/cgi-bin
+  # Allow CGI access
+  - sudo a2enmod cgi
   - sudo service apache2 restart
   
 install:
