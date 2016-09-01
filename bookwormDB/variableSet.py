@@ -175,7 +175,8 @@ class dataField:
                       "character": "VARCHAR(255)",
                       "integer": "INT",
                       "text": "VARCHAR(5000)",
-                      "decimal": "DECIMAL (9,4)"
+                      "decimal": "DECIMAL (9,4)",
+                      "float": "FLOAT"
                      }
         # Indexing both the field and against the anchor for fast memory table creation.
         indexstring = ", INDEX (%(field)s), INDEX (%(anchor)s, %(field)s " % self.__dict__
@@ -190,7 +191,7 @@ class dataField:
                      }
         createstring = " %s %s" % (self.field, mysqltypes[self.type])
 
-        if withIndex and self.type != 'text':
+        if withIndex and self.type != 'text' and self.type != "float":
             return '%s%s' % (createstring, indextypes[self.type])
 
         return createstring
@@ -210,6 +211,8 @@ class dataField:
                 return " %s INT" % self.field
             if self.type == "decimal":
                 return " %s DECIMAL (9,4) " % self.field
+            if self.type == "float":
+                return " %s FLOAT " % self.field
             else:
                 return None
         else:
