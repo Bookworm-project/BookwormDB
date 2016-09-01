@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from pandas import merge
+from pandas import Series
 from pandas.io.sql import read_sql
 from copy import deepcopy
 from collections import defaultdict
