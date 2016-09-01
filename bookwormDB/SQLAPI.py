@@ -1,12 +1,13 @@
 #!/usr/local/bin/python
 
-import sys
 import json
 import re
 import copy
 import MySQLdb
 import hashlib
 import logging
+from bwExceptions import BookwormException
+
 """
 # There are 'fast' and 'full' tables for books and words;
 # that's so memory tables can be used in certain cases for fast, hashed
@@ -27,7 +28,6 @@ general_prefs["default"] = {"fastcat": "fastcat",
                             "fullcat": "catalog",
                             "fullword": "words",
                             "read_default_file": "/etc/mysql/my.cnf"}
-
 
 class DbConnect(object):
     # This is a read-only account
@@ -481,7 +481,7 @@ class userquery:
             """
             for phrase in self.limits['word']:
                 locallimits = dict()
-                array = phrase.split(" ")
+                array = phrase.split()
                 n = 0
                 for word in array:
                     n += 1
@@ -543,6 +543,11 @@ class userquery:
 
         needsBigrams = (self.max_word_length == 2 or re.search("words2", self.selections))
         needsUnigrams = self.max_word_length == 1 or re.search("[^h][^a][^s]word", self.selections)
+
+        if self.max_word_length > 2:
+            err = dict(code=400, message="Phrase is longer than what Bookworm supports")
+            raise BookwormException(err)
+
         needsTopics = bool(re.search("topic", self.selections)) or ("topic" in self.limits.keys())
 
         if needsBigrams:
@@ -889,7 +894,7 @@ class userquery:
             for string in returnarray:
                 try:
                     base = re.findall(urlRegEx, string)[0]
-                    newcore = ' <a href = "' +  base  + preface + joiner.join(self.actualWords) + '"> search inside </a>'
+                    newcore = ' <a href = "' + base + preface + joiner.join(self.actualWords) + '"> search inside </a>'
                     string = re.sub("^<td>", "", string)
                     string = re.sub("</td>$", "", string)
                     string = string+newcore
@@ -1110,13 +1115,17 @@ def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
                 # Note that about a third of the code is spent on escaping strings.
                 if escapeStrings:
                     if isinstance(values[0], basestring):
-                        quotesep="'"
+                        quotesep = "'"
                     else:
                         quotesep = ""
-                    def escape(value): return MySQLdb.escape_string(to_unicode(value))
+
+                    def escape(value):
+                        return MySQLdb.escape_string(to_unicode(value))
                 else:
-                    def escape(value): return to_unicode(value)
-                    quotesep=""
+
+                    def escape(value):
+                        return to_unicode(value)
+                    quotesep = ""
                 # Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 # Obviously that's no great loss, but there might be something I'm missing that would be desire a similar format somehow.
                 # (In cases where the same book could have two different years associated with it)

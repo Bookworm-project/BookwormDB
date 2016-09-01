@@ -1,15 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import subprocess
 import MySQLdb
 import re
-import sys
 import json
 import os
-from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
+from bookwormDB.configuration import Configfile
 import logging
 import warnings
 import anydbm
@@ -47,7 +45,6 @@ def text_id_dbm():
                     raise
 class DB:
     def __init__(self,dbname=None):
-        from bookwormDB.configuration import Configfile
         try:
             configuration = Configfile("local")
             logging.debug("Connecting from the local config file")
@@ -71,10 +68,19 @@ class DB:
         
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
+        conf = Configfile("admin")
+        conf.read_config_files()
+
+        self.conn = MySQLdb.connect(
+            user=conf.config.get("client","user"),
+            passwd=conf.config.get("client","password"),
+            use_unicode='True',
+            charset='utf8',
+            db='',
+            local_infile=1)
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
-        #Don't use native query attribute here to avoid infinite loops
+        # Don't use native query attribute here to avoid infinite loops
         cursor.execute("SET NAMES 'utf8'")
         cursor.execute("SET CHARACTER SET 'utf8'")
         if setengine:
@@ -84,10 +90,9 @@ class DB:
                 logging.error("Forcing default engine failed. On some versions of Mysql,\
                 you may need to add \"default-storage-engine=MYISAM\" manually\
                 to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
-                self.connect(setengine=False) 
+                self.connect(setengine=False)
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
-
 
     def query(self, sql):
         """
@@ -131,7 +136,6 @@ class BookwormSQLDatabase:
         This is a little wonky, and may
         be deprecated in favor of a cleaner interface.
         """
-        from bookwormDB.configuration import Configfile
         try:
             self.config_manager = Configfile("local")
             logging.debug("Connecting from the local config file")
@@ -163,12 +167,13 @@ class BookwormSQLDatabase:
 
         The Username for these privileges is pulled from the bookworm.cnf file.
         """
-        import ConfigParser
-        # This should be using the global configparser module, not the custom code here
-        config = ConfigParser.ConfigParser(allow_no_value=True)
-        config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
-        username=config.get("client","user")
-        password=config.get("client","password")
+
+        globalfile = Configfile("global")
+        globalfile.read_config_files()
+
+        username=globalfile.config.get("client","user")
+        password=globalfile.config.get("client","password")
+
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
     def setVariables(self,originFile,anchorField="bookid",
@@ -317,7 +322,7 @@ class BookwormSQLDatabase:
         Checks to see if memory tables need to be repopulated (by seeing if they are empty)
         and then does so if necessary.
         """
-        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
+        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall()
         for row in existingCreateCodes:
             """
             For each table, it checks to see if the table is currently populated; if not,
@@ -387,7 +392,7 @@ class BookwormSQLDatabase:
                 ui_components.append(newdict)
         try:
             mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-            output['default_search']  = [
+            output['default_search'] = [
                                          {
                                           "search_limits": [{"word":["test"]}],
                                           "time_measure": mytime,
@@ -424,12 +429,14 @@ class BookwormSQLDatabase:
         """
         logging.info("Updating stems from Porter algorithm...")
         from nltk import PorterStemmer
+        db = self.db
+
         stemmer = PorterStemmer()
         cursor = db.query("""SELECT word FROM words""")
         words = cursor.fetchall()
         for local in words:
-            word = ''.join(local) #Could probably take the first element of the tuple as well?
-            #Apostrophes have the save stem as the word, if they're included
+            word = ''.join(local)  # Could probably take the first element of the tuple as well?
+            # Apostrophes have the save stem as the word, if they're included
             word = word.replace("'s","")
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""

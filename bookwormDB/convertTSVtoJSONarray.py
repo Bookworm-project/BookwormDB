@@ -1,6 +1,4 @@
 import json
-import sys
-import re
 
 def convertToJSON(filename):
     """
@@ -21,5 +19,5 @@ def convertToJSON(filename):
     output.close()
 
 
-        
-        
+
+

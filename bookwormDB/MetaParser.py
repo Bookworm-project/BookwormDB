@@ -132,10 +132,11 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     derive["aggregate"] == "week":
                                 k = "%s_day_month" % field["field"]
                                 dt = date(intent[0], intent[1], intent[2])
-                                #Python and javascript handle weekdays differently:
-                                #Like JS, we want to begin on Sunday with zero
+                                # Python and javascript handle weekdays differently:
+                                # Like JS, we want to begin on Sunday with zero
                                 line[k] = dt.weekday() + 1
-                                if (line[k])==7: line[k] = 0
+                                if (line[k]) == 7:
+                                    line[k] = 0
                             elif derive["resolution"] == 'month' and \
                                     derive["aggregate"] == "year":
                                 k = "%s_month_year" % field["field"]
@@ -181,20 +182,20 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 inttime = DaysSinceZero(dt)
                                 line[k] = inttime
                             else:
-                                logging.warning('Resolution %s currently not supported.' %(derive['resolution']))
+                                logging.warning('Resolution %s currently not supported.' % (derive['resolution']))
                                 continue
                     except ValueError:
                         # One of out a million Times articles threw this with
                         # a year of like 111,203. It's not clear how best to
                         # handle this.
-                        logging.warning( "ERROR: %s " % line[field["field"]] + \
-                              "did not convert to proper date. Moving on...")
-                        #raise
+                        logging.warning("ERROR: %s " % line[field["field"]] +
+                                        "did not convert to proper date. Moving on...")
+                        # raise
                         pass
                     except Exception, e:
-                        logging.warning( '*'*50)
+                        logging.warning('*'*50)
                         logging.warning('ERROR: %s\nINFO: %s\n' % (str(e), e.__doc__))
-                        logging.warning( '*'*50)
+                        logging.warning('*'*50)
                 line.pop(field["field"])
         f.write('%s\n' % json.dumps(line))
         f.flush()

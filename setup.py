@@ -29,7 +29,6 @@ setup(name='bookwormDB',
       # Copy the cgi-executable to a cgi-dir.
       classifiers=[
         'Development Status :: 4 - Beta',
-
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
         "Natural Language :: English",
@@ -45,5 +44,4 @@ setup(name='bookwormDB',
         "Topic :: Text Processing :: Linguistic"
         ],
       install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil"]
-      
 )
