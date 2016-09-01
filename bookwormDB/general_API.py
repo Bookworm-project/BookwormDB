@@ -32,6 +32,7 @@ def calculateAggregates(df, parameters):
     but there are a lot of cool things you can do with those:
     basic things like frequency, all the way up to TF-IDF.
     """
+    parameters = map(str,parameters)
     parameters = set(parameters)
 
     if "WordsPerMillion" in parameters:
@@ -54,12 +55,14 @@ def calculateAggregates(df, parameters):
         df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]        
     if "TotalTexts" in parameters:
         df["TotalTexts"] = df["TextCount_y"]
-
+    if "SumTexts" in parameters:
+        df["SumTexts"] = df["TextCount_y"] + df["TextCount_x"]
+        
     if "HitsPerBook" in parameters:
         df["HitsPerMatch"] = df["WordCount_x"]/df["TextCount_x"]
 
     if "TextLength" in parameters:
-        df["HitsPerMatch"] = df["WordCount_y"]/df["TextCount_y"]
+        df["TextLength"] = df["WordCount_y"]/df["TextCount_y"]
 
     if "TFIDF" in parameters:
         from numpy import log as log
@@ -222,9 +225,8 @@ class APIcall(object):
             return self.pandas_frame
 
     def get_data_from_source(self):
-
         """
-        This is a
+        Retrieves data from the backend, and calculates totals.
 
         Note that this method could be easily adapted to run on top of a Solr
         instance or something else, just by changing the bits in the middle
@@ -275,10 +277,15 @@ class APIcall(object):
         try:
             df1 = self.generate_pandas_frame(call1)
             df2 = self.generate_pandas_frame(call2)
-        except:
+        except Exception as error:
             logging.exception("Database error")
-            return Series({"status": "error", "message": "Database error. "
-                           "Try checking field names."})
+            # One common error is putting in an inappropriate column
+            column_search = re.search("Unknown column '(.+)' in 'field list'",str(error)).groups()
+            if len(column_search) > 0:
+                return Series({"status": "error", "message": "No field in database entry matching desired key `{}`".format(column_search[0])})
+            else:
+                return Series({"status": "error", "message": "Database error. "
+                            "Try checking field names.","code":str(error)})
 
         intersections = intersectingNames(df1, df2)
 
@@ -298,9 +305,14 @@ class APIcall(object):
 
         calcced = calcced.fillna(int(0))
 
-        final_DataFrame = (calcced[self.query['groups'] +
+        try:
+            final_DataFrame = (calcced[self.query['groups'] +
                            self.query['counttype']])
+        except:
+            print calculations
+            print list(calcced.columns.values)
 
+            
         return final_DataFrame
 
     def execute(self):
