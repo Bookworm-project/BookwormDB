@@ -1,4 +1,3 @@
-import pandas
 import json
 import copy
 import threading
@@ -84,7 +83,7 @@ class MetaQuery(object):
             
         if 'host' not in self.outside_dictionary:
             #Build a hostlist: usually just localhost a bunch of times.
-            self.outside_dictionary['host']  = hostlist(self.outside_dictionary['database'])
+            self.outside_dictionary['host'] = hostlist(self.outside_dictionary['database'])
 
         for (target, dest) in [("database","host"),("host","database")]:
             #Expand out so you can search for the same database on multiple databases, or multiple databases on the same host.

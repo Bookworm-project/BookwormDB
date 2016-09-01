@@ -16,6 +16,14 @@ def index():
         return "Need query or queryTerms argument"
     return main(JSONinput)
 
+@app.route('/debug')
+def debug_api():
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    JSONinput = request.args.get('queryTerms') or request.args.get('query')
+    if not JSONinput:
+        return "Need query or queryTerms argument"
+    return main(JSONinput)
 
 @app.route('/debug/query')
 def debug_query():

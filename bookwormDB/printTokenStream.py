@@ -1,6 +1,5 @@
 import sys
 from tokenizer import *
-import warnings
 
 for row in sys.stdin:
     parts = row.split("\t",1)

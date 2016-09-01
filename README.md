@@ -1,22 +1,25 @@
-[BookwormDB](https://github.com/bookworm-project/BookwormDB "BookwormDB") is the code repository for transforming a large
-set of files and their metadata into an efficient and easily queryable database that can make full use of all the
-metadata and lexical data in the original source.
+[![Travis Build Status](https://travis-ci.org/Bookworm-project/BookwormDB.svg?branch=master)](https://travis-ci.org/Bookworm-project/BookwormDB)
+
+[BookwormDB](https://github.com/bookworm-project/BookwormDB "BookwormDB") is the main code repository for the Bookworm project. Given simply formatted files and metadata, it creates an efficient and easily queryable MySQL database that can make full use of all the metadata and lexical data in the original source. It also includes a powerful API for asking a variety of unigrammatic queries about that data.
 
 A quick walkthrough is included below: other documentation is at [bookworm.culturomics.org]() and in a [Bookworm Manual](http://bookworm-project.github.io/Docs) on this repository (editable at the repo [here](https://github.com/Bookworm-project/Docs)).
 
 # Installation
 
-1. Download the latest release, either by cloning this git repo or downloading a zip.
-2. Navigate to the folder in the terminal, and type `python setup.py install`.
-   * If `/usr/bin` or `/usr/lib/cgi-bin` is not writeable by your account,
-     you may need to type `sudo python setup.py install` 
-3. Type `bookworm --help` to confirm the executable has worked. If this doesn't work, file
+Installation is tested on Ubuntu and OS X. It may work on other Unixes, but will not work on Windows.
+
+1. Install some dependencies; mysql or mariadb for databases, and GNU parallel for parallel processing.
+2. Download the latest release, either by cloning this git repo or downloading a zip.
+3. Navigate to the folder in the terminal, and type `pip install .`.
+   * If `/usr/lib/cgi-bin` is not writeable by your account,
+     you may need to type `sudo pip install .` 
+4. Type `bookworm --help` to confirm the executable has worked. If this doesn't work, file
    a bug report.
+5. Type `bookworm config mysql` for some interactive prompts to allow Bookworm to edit MySQL databases on your server. (Note that this makes some other changes to your mysql configuration files; you may want to copy them first if you're using it for other things.)
 
 ## Releases
 
-**The master branch contains the latest changes, and may be buggy. As of September 2015, version 0.4 now bundled as a python module for installation. Bookworms built under 0.3 can be manipulated using the new server-side API; but if you want to stay on the old version, checkout the version from branch 0.3.1; it may be more stable in certain cases. You *can* run the two branches alongside each other.**
-
+The `master` branch is regularly tested on Travis; you are generally best off installing the latest version.
 
 ## Related projects
 
@@ -42,17 +45,27 @@ Here are a couple of Bookworms built using [BookwormDB](https://github.com/bookw
 
 ### Required MySQL Database ###
 
-The hardest part about setting up Bookworm is properly configuring the MySQL installation. Since this is a web application.
-The easiest way to test out Bookworm on your home computer may be to use a [preconfigured VM](http://github.com/bmschmidt/bookwormVM). 
+The hardest part about setting up Bookworm is properly configuring the MySQL installation.
+The easiest way to test out Bookworm on your home computer may be to use a VM running Ubuntu; installation is realtively easy using OS X, as well.
 
 At the very least, there must be a MySQL user with permissions to insert + select data from all databases.
 The easiest way to handle this is to have a user with root access defined in your system-wide MySQL configuration files.
 
 This creates a bit of a security risk, though, so we recommend 2 MySQL users: an admin user with the ability to create new databases (i.e. GRANT ALL) and a second user that is only able to select data from databases (i.e. GRANT SELECT). This is for security: your data is safer if the web user can't modify it at all.
 
-Running `bookworm config mysql` will take care of most of these tasks interactively: but if you have a MySQL configuration you do not want to risk hurting, you may want to proceed by hand.
+#### Setting up databases automatically
 
-First, that admin user:
+Running `bookworm config mysql` will take care of most of these tasks through an interactive prompt; `bookworm config --force mysql` will come up with automatic answers for all questions, and is suitable in a scripting situation (like setting up a variety of VMs). The configuration script will ask for a variety of different passwords, and may request an administrative password from the machine.
+
+Restart your MySQL server after the configuration script has run.
+
+If you encounter problems in the config script, please feel free to post issues to the project github repo.
+
+#### Setting up databases manually
+
+If you have an existing MySQL configuration you do not want to risk hurting, you may want to proceed by hand. 
+
+First, create an admin user:
 
 For example, create a user `foobar` with password `mysecret` and full access to all databases from `localhost`:
 
@@ -62,28 +75,28 @@ GRANT ALL PRIVILEGES ON *.* TO 'foobar'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
 
-The second user would be the user that the API uses to get data to push to the bookworm GUI. The easiest way to configure this user is to just let the Apache user handle getting the data. On Ubuntu, you would do: 
+Then put the credentials for that user in a file that will be automatically read when you start up MySQL. The best place for this is at `~/.my.cnf`. If multiple users on your machine will be administering the bookworm, another recommended location is `/etc/bookworm/admin.cnf`. In this example, that file would look like this:
+
+```
+[client]
+user = 'foobar'
+password = 'mysecret'
+```
+
+
+The second user would be the user that the API uses to get data for queries over the web. Note that this user has only "select" rights.
 
 ```mysql
-GRANT SELECT ON *.* TO 'www-data'@'localhost';
+GRANT SELECT ON *.* TO 'bookworm_client'@'localhost' IDENTIFIED BY 'otherpassword';
 FLUSH PRIVILEGES;
 ```
 
-If you're using a Mac, the Apache user is `_www`, so replace `www-data` with `_www` above.
-
-If your system doesn't have an apache user or you would like to create your own non-admin user, you can change the system-wide mysql configuration to use whatever user you want. Those will be at `/etc/mysql/my.cnf`, `/etc/my.cnf`, or a similar location, and should look something like this (if you want a password, add it as for the admin user).
+Then add a section your **systemwide** `my.cnf` file (usually at `/etc/mysql/my.cnf`, `/etc/my.cnf`, or a similar location). 
 
 ```
 [client]
-user = www-data
-```
-
-Finally, there must also be a **user** config file at `~/.my.cnf` that Python can load with your MySQL user/pass (this prevents having to store any sensitive information in the Python scripts). Here is an example of what the `~/.my.cnf` file would look like for the user/pass created above:
-
-```
-[client]
-user = foobar
-password = mysecret
+user = 'bookworm_client'
+password = 'otherpassword'
 ```
 
 With these settings in place, you're ready to begin building a Bookworm. See [the walkthrough](#walkthrough) for a fuller example.
@@ -95,20 +108,19 @@ This distribution also includes two files, general_api.py and SQLapi.py, which t
 
 It is used with the [Bookworm GUI](https://github.com/Bookworm-project/BookwormGUI) and can also be used as a standalone tool to query data from your database. To run the API in its most basic form, type `bookworm query $string`, where $string is a json-formatted query.
 
-An executable is bundled in the distro at `bookwormdb/bin/dbbindings.py` that, when placed in your cgi-bin folder, will serve the API over to and from the web.
+An executable is bundled in the distro at `bookwormdb/bin/dbbindings.py` that, when placed in your cgi-bin folder, will serve the API over to and from the web; when you install bookworm, it attempts to move this into a web directory for you.
 
 While the point of the command-line tool `bookworm` is generally to *create* a Bookworm, the point of the query API is to retrieve results from it.
 
-For a more interactive explanation of how the GUI works, see the [D3 bookworm browser](http://benschmidt.org/D3/APISandbox)
+For a more interactive explanation of how the GUI works, see the [D3 bookworm browser](http://benschmidt.org/D3/APISandbox) (Sorry, this is broken for the moment).
 
 ### Installing the API.
 
+On most systems, `pip install .` in the `bookwormDB` dir should deposit a copy in an appropriate location on your system (such as `/usr/lib/cgi-bin`).
 
-On some versions, `sudo python setup.py install` should deposit a copy in an appropriate location on your system (such as `/usr/lib/cgi-bin`).
+If that doesn't work, just run `cp bookwormDB/bin/dbbindings.py /usr/lib/cgi-bin` (exact locations may vary) to place it in the correct place.
 
-If that doesn't work, just run `cp ~/bookwormDB/bin/dbbindings.py /usr/lib/cgi-bin` (exact locations may vary) to place it in the correct place.
-
-If using homebrew on OS X, the shebang at the beginning of `dbbindings.py` may be incorrect. (It will not load your installed python modules). Change it from `#!/usr/bin/env python` to `#!/usr/local/bin/python`, and it should work.
+If using homebrew on OS X, the shebang at the beginning of `dbbindings.py` may be incorrect. (It will not load your installed python modules). Change it from `#!/usr/bin/env python` to `#!/usr/local/bin/python`, and it should work. (Or you can fix the PYTHONPATH that apache uses as [described here](https://github.com/Bookworm-project/BookwormDB/issues/81), but that is considerably harder than just changing the bookworm code.
 
 
 Walkthrough
@@ -181,7 +193,7 @@ This folder should contain a uniquely named .txt file for every item in your col
 
 That script when executed, should out a stream formatted the same as input.txt. In some cases, this will allow you to save a lot disk space and/or time. It must be executable and have a shebang on the first line designating the interpreter. (NOTE: currently unimplemented). 
 
-> To build the congress API, we must create an `input.txt` file with raw text from summaries of bills introduced into Congress. Each line contains a unique ID and the text from the summary of a single bill. Then, we will create the `files/metadata/jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a line in input.txt. Included in the [congress_api](http://github.com/bmschmidt/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and the `input.txt` file.
+> To build the congress API, we must create an `input.txt` file with raw text from summaries of bills introduced into Congress. Each line contains a unique ID and the text from the summary of a single bill. Then, we will create the `jsoncatalog.txt` file which will hold metadata for each bill, including a field that links each JSON object to a line in input.txt. Included in the [congress_api](http://github.com/bmschmidt/congress_api) repo is a script `congress_parser.py` which we'll run to create `jsoncatalog.txt` and the `input.txt` file.
 
 > ```
 > cd congress_api
@@ -190,7 +202,7 @@ That script when executed, should out a stream formatted the same as input.txt. 
 
 #### Required files 2: Metadata about each file.
 
-*  `files/metadata/jsoncatalog.txt` with one JSON object per line. The keys represent shared metadata for each file: the values represent the entry for that particular document. There should be no new line or tab characters in this file.
+*  `jsoncatalog.txt` with one JSON object per line. The keys represent shared metadata for each file: the values represent the entry for that particular document. There should be no new line or tab characters in this file.
 
 In addition to the metadata you choose, two fields are required:
 
@@ -238,32 +250,33 @@ Then to build the bookworm, type
 bookworm build all
 ```
 
-> For the demo, that still looks like this.
-
-> ```
-> bookworm init
-> ```
-
-> The database **bookwormcongress** will be created if it does not exist.
-
 Depending on the total number and average size of your texts, this could take a while. Sit back and relax.
 
 Finally, you may want to set up a GUI.
+
+To test a local one over a python webserver, type
+
+```
+bookworm serve
+```
+
+Otherwise, you can type
 
 ```
 bookworm build linechartGUI
 ```
 
 
+
 ### General Workflow ###
 For reference, the general workflow of the Makefile is the following:
 
 5. Build the directory structure in `files/texts/`.
-1. Derive `files/metadata/field_descriptions_derived.json` from `files/metadata/field_descriptions.txt`.
-2. Derive `files/metadata/jsoncatalog_derived.txt` from `files/metadata/jsoncatalog.json`, respectively.
-4. Create metadata catalog files in `files/metadata/`.
+1. Derive `.bookworm/metadata/field_descriptions_derived.json` from `.bookworm/metadata/field_descriptions.txt`.
+2. Derive `.bookworm/metadata/jsoncatalog_derived.txt` from `.bookworm/metadata/jsoncatalog.json`, respectively.
+4. Create metadata catalog files in `.bookworm/metadata/`.
 7. Create a table with all words from the text files, and save the million most common for regular use.
-8. Encode unigrams and bigrams from the texts into `files/encoded`
+8. Encode unigrams and bigrams from the texts into `.bookworm/encoded`
 9. Load data into MySQL database.
 10. Create temporary MySQL table and .json file that will be used by the web app.
 11. Create API settings.
@@ -276,10 +289,9 @@ For reference, the general workflow of the Makefile is the following:
  * numpy
  * regex (to handle complicated Unicode regular expressions for tokenization: `easy_install regex`)
  * pandas (used by the API, not this precise, set of scripts)
-
 * parallel (GNU parallel, in versions available from apt-get or homebrew)
 * MySQL v. 5.6 (will work with 5.5, but future versions may require 5.6 for some functionality; MariaDB 10.0+ is also actively supported. Some people have reported that it largely works with MySQL 5.1)
-* Apache or other webserver (for front end; it is possible to run the API without a webserver at all, but this usage is not documented.)
+* Apache or other webserver (for front end, if you don't just want to run the simple version through `bookworm serve` that uses an obscure port.)
  
 
 

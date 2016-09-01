@@ -160,10 +160,10 @@ class BookwormManager(object):
                 """)
                 return
             if not os.path.exists("bookworm.cnf"):
-                self.configuration()
+                self.configuration(args.yes)
             os.makedirs(".bookworm")
         else:
-            self.configuration()
+            self.configuration(args.yes)
         
     def query(self,args):
         """
@@ -325,9 +325,9 @@ class BookwormManager(object):
             Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
-    def configuration(self):
+    def configuration(self,askk):
         import bookwormDB.configuration
-        bookwormDB.configuration.create()
+        bookwormDB.configuration.create(ask_about_defaults=askk)
             
     def database_metadata(self):
         import bookwormDB.CreateDatabase
@@ -374,8 +374,7 @@ class BookwormManager(object):
         if you can't connect to the database server.
         """
         import bookwormDB.CreateDatabase
-        import ConfigParser
-        
+
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         Bookworm.load_word_list()
         Bookworm.create_unigram_book_counts()
@@ -386,7 +385,7 @@ class BookwormManager(object):
         self.database_metadata()
 
 class Extension(object):
-    
+
     """
     A bookworm extension. Initialized with an args object,
     which has the element url, the location of a clonable git repo.
@@ -398,7 +397,7 @@ class Extension(object):
     def __init__(self,args,basedir="./"):
         self.args = args
         self.dir = basedir + ".bookworm/extensions/" + re.sub(".*/","",self.args.url)
-        
+
     def clone_or_pull(self):
         if not os.path.exists(self.dir):
             logging.info("cloning git repo from " + self.args.url)
@@ -406,11 +405,11 @@ class Extension(object):
         else:
             logging.info("updating pre-existing git repo at " + self.dir)
             Popen(["git","pull"],cwd=self.dir)
-            
+ 
     def make(self):
         logging.debug("Running make in " + self.dir)
         Popen(["make"],cwd=self.dir)
-        
+ 
 # Initiate MySQL connection.
 
 
@@ -476,7 +475,6 @@ def run_arguments():
 
     supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
     supplement_parser.add_argument("--field_descriptions","-d",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
-
     
     ######### Reload Memory #############
     memory_tables_parser = subparsers.add_parser("reload_memory",help="Reload the memory\
@@ -536,6 +534,7 @@ def run_arguments():
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
     init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
+    init_parser.add_argument("--yes","-y",help="Automatically use default values with no prompts",default=False,action="store_true")    
 
 
     # Serve the current bookworm
@@ -554,7 +553,7 @@ def run_arguments():
     # Set the logging level based on the input.
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % loglevel)
+        raise ValueError('Invalid log level: %s' % args.log_level)
     logging.basicConfig(level=numeric_level)
     # While we're at it, log with line numbers
 

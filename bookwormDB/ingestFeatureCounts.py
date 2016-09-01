@@ -1,5 +1,4 @@
 import os
-import subprocess
 import sys
 from tokenizer import *
 import logging
