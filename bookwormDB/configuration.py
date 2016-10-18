@@ -388,11 +388,5 @@ def reconfigure_passwords(names_to_parse,force=False):
         subprocess.call(args + list(privileged_names))
         names_to_parse = unprivileged_names
 
-    if "admin" in names_to_parse and whoami=="root":
-        if not args.force:
-            print "You're trying to update the admin user while logged in as root (using sudo?)" 
-            print "That's confusing to me; if you're only going to run admin operations as root,"
-            print "just set the root password."
-
     for name in names_to_parse:
         update_settings_for(name,force=force)
