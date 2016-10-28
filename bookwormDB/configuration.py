@@ -32,12 +32,16 @@ def create(ask_about_defaults=True,database=None):
     Usually the user can just hit enter.
     """
 
-    systemConfigFile = ConfigParser.ConfigParser(allow_no_value=True)
+    systemConfigFile = ConfigParser.SafeConfigParser(allow_no_value=True)
 
     # It checks each of these files for defaults in turn
 
-    systemConfigFile.read(["/.my.cnf",os.path.expanduser("~/my.cnf"),os.path.expanduser("~/.my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf","bookworm.cnf"])
-
+    possible_bookworm_locations = ["/.my.cnf",os.path.expanduser("~/my.cnf"),os.path.expanduser("~/.my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf","bookworm.cnf"]
+    for location in possible_bookworm_locations:
+        try:
+            systemConfigFile.read([location])
+        except ConfigParser.MissingSectionHeaderError:
+            logging.debug("skipping {} because it has no sections".format(location))
     defaults = dict()
     # The default bookwormname is just the current location
 
