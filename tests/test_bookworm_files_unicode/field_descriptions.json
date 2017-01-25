@@ -1,0 +1,5 @@
+[
+    {"datatype": "searchstring", "field": "searchstring", "unique": true, "type": "text"},
+    {"datatype": "categorical", "field": "language", "unique": true, "type": "text"},
+        {"datatype": "categorical", "field": "description_", "unique": true, "type": "text"}
+]
