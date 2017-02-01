@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import unittest
 import bookwormDB
 import bookwormDB.CreateDatabase
@@ -39,6 +41,37 @@ def setup_bookworm():
             
     call(["bookworm --log-level warning build all"],shell=True,cwd=sys.path[0] + "/test_bookworm_files")
 
+def setup_bookworm_unicode():
+    """
+    Creates a test bookworm. Removes any existing databases called "unicode_test_bookworm"
+    """
+    logging.info("\n\nTESTING BOOKWORM CREATION\n\n")
+    import MySQLdb
+    from warnings import filterwarnings
+    filterwarnings('ignore', category = MySQLdb.Warning)
+
+    import bookwormDB.configuration
+    os.chdir(sys.path[0] + "/test_bookworm_files_unicode")
+    bookwormDB.configuration.create(ask_about_defaults=False,database="unicode_test_bookworm")
+
+    try:
+        db.query("DROP DATABASE unicode_test_bookworm")
+    except MySQLdb.OperationalError as e:
+        if e[0]==1008:
+            pass
+        else:
+            raise
+    except Exception, e:
+        """
+        This is some weird MariaDB exception. It sucks that I'm compensating for it here.
+        """
+        if e[0]=="Cannot load from mysql.proc. The table is probably corrupted":
+            pass
+        else:
+            logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
+            
+    call(["bookworm --log-level warning build all"],shell=True,cwd=sys.path[0] + "/test_bookworm_files_unicode")
+    
 
 class Bookworm_SQL_Creation(unittest.TestCase):
 
@@ -132,11 +165,11 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "words_collation":"Case_Sensitive",
                 "method":"return_json"
         }
-        
+
         SQLAPIcall(query)
         val1 = json.loads(SQLAPIcall(query).execute())
         self.assertTrue(val1[0] > 0)
-        
+
         query["words_collation"] = "Case_Insensitive"        
 
         SQLAPIcall(query)        
@@ -153,10 +186,40 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "groups":[],
                 "words_collation":"Case_Insensitive",
                 "method":"return_json"
-        }        
+        }
         SQLAPIcall(query)
         val1 = json.loads(SQLAPIcall(query).execute())
         self.assertTrue(val1[0] > 0)
+
+    def test_unicode_search_term(self):
+        query = {
+                "database":"unicode_test_bookworm",
+                "search_limits":{"word":[u"ᎾᏍᎩ"]},
+                "counttype":"WordCount",
+                "groups":[],
+                "words_collation":"Case_Insensitive",
+                "method":"return_json"
+        }
+        SQLAPIcall(query)
+        val1 = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(val1[0] > 0)
+
+    def test_various_unicode_cases(self):
+        # There's a 'description_' for each individual item.
+        catalog_location = sys.path[0] + "/test_bookworm_files_unicode/jsoncatalog.txt"
+        cases = [json.loads(line)["description_"] for line in open(catalog_location)]       
+        for case in cases:
+            query = {
+                "database":"unicode_test_bookworm",
+                "search_limits":{"description_":case},
+                "counttype":"WordCount",
+                "groups":[],
+                "words_collation":"Case_Insensitive",
+                "method":"return_json"
+                }
+            SQLAPIcall(query)
+            val1 = json.loads(SQLAPIcall(query).execute())
+            self.assertTrue(val1[0] > 0)
 
     def test_asterisks_in_search_limits(self):
         """
@@ -215,8 +278,10 @@ if __name__=="__main__":
     logging.basicConfig(level=40)
     try:
         setup_bookworm()
+        setup_bookworm_unicode()
     except:
         logging.basicConfig(level=10)
         setup_bookworm()
+        setup_bookworm_unicode()        
     logging.basicConfig(level=10)    
     unittest.main()

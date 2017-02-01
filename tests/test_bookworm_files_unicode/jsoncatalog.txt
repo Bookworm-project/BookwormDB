@@ -1,0 +1,5 @@
+{"filename":"john_1", "language":"cherokee","searchstring":"Cherokee bible verse","description_":"Cherokee Bible Verse"}
+{"filename":"quran_1", "language":"arabic","searchstring":"Quran verse 1","description_": "Arabic text"}
+{"filename":"quran_2", "language":"arabic","searchstring":"Quran verse 1 in quotes","description_": "Arabic text in ASCII quotes"}
+{"filename":"سورة الفاتحة", "language":"arabic","searchstring":"Quran verse 1 with arabic filename","description_":"Arabic Filename with Arabic text"}
+{"filename":"سورة", "language":"english","searchstring":"Quran verse 1 in English with arabic filename","description_":"Arabic Filename with English text"}
