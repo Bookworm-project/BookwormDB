@@ -79,7 +79,7 @@ class DB:
             db='',
             local_infile=1)
         cursor = self.conn.cursor()
-        cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
+        cursor.execute("CREATE DATABASE IF NOT EXISTS %s default character set utf8" % self.dbname)
         # Don't use native query attribute here to avoid infinite loops
         cursor.execute("SET NAMES 'utf8'")
         cursor.execute("SET CHARACTER SET 'utf8'")
