@@ -29,17 +29,17 @@ def wordRegex():
     global re
     if re is None:
         import regex as re
-    MasterExpression = ur"\p{L}+"
+    MasterExpression = ur"\w+"
     possessive = MasterExpression + ur"'s"
     numbers = r"(?:[\$])?\d+"
     decimals = numbers + r"\.\d+"
     abbreviation = r"(?:mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\."
     sharps = r"[a-gjxA-GJX]#"
-    punctuators = r"[^\p{L}\p{Z}]"
+    punctuators = r"[^\w\p{Z}]"
     """
     Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms 
     """
-    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)#
+    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
     return bigregex
 
 
