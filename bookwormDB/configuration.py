@@ -9,7 +9,6 @@ import getpass
 import subprocess
 import logging
 
-
 def create(ask_about_defaults=True,database=None):
     """
     Through interactive prompts at the command line, builds up a file at
@@ -272,7 +271,7 @@ class Configfile:
         """
         self.ensure_section("mysqld")
         
-        mysqldoptions = {"max_allowed_packet":"512M","sort_buffer_size":"8M","read_buffer_size":"4M","read_rnd_buffer_size":"8M","bulk_insert_buffer_size":"512M","myisam_sort_buffer_size":"512M","myisam_max_sort_file_size":"1500G","key_buffer_size":"1500M","query_cache_size":"32M","tmp_table_size":"1024M","max_heap_table_size":"1024M","character_set_server":"utf8","query_cache_type":"1","query_cache_limit":"2M"}
+        mysqldoptions = {"max_allowed_packet":"512M","sort_buffer_size":"8M","read_buffer_size":"4M","read_rnd_buffer_size":"8M","bulk_insert_buffer_size":"512M","myisam_sort_buffer_size":"512M","myisam_max_sort_file_size":"2500G","key_buffer_size":"2500M","query_cache_size":"32M","tmp_table_size":"1024M","max_heap_table_size":"2048M","character_set_server":"utf8","query_cache_type":"1","query_cache_limit":"2M"}
 
         for option in mysqldoptions.keys():
             if not self.config.has_option("mysqld",option):

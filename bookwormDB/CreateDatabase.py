@@ -94,11 +94,13 @@ class DB:
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
-    def query(self, sql):
+    def query(self, sql, silent = False):
         """
         Billy defined a separate query method here so that the common case of a connection being
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
         the connection and starts up nicely again.
+
+        silent: whether to suppress errors. Useful when an "IF EXISTS" clause doesn't work. 
         """
         logging.debug(" -- Preparing to execute SQL code -- " + sql)
         try:
@@ -110,8 +112,9 @@ class DB:
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
             except:
-                logging.error("Query failed: \n" + sql + "\n")
-                raise
+                if not silent:
+                    logging.error("Query failed: \n" + sql + "\n")
+                    raise
         return cursor
 
 class BookwormSQLDatabase:
@@ -331,13 +334,14 @@ class BookwormSQLDatabase:
             """
             tablename = row[0]
             try:
-                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename))
+                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename), silent = True)
                 currentLength = cursor.fetchall()[0][0]
                 logging.debug("Current Length is %d" %currentLength)
             except:
                 currentLength = 0
             if currentLength==0 or force:
                 for query in splitMySQLcode(row[1]):
+                    self.db.query("SET optimizer_search_depth=0")
                     self.db.query(query)
 
     def addFilesToMasterVariableTable(self):
@@ -349,7 +353,7 @@ class BookwormSQLDatabase:
         ) ENGINE=MEMORY;"""
         #Also update the wordcounts for each text.
         fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None]
-        fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
+        fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog USE INDEX () " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
         fileCommand += "DROP TABLE IF EXISTS fastcat;"
         fileCommand += "RENAME TABLE tmp TO fastcat;"
         self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="fastcat";')

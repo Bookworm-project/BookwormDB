@@ -12,7 +12,7 @@ def figure_out_cgi_directory():
 
 setup(name='bookwormDB',
       packages=["bookwormDB"],
-      version='0.4.0',
+      version='0.4.1',
       entry_points={
             'console_scripts': [
                 'bookworm = bookwormDB.manager:run_arguments'
