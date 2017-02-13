@@ -267,6 +267,7 @@ class dataField:
             self.setIntType()
 
             self.maxlength = self.dbToPutIn.query("SELECT MAX(CHAR_LENGTH(%(field)s)) FROM %(field)s__id" % self.__dict__)
+
             self.maxlength = self.maxlength.fetchall()[0][0]
             self.maxlength = max([self.maxlength,1])
             return("""DROP TABLE IF EXISTS tmp;
@@ -363,7 +364,7 @@ class dataField:
             if self.nCategories <= 255:
                 self.intType = "TINYINT UNSIGNED"
 
-    def buildIdTable(self):
+    def buildIdTable(self, minimum_occurrence_rate = 1/100000):
 
         """
         This builds an integer crosswalk ID table with a field that stores categorical
@@ -382,7 +383,15 @@ class dataField:
 
         returnt = "DROP TABLE IF EXISTS tmp;\n\n"
 
-        returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM  %(table)s GROUP BY  %(field)s;\n\n" % self.__dict__
+        returnt += "CREATE TABLE tmp ENGINE=MYISAM SELECT  %(field)s,count(*) as count FROM %(table)s GROUP BY %(field)s;\n\n" % self.__dict__
+
+        # XXXX to fix
+        # Hardcoding this for now at one per 100K in the method definition. Could be user-set.
+        n_documents = self.dbToPutIn.query("SELECT COUNT(*) FROM catalog").fetchall()[0][0]        
+        self.minimum_count = round(n_documents*minimum_occurrence_rate)
+        # XXXX            
+        
+        returnt +="DELETE FROM tmp WHERE count < %(minimum_count)s;" % self.__dict__
 
         returnt += "DROP TABLE IF EXISTS %(field)s__id;\n\n" % self.__dict__
 

@@ -43,6 +43,7 @@ def text_id_dbm():
                     continue
                 else:
                     raise
+
 class DB:
     def __init__(self,dbname=None):
         try:
