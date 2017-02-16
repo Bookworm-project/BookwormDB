@@ -235,7 +235,7 @@ class BookwormSQLDatabase:
         logging.info("Making a SQL table to hold the words")
         db.query("""DROP TABLE IF EXISTS words""")
         db.query("""CREATE TABLE IF NOT EXISTS words (
-        wordid MEDIUMINT,
+        wordid MEDIUMINT UNSIGNED NOT NULL,
         word VARCHAR(255), INDEX (word),
         count BIGINT UNSIGNED,
         casesens VARBINARY(255),
@@ -354,7 +354,7 @@ class BookwormSQLDatabase:
                     self.db.query(query)
 
     def addFilesToMasterVariableTable(self):
-        fastFieldsCreateList = ["bookid MEDIUMINT, PRIMARY KEY (bookid)","nwords MEDIUMINT"] +\
+        fastFieldsCreateList = ["bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)","nwords MEDIUMINT UNSIGNED NOT NULL"] +\
           [variable.fastSQL() for variable in self.variableSet.variables if (variable.unique and variable.fastSQL() is not None)]
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
@@ -371,7 +371,7 @@ class BookwormSQLDatabase:
 
     def addWordsToMasterVariableTable(self):
         wordCommand = "DROP TABLE IF EXISTS tmp;"
-        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
+        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
         wordCommand += "INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens,LOWER(word) FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;"
         wordCommand += "DROP TABLE IF EXISTS wordsheap;"
         wordCommand += "RENAME TABLE tmp TO wordsheap;"
