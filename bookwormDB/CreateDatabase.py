@@ -71,14 +71,22 @@ class DB:
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         conf = Configfile("admin")
         conf.read_config_files()
-
-        self.conn = MySQLdb.connect(
-            user=conf.config.get("client","user"),
-            passwd=conf.config.get("client","password"),
-            use_unicode='True',
-            charset='utf8',
-            db='',
-            local_infile=1)
+        connect_args = {
+            "user": conf.config.get("client","user"),
+            "passwd": conf.config.get("client","password"),
+            "use_unicode": 'True',
+            "charset": 'utf8',
+            "db": '',
+            "local_infile": 1}
+        try:
+            self.conn = MySQLdb.connect(**connect_args)
+        except MySQLdb.OperationalError:
+            # Sometimes mysql wants to connect over this rather than a socket:
+            # falling back to it for backward-compatibility.
+            connect_args["host"] = "127.0.0.1"
+            self.conn = MySQLdb.connect(**connect_args)
+            
+            
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s default character set utf8" % self.dbname)
         # Don't use native query attribute here to avoid infinite loops
@@ -227,7 +235,7 @@ class BookwormSQLDatabase:
         logging.info("Making a SQL table to hold the words")
         db.query("""DROP TABLE IF EXISTS words""")
         db.query("""CREATE TABLE IF NOT EXISTS words (
-        wordid MEDIUMINT,
+        wordid MEDIUMINT UNSIGNED NOT NULL,
         word VARCHAR(255), INDEX (word),
         count BIGINT UNSIGNED,
         casesens VARBINARY(255),
@@ -346,7 +354,7 @@ class BookwormSQLDatabase:
                     self.db.query(query)
 
     def addFilesToMasterVariableTable(self):
-        fastFieldsCreateList = ["bookid MEDIUMINT, PRIMARY KEY (bookid)","nwords MEDIUMINT"] +\
+        fastFieldsCreateList = ["bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)","nwords MEDIUMINT UNSIGNED NOT NULL"] +\
           [variable.fastSQL() for variable in self.variableSet.variables if (variable.unique and variable.fastSQL() is not None)]
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
@@ -363,7 +371,7 @@ class BookwormSQLDatabase:
 
     def addWordsToMasterVariableTable(self):
         wordCommand = "DROP TABLE IF EXISTS tmp;"
-        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
+        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
         wordCommand += "INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens,LOWER(word) FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;"
         wordCommand += "DROP TABLE IF EXISTS wordsheap;"
         wordCommand += "RENAME TABLE tmp TO wordsheap;"

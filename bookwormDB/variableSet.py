@@ -397,7 +397,7 @@ class dataField:
 
         returnt += """CREATE TABLE IF NOT EXISTS %(field)s__id (
                       %(field)s__id %(intType)s PRIMARY KEY AUTO_INCREMENT,
-                      %(field)s VARCHAR (255), INDEX (%(field)s, %(field)s__id), %(field)s__count MEDIUMINT);\n\n""" % self.__dict__
+                      %(field)s VARCHAR (255), INDEX (%(field)s, %(field)s__id), %(field)s__count MEDIUMINT UNSIGNED);\n\n""" % self.__dict__
 
         returnt += """INSERT INTO %(field)s__id (%(field)s,%(field)s__count)
                       SELECT %(field)s,count FROM tmp LEFT JOIN %(field)s__id USING (%(field)s) WHERE %(field)s__id.%(field)s__id IS NULL
@@ -779,7 +779,7 @@ class variableSet:
     def uniqueVariableFastSetup(self,engine="MEMORY"):
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
-        (""" + self.fastAnchor + """ MEDIUMINT, PRIMARY KEY (""" + self.fastAnchor + """),
+        (""" + self.fastAnchor + """ MEDIUMINT UNSIGNED, PRIMARY KEY (""" + self.fastAnchor + """),
         """ +",\n".join([variable.fastSQL() for variable in self.variables if (variable.unique and variable.fastSQL() is not None)]) + """
         ) ENGINE=%s;\n""" % engine
 

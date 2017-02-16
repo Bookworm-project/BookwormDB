@@ -63,8 +63,14 @@ class DbConnect(object):
         try:
             self.db = MySQLdb.connect(**connargs)
         except:
-            logging.error(configuration_file.location)
-            raise
+            try:
+                # Sometimes mysql wants to connect over this rather than a socket:
+                # falling back to it for backward-compatibility.                
+                connargs["host"] = "127.0.0.1"
+                self.db = MySQLdb.connect(**connargs)
+            except:
+                logging.error(configuration_file.location)
+                raise
         self.cursor = self.db.cursor()
 
 
