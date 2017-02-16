@@ -71,14 +71,22 @@ class DB:
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         conf = Configfile("admin")
         conf.read_config_files()
-
-        self.conn = MySQLdb.connect(
-            user=conf.config.get("client","user"),
-            passwd=conf.config.get("client","password"),
-            use_unicode='True',
-            charset='utf8',
-            db='',
-            local_infile=1)
+        connect_args = {
+            "user": conf.config.get("client","user"),
+            "passwd": conf.config.get("client","password"),
+            "use_unicode": 'True',
+            "charset": 'utf8',
+            "db": '',
+            "local_infile": 1}
+        try:
+            self.conn = MySQLdb.connect(**connect_args)
+        except MySQLdb.OperationalError:
+            # Sometimes mysql wants to connect over this rather than a socket:
+            # falling back to it for backward-compatibility.
+            connect_args["host"] = "127.0.0.1"
+            self.conn = MySQLdb.connect(**connect_args)
+            
+            
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s default character set utf8" % self.dbname)
         # Don't use native query attribute here to avoid infinite loops

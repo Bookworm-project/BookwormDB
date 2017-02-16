@@ -8,6 +8,7 @@ import argparse
 import getpass
 import subprocess
 import logging
+import uuid
 
 def create(ask_about_defaults=True,database=None):
     """
@@ -91,6 +92,7 @@ def create(ask_about_defaults=True,database=None):
 
 
 class Configfile:
+    
     def __init__(self,usertype,possible_locations=None,default=None,ask_about_defaults=True):
         """
         Initialize with the type of the user. The last encountered file on
@@ -108,6 +110,7 @@ class Configfile:
 
         if possible_locations is None:
             possible_locations = self.meta_locations_from_type()
+        
         self.location = None
         
         self.config = ConfigParser.ConfigParser(allow_no_value=True)
@@ -200,19 +203,18 @@ class Configfile:
         Changes the client password in the config file AND updates the
         MySQL server with the new password at the same time.
         """
-        try:
+        try:            
             db = MySQLdb.connect(read_default_file="~/.my.cnf")
             db.cursor().execute("GRANT SELECT ON *.* to root@localhost")
         except MySQLdb.OperationalError, message:
-            if self.ask_about_defaults:
-                user = raw_input("""Can't log in automatically:
-                Please enter an *administrative* username for your mysql with
-                grant privileges: """)
-                password = raw_input("Now enter the password for that user: ")
-                db = MySQLdb.connect(user=user,passwd=password)
-            else:
-                # Hail-mary that maybe works on travis
+            try:
                 db = MySQLdb.connect(user="root",passwd="",host="127.0.0.1")
+            except MySQLdb.OperationalError, message:
+                user = raw_input("""Can't log in automatically as {}:
+                Please enter an *administrative* username for your mysql with
+                grant privileges: """.format(getpass.getuser()))
+                password = raw_input("Now enter the password for that user: ")
+                db = MySQLdb.connect(user=user,passwd=password,host="127.0.0.1")
 
         cur = db.cursor()
         self.ensure_section("client")
@@ -223,16 +225,21 @@ class Configfile:
                 user = "root"
                 self.config.set("client","user","root")
             else:
+                defaults = {
+                    "global": "bookworm_client",
+                    "admin": "bookworm_admin"
+                }
+                default_user = defaults[self.usertype]
                 if self.ask_about_defaults:
-                    user = raw_input("""No username found for the user in the %s role.\
-                    Please enter the name for the %s user: """ % (self.usertype,self.usertype))
+                    user = raw_input("\nNo username found for the user in the %s role. Please enter the name for the %s user, or hit enter to use '%s': """ % (self.usertype,self.usertype,default_user))
+                    if user=="":
+                        user = default_user
                     self.config.set("client","user",user)
                 else:
                     defaults = {
                         "global": "bookworm_client",
                         "admin": "bookworm_admin"
                     }
-
                     user = defaults[self.usertype]
                     self.config.set("client","user",user)
 
@@ -248,7 +255,6 @@ class Configfile:
                 confirmation = raw_input("Please re-enter the new password for " + user + ": ")
         else:
             # when forcing, generate a random password using uuid.
-            import uuid
             new_password = uuid.uuid1().hex
             
         try:
@@ -315,11 +321,12 @@ def parse_args():
     return parser.parse_args()
 
 def make_bookworm_folder(loc = "/etc/bookworm"):
-    print("Creating config files in /etc/bookworm.")
-    print("This may require an admin password.")    
     whoami = getpass.getuser()
     
     if not os.path.exists(loc):
+        print("Creating config files in /etc/bookworm.")
+        print("This may require an admin password.")    
+        
         try:
             subprocess.check_call(["sudo","mkdir",loc])
         except:

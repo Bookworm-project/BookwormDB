@@ -160,10 +160,10 @@ class BookwormManager(object):
                 """)
                 return
             if not os.path.exists("bookworm.cnf"):
-                self.configuration(args.yes)
+                self.configuration(askk = not args.yes)
             os.makedirs(".bookworm")
         else:
-            self.configuration(args.yes)
+            self.configuration(askk = not args.yes)
         
     def query(self,args):
         """
