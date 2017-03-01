@@ -22,7 +22,7 @@ methods in the API must be supported by subclassing APICall().
 The only existing example of this is "SQLAPICall."
 """
 
-# Some settings can be overridden here, if no where else.
+# Some settings can be overridden here, if nowhere else.
 
 prefs = dict()
 
@@ -35,12 +35,14 @@ def calculateAggregates(df, parameters):
     """
     parameters = map(str,parameters)
     parameters = set(parameters)
-
-    if "WordsPerMillion" in parameters:
-        df["WordsPerMillion"] = (df["WordCount_x"].multiply(1000000) /
-                                 df["WordCount_y"])
+    
     if "WordCount" in parameters:
         df["WordCount"] = df["WordCount_x"]
+    if "TextCount" in parameters:
+        df["TextCount"] = df["TextCount_x"]
+    if "WordsPerMillion" in parameters:
+        df["WordsPerMillion"] = (df["WordCount_x"].multiply(1000000) /
+                                 df["WordCount_y"])        
     if "TotalWords" in parameters:
         df["TotalWords"] = df["WordCount_y"]
     if "SumWords" in parameters:
@@ -50,8 +52,6 @@ def calculateAggregates(df, parameters):
         
     if "TextPercent" in parameters:
         df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
-    if "TextCount" in parameters:
-        df["TextCount"] = df["TextCount_x"]
     if "TextRatio" in parameters:
         df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]        
     if "TotalTexts" in parameters:
@@ -74,8 +74,8 @@ def calculateAggregates(df, parameters):
     def DunningLog(df=df, a="WordCount_x", b="WordCount_y"):
         from numpy import log as log
         destination = "Dunning"
-        df[a] = df[a].replace(0, 0.01)
-        df[b] = df[b].replace(0, 0.01)
+        df[a] = df[a].replace(0, 0.1)
+        df[b] = df[b].replace(0, 0.1)
         if a == "WordCount_x":
             # Dunning comparisons should be to the sums if counting:
             c = sum(df[a])
@@ -120,6 +120,13 @@ def intersectingNames(p1, p2, full=False):
         return list(names1.union(names2))
     return list(names1.intersection(names2))
 
+
+def need_comparison_query(count_types):
+    """
+    Do we not need a comparison query?
+    """
+    needing_fields = [c for c in count_types if not c in ["WordCount","TextCount"]]
+    return len(needing_fields) != 0
 
 def base_count_types(list_of_final_count_types):
     """
@@ -225,15 +232,11 @@ class APIcall(object):
             self.pandas_frame = self.get_data_from_source()
             return self.pandas_frame
 
-    def get_data_from_source(self):
-        """
-        Retrieves data from the backend, and calculates totals.
 
-        Note that this method could be easily adapted to run on top of a Solr
-        instance or something else, just by changing the bits in the middle
-        where it handles storage_format.
-        """
-
+    def validate_query(self):
+        self.ensure_query_has_required_fields()
+        
+    def ensure_query_has_required_fields(self):
         required_fields = ['counttype', 'groups']
         for field in required_fields:
             if field not in self.query:
@@ -241,6 +244,9 @@ class APIcall(object):
                 err = dict(message="Bad query. Missing \"%s\" field" % field,
                            code=400)
                 raise BookwormException(err)
+
+
+    def prepare_search_and_compare_queries(self):
 
         call1 = deepcopy(self.query)
 
@@ -265,6 +271,8 @@ class APIcall(object):
                 self.query['groups'][n] = replacement
                 call2['groups'].remove(group)
 
+        self.call1 = call1
+        self.call2 = call2
         # Special case: unigram groupings are dropped if they're not
         # explicitly limited
         # if "unigram" not in call2['search_limits']:
@@ -272,13 +280,32 @@ class APIcall(object):
         #                                                 "word"],
         #                             call2['groups'])
 
+
+
+    def get_data_from_source(self):
+        """
+        Retrieves data from the backend, and calculates totals.
+
+        Note that this method could be easily adapted to run on top of a Solr
+        instance or something else, just by changing the bits in the middle
+        where it handles storage_format.
+        """
+
+        self.validate_query()
+        self.prepare_search_and_compare_queries()
+        
         """
         This could use any method other than pandas_SQL:
-        You'd just need to name objects df1 and df2 as pandas dataframes
+        You'd just need to redefine "generate_pandas_frame"
         """
+
+        if not need_comparison_query(self.query['counttype']):
+            df1 = self.generate_pandas_frame(self.call1)            
+            return df1[self.query['groups'] + self.query['counttype']]
+
         try:
-            df1 = self.generate_pandas_frame(call1)
-            df2 = self.generate_pandas_frame(call2)
+            df1 = self.generate_pandas_frame(self.call1)
+            df2 = self.generate_pandas_frame(self.call2)
         except Exception as error:
             logging.exception("Database error")
             # One common error is putting in an inappropriate column
@@ -289,6 +316,8 @@ class APIcall(object):
                 return Series({"status": "error", "message": "Database error. "
                             "Try checking field names.","code":str(error)})
 
+        
+        
         intersections = intersectingNames(df1, df2)
 
         """
@@ -302,19 +331,13 @@ class APIcall(object):
         merged = merged.fillna(int(0))
 
         calculations = self.query['counttype']
-
         calcced = calculateAggregates(merged, calculations)
-
+        
         calcced = calcced.fillna(int(0))
 
-        try:
-            final_DataFrame = (calcced[self.query['groups'] +
+        final_DataFrame = (calcced[self.query['groups'] +
                            self.query['counttype']])
-        except:
-            print calculations
-            print list(calcced.columns.values)
 
-            
         return final_DataFrame
 
     def execute(self):
@@ -386,6 +409,9 @@ class APIcall(object):
                     if method == "return_books":
                         return query.execute()
                     return json.dumps(query.execute())
+                except Exception, e:
+                    if len(str(e)) > 1 and e[1].startswith("Unknown database"):
+                        return "No such bookworm {}".format(e[1].replace("Unknown database",""))
                 except:
                     return "General error"
 
