@@ -152,7 +152,8 @@ If you haven't already, install this repo on your system.
 
 ```
 git clone git://github.com/Bookworm-project/BookwormDB
-python setup.py
+cd BookwormDB
+python setup.py install
 ```
 
 ### Required Files ###
