@@ -292,6 +292,11 @@ class BookwormManager(object):
         parse_initial_catalog()
 
     def guessAtFieldDescriptions(self):
+        """
+        Use a number of rules of thumb to automatically generate a field_descriptions.json file.
+        This may bin some categories incorrectly (depending on names, for example it may treat dates
+        as either categorical or time variables).
+        """
         import bookwormDB.CreateDatabase
         import json
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
