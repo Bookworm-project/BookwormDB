@@ -235,7 +235,7 @@ class BookwormManager(object):
 
         That's a little groaty, I know.
         """
-        getattr(self,args.goal)()
+        getattr(self,args.goal)(args)
         
     def build(self,args):
         """
@@ -267,7 +267,7 @@ class BookwormManager(object):
         logging.info("Parsing jsoncatalog.txt")
         bookwormDB.MetaParser.ParseJSONCatalog()
         
-    def preDatabaseMetadata(self):
+    def preDatabaseMetadata(self, args):
         import bookwormDB.CreateDatabase
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         logging.info("Writing metadata to new catalog file...")
@@ -526,7 +526,13 @@ def run_arguments():
     word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
     ########## Build components
     extensions_parser = subparsers.add_parser("prep", help="Build individual components: primarily used by the Makefile.")
-    extensions_parser.add_argument("goal",help="The name of the target.")
+    extensions_subparsers = extensions_parser.add_subparsers(title="goal",help="The name of the target.", dest="goal")
+
+    catalog_prep_parser = extensions_subparsers.add_parser("preDatabaseMetadata",
+                                                           help=getattr(BookwormManager, "preDatabaseMetadata").__doc__)
+    
+    for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'database_wordcounts']:
+        extensions_subparsers.add_parser(prep_arg, help=getattr(BookwormManager, prep_arg).__doc__)
 
     """
     Some special functions
