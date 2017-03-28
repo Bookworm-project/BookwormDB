@@ -23,8 +23,6 @@ for the command-line executable,
 even though it's not best practice otherwise.
 """
 
-logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', datefmt="%d/%Y %H:%M:%S")
-
 class BookwormManager(object):
     """
     This class is passed some options that tell it the name of the bookworm it's working on;
@@ -571,11 +569,11 @@ def run_arguments():
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args.log_level)
-    logging.basicConfig(level=numeric_level)
     # While we're at it, log with line numbers
-
-    FORMAT = "[%(filename)s:%(lineno)s - %(funcName)25s() ] %(message)s"
-    logging.basicConfig(format=FORMAT)
+    FORMAT = "[%(%(filename)s:%(lineno)s-%(funcName)25s()] %(message)s"
+    logging.basicConfig(format=FORMAT, level=numeric_level)
+    logging.info("Info logging enabled.")
+    logging.info("Debug logging enabled.")
 
     # Create the bookworm 
     my_bookworm = BookwormManager(args.configuration,args.database)
