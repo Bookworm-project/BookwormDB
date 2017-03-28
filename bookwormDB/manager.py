@@ -235,7 +235,7 @@ class BookwormManager(object):
 
         That's a little groaty, I know.
         """
-        getattr(self,args.goal)(args)
+        getattr(self,args.goal)(cmd_args=args)
         
     def build(self,args):
         """
@@ -267,15 +267,19 @@ class BookwormManager(object):
         logging.info("Parsing jsoncatalog.txt")
         bookwormDB.MetaParser.ParseJSONCatalog()
         
-    def preDatabaseMetadata(self, args):
+    def preDatabaseMetadata(self, cmd_args=None, **kwargs):
         import bookwormDB.CreateDatabase
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         logging.info("Writing metadata to new catalog file...")
-        Bookworm.variableSet.writeMetadata()
+        if cmd_args:
+            compress = cmd_args.gzip
+        else:
+            compress = False
+        Bookworm.variableSet.writeMetadata(compress=compress)
 
         # This creates helper files in the /metadata/ folder.
 
-    def text_id_database(self):
+    def text_id_database(self, **kwargs):
         """
         This function is defined in Create Database.
         It builds a file at .bookworm/texts/textids.dbm
@@ -283,15 +287,15 @@ class BookwormManager(object):
         import bookwormDB.CreateDatabase
         bookwormDB.CreateDatabase.text_id_dbm()
         
-    def metadata(self):
+    def metadata(self, **kwargs):
         self.diskMetadata()
         self.preDatabaseMetadata()
 
-    def catalog_metadata(self):
+    def catalog_metadata(self, **kwargs):
         from bookwormDB.MetaParser import parse_initial_catalog
         parse_initial_catalog()
 
-    def guessAtFieldDescriptions(self):
+    def guessAtFieldDescriptions(self, **kwargs):
         import bookwormDB.CreateDatabase
         import json
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
@@ -329,7 +333,7 @@ class BookwormManager(object):
         import bookwormDB.configuration
         bookwormDB.configuration.create(ask_about_defaults=askk)
             
-    def database_metadata(self):
+    def database_metadata(self, **kwargs):
         import bookwormDB.CreateDatabase
 
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
@@ -368,7 +372,7 @@ class BookwormManager(object):
                                jsonDefinition=args.field_descriptions)
 
 
-    def database_wordcounts(self):
+    def database_wordcounts(self, **kwargs):
         """
         Builds the wordcount components of the database. This will die
         if you can't connect to the database server.
@@ -530,8 +534,9 @@ def run_arguments():
 
     catalog_prep_parser = extensions_subparsers.add_parser("preDatabaseMetadata",
                                                            help=getattr(BookwormManager, "preDatabaseMetadata").__doc__)
+    catalog_prep_parser.add_argument("--gzip", action="store_true")
     
-    for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'database_wordcounts']:
+    for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'database_wordcounts', 'guessAtFieldDescriptions']:
         extensions_subparsers.add_parser(prep_arg, help=getattr(BookwormManager, prep_arg).__doc__)
 
     """
