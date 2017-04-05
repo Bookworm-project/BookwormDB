@@ -305,8 +305,19 @@ class BookwormSQLDatabase:
                     try:
                         db.query("LOAD DATA LOCAL INFILE '" + unigrampath + "/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
                     except:
-                        logging.exception("Error inserting unigrams from %s" % filename)
-                        continue
+                       logging.debug("Falling back on insert without LOCAL DATA INFILE. Slower.")
+                       try:
+                            import pandas as pd
+                            df = pd.read_csv(unigrampath + "/" + filename, sep='\t', header=None)
+                            to_insert = df.apply(tuple, axis=1).tolist()
+                            db.query(
+                                """INSERT INTO master_bookcounts (bookid,wordid,count)
+                                VALUES (%s, %s, %s);""",
+                                many_params=to_insert
+                                )
+                       except:
+                           logging.exception("Error inserting unigrams from %s" % filename)
+                           continue
 
                 elif filename.endswith('.h5'):
                     logging.info("Importing h5 file, %s" % filename)
