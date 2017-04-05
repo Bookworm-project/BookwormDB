@@ -103,7 +103,7 @@ class DB:
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
-    def query(self, sql, silent = False):
+    def query(self, sql, silent=False):
         """
         Billy defined a separate query method here so that the common case of a connection being
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
@@ -259,26 +259,47 @@ class BookwormSQLDatabase:
         """
         self.variableSet.loadMetadata()
 
-    def create_unigram_book_counts(self):
+    def create_unigram_book_counts(self, newtable=True, ingest=True, close=True):
+        import time
+        t0 = time.time()
+
         db = self.db
-        db.query("""DROP TABLE IF EXISTS master_bookcounts""")
+        unigrampath =  ".bookworm/texts/encoded/unigrams"
+
+        if (len(unigrampath) == 0) or (unigrampath == "/"):
+            logging.error("Woah! Don't set the unigram path to your system root!")
+            raise
+        
+        if newtable:
+            logging.info("Dropping older unigrams table, if it exists")
+            db.query("""DROP TABLE IF EXISTS master_bookcounts""")
+
         logging.info("Making a SQL table to hold the unigram counts")
-        db.query("""CREATE TABLE master_bookcounts (
-        bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
-        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
-        count MEDIUMINT UNSIGNED NOT NULL);""")
-        db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
-        logging.info("loading data using LOAD DATA LOCAL INFILE")
-        for filename in os.listdir(".bookworm/texts/encoded/unigrams"):
-            if not filename.endswith('.txt'):
-                # Sometimes other files are in there; skip them.
-                continue
-            try:
-                db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
-            except:
-                raise
-        logging.info("Creating Unigram Indexes")
-        db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
+        db.query("""CREATE TABLE IF NOT EXISTS master_bookcounts (
+            bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
+            wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
+            count MEDIUMINT UNSIGNED NOT NULL);""")
+
+        if ingest:
+            db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
+            db.query("set NAMES utf8;")
+            db.query("set CHARACTER SET utf8;")
+            logging.info("loading data using LOAD DATA LOCAL INFILE")
+            
+            for filename in os.listdir(unigrampath):
+                if filename.endswith('.txt'):
+                    try:
+                        db.query("LOAD DATA LOCAL INFILE '" + unigrampath + "/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
+                    except:
+                        logging.exception("Error inserting unigrams from %s" % filename)
+                        continue
+                else:
+                    continue
+        if close:
+            logging.info("Creating Unigram Indexes. Time passed: %.2f s" % (time.time() - t0))
+            db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
+
+        logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
     def create_bigram_book_counts(self):
         db = self.db
