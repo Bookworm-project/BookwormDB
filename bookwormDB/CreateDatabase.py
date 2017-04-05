@@ -103,23 +103,32 @@ class DB:
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
-    def query(self, sql, silent=False):
+    def query(self, sql, silent=False, many_params=None):
         """
         Billy defined a separate query method here so that the common case of a connection being
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
         the connection and starts up nicely again.
 
         silent: whether to suppress errors. Useful when an "IF EXISTS" clause doesn't work. 
+
+        many_params: If included, assume that executemany() is expected, with the sequence of parameter
+                        provided.
         """
         logging.debug(" -- Preparing to execute SQL code -- " + sql)
         try:
             cursor = self.conn.cursor()
-            cursor.execute(sql)
+            if many_params is not None:
+                cursor.executemany(sql, many_params)
+            else:
+                cursor.execute(sql)
         except:
             try:
                 self.connect()
                 cursor = self.conn.cursor()
-                cursor.execute(sql)
+                if many_params is not None:
+                    cursor.executemany(sql, many_params)
+                else:
+                    cursor.execute(sql)
             except:
                 if not silent:
                     logging.error("Query failed: \n" + sql + "\n")
