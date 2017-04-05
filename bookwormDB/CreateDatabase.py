@@ -274,12 +274,17 @@ class BookwormSQLDatabase:
 
         db = self.db
         unigrampath =  ".bookworm/texts/encoded/unigrams"
+        tmpdir = "%s/tmp" % unigrampath 
 
         if (len(unigrampath) == 0) or (unigrampath == "/"):
             logging.error("Woah! Don't set the unigram path to your system root!")
             raise
         
         if newtable:
+            if os.path.exists(tmpdir):
+                import shutil
+                shutil.rmtree(tmpdir)
+        
             logging.info("Dropping older unigrams table, if it exists")
             db.query("""DROP TABLE IF EXISTS master_bookcounts""")
 
@@ -302,6 +307,47 @@ class BookwormSQLDatabase:
                     except:
                         logging.exception("Error inserting unigrams from %s" % filename)
                         continue
+
+                elif filename.endswith('.h5'):
+                    logging.info("Importing h5 file, %s" % filename)
+                    try:
+                        # When encountering an .h5 file, this looks for unigram information
+                        # in a /unigrams table and writes it out to temporary TSV files.
+                        # Dask is used here, simply because it's a dead simple way to multithread
+                        # the TSV writing and lower the overhead versus having a TSV already staged.
+                        import csv
+                        import pandas as pd
+                        try:
+                            import dask.dataframe as dd
+                        except:
+                            logging.exception("Ingesting h5 files requires dask")
+                        try:
+                            os.makedirs(tmpdir)
+                        except OSError:
+                            if not os.path.isdir(tmpdir):
+                                raise
+                        # Dask will use #{n_cores-1} threads when saving CSVs.
+                        # Ingest and key reload times are identical to txt import, so the only
+                        # additional overhead is reading the file (small effect) and writing the csv.
+                        ddf = dd.read_hdf(".bookworm/texts/encoded/unigrams/" + filename,
+                                          '/unigrams', mode='r', chunksize=2000000)
+                        ddf.reset_index().to_csv('.bookworm/texts/encoded/unigrams/tmp/tmp.*.tsv',
+                                                 index=False, sep='\t', header=False,
+                                                 quoting=csv.QUOTE_NONNUMERIC)
+                        logging.info("CSV written from H5. Time passed: %.2f s" % (time.time() - t0))
+                        for tmpfile in os.listdir(tmpdir):
+                            path = "%s/%s" % (tmpdir, tmpfile)
+                            db.query("LOAD DATA LOCAL INFILE '" + path + "' "
+                                     "INTO TABLE master_bookcounts "
+                                     "CHARACTER SET utf8 (bookid,wordid,count);")
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                        logging.info("CSVs input. Time passed: %.2f s" % (time.time() - t0))
+                    except:
+                       logging.exception("Error inserting unigrams from %s" % filename)
+                       continue
                 else:
                     continue
         if close:
