@@ -233,7 +233,7 @@ class BookwormManager(object):
 
         That's a little groaty, I know.
         """
-        logging.debug(cmd_args)
+        logging.debug(args)
         getattr(self,args.goal)(cmd_args=args)
         
     def build(self,args):
