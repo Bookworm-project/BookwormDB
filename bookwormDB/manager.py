@@ -391,7 +391,7 @@ class BookwormManager(object):
         if cmd_args:
             if cmd_args.index_only:
                 ingest = False
-                netable = False
+                newtable = False
             else:
                 index = not cmd_args.no_index
                 newtable = not cmd_args.no_delete
