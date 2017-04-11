@@ -384,20 +384,23 @@ class BookwormManager(object):
         """
         import bookwormDB.CreateDatabase
         
-        newtable, ingest, close = True, True, True
+        index = True
+        ingest = True
+        newtable = True
+
         if cmd_args:
-            if cmd_args.close_only:
+            if cmd_args.index_only:
                 ingest = False
                 netable = False
             else:
-                close = not cmd_args.no_close
+                index = not cmd_args.no_index
                 newtable = not cmd_args.no_delete
-            if not (newtable and ingest and close): 
+            if not (newtable and ingest and index): 
                 logging.warn("database_wordcounts args not supported for bigrams yet.")
 
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         Bookworm.load_word_list()
-        Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, close=close)
+        Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, index=index)
         Bookworm.create_bigram_book_counts()
 
     def database(self):
@@ -556,8 +559,8 @@ def run_arguments():
     word_ingest_parser = extensions_subparsers.add_parser("database_wordcounts",
                                                            help=getattr(BookwormManager, "database_wordcounts").__doc__)
     word_ingest_parser.add_argument("--no-delete", action="store_true", help="Do not delete and rebuild the token tables. Useful for a partially finished ingest.")
-    word_ingest_parser.add_argument("--no-close", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
-    word_ingest_parser.add_argument("--close-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
+    word_ingest_parser.add_argument("--no-index", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
+    word_ingest_parser.add_argument("--index-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
     # Bookworm prep targets that don't allow additional args
     for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'guessAtFieldDescriptions']:
         extensions_subparsers.add_parser(prep_arg, help=getattr(BookwormManager, prep_arg).__doc__)
