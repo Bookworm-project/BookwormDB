@@ -302,8 +302,10 @@ class BookwormSQLDatabase:
             db.query("set CHARACTER SET utf8;")
             logging.info("loading data using LOAD DATA LOCAL INFILE")
             
-            for filename in os.listdir(grampath):
+            files = os.listdir(grampath)
+            for i, filename in enumerate(files):
                 if filename.endswith('.txt'):
+                    logging.debug("Importing txt file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
                     except:
@@ -322,7 +324,7 @@ class BookwormSQLDatabase:
                            continue
 
                 elif filename.endswith('.h5'):
-                    logging.info("Importing h5 file, %s" % filename)
+                    logging.info("Importing h5 file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         # When encountering an .h5 file, this looks for ngram information
                         # in a /#{ngramnames} table (e.g. /unigrams) and writes it out to
