@@ -103,23 +103,32 @@ class DB:
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
-    def query(self, sql, silent = False):
+    def query(self, sql, silent=False, many_params=None):
         """
         Billy defined a separate query method here so that the common case of a connection being
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
         the connection and starts up nicely again.
 
         silent: whether to suppress errors. Useful when an "IF EXISTS" clause doesn't work. 
+
+        many_params: If included, assume that executemany() is expected, with the sequence of parameter
+                        provided.
         """
         logging.debug(" -- Preparing to execute SQL code -- " + sql)
         try:
             cursor = self.conn.cursor()
-            cursor.execute(sql)
+            if many_params is not None:
+                cursor.executemany(sql, many_params)
+            else:
+                cursor.execute(sql)
         except:
             try:
                 self.connect()
                 cursor = self.conn.cursor()
-                cursor.execute(sql)
+                if many_params is not None:
+                    cursor.executemany(sql, many_params)
+                else:
+                    cursor.execute(sql)
             except:
                 if not silent:
                     logging.error("Query failed: \n" + sql + "\n")
@@ -259,26 +268,107 @@ class BookwormSQLDatabase:
         """
         self.variableSet.loadMetadata()
 
-    def create_unigram_book_counts(self):
+    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True):
+        import time
+        t0 = time.time()
+
         db = self.db
-        db.query("""DROP TABLE IF EXISTS master_bookcounts""")
-        logging.info("Making a SQL table to hold the unigram counts")
-        db.query("""CREATE TABLE master_bookcounts (
-        bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
-        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
-        count MEDIUMINT UNSIGNED NOT NULL);""")
-        db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
-        logging.info("loading data using LOAD DATA LOCAL INFILE")
-        for filename in os.listdir(".bookworm/texts/encoded/unigrams"):
-            if not filename.endswith('.txt'):
-                # Sometimes other files are in there; skip them.
-                continue
-            try:
-                db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
-            except:
-                raise
-        logging.info("Creating Unigram Indexes")
-        db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
+        ngramname = "unigrams"
+        tablename = "master_bookcounts"
+        grampath =  ".bookworm/texts/encoded/%s" % ngramname
+        tmpdir = "%s/tmp" % grampath
+
+        if (len(grampath) == 0) or (grampath == "/"):
+            logging.error("Woah! Don't set the ngram path to your system root!")
+            raise
+        
+        if newtable:
+            if os.path.exists(tmpdir):
+                import shutil
+                shutil.rmtree(tmpdir)
+        
+            logging.info("Dropping older %s table, if it exists" % ngramname)
+            db.query("DROP TABLE IF EXISTS " + tablename)
+
+        logging.info("Making a SQL table to hold the %s" % ngramname)
+        db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
+            "bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count), "
+            "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+            "count MEDIUMINT UNSIGNED NOT NULL);")
+
+        if ingest:
+            db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
+            db.query("set NAMES utf8;")
+            db.query("set CHARACTER SET utf8;")
+            logging.info("loading data using LOAD DATA LOCAL INFILE")
+            
+            for filename in os.listdir(grampath):
+                if filename.endswith('.txt'):
+                    try:
+                        db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
+                    except:
+                       logging.debug("Falling back on insert without LOCAL DATA INFILE. Slower.")
+                       try:
+                            import pandas as pd
+                            df = pd.read_csv(grampath + "/" + filename, sep='\t', header=None)
+                            to_insert = df.apply(tuple, axis=1).tolist()
+                            db.query(
+                                "INSERT INTO " + tablename + " (bookid,wordid,count) "
+                                "VALUES (%s, %s, %s);""",
+                                many_params=to_insert
+                                )
+                       except:
+                           logging.exception("Error inserting %s from %s" % (ngramname, filename))
+                           continue
+
+                elif filename.endswith('.h5'):
+                    logging.info("Importing h5 file, %s" % filename)
+                    try:
+                        # When encountering an .h5 file, this looks for ngram information
+                        # in a /#{ngramnames} table (e.g. /unigrams) and writes it out to
+                        # temporary TSV files.
+                        # Dask is used here simply because it's a dead simple way to multithread
+                        # the TSV writing and lower the overhead versus having a TSV already staged.
+                        import csv
+                        import pandas as pd
+                        try:
+                            import dask.dataframe as dd
+                        except:
+                            logging.exception("Ingesting h5 files requires dask")
+                        try:
+                            os.makedirs(tmpdir)
+                        except OSError:
+                            if not os.path.isdir(tmpdir):
+                                raise
+                        # Dask will use #{n_cores-1} threads when saving CSVs.
+                        # Ingest and key reload times are identical to txt import, so the only
+                        # additional overhead is reading the file (small effect) and writing the csv.
+                        ddf = dd.read_hdf(grampath + "/" + filename,
+                                          ngramname, mode='r', chunksize=2000000)
+                        ddf.reset_index().to_csv(tmpdir + '/tmp.*.tsv',
+                                                 index=False, sep='\t', header=False,
+                                                 quoting=csv.QUOTE_NONNUMERIC)
+                        logging.info("CSV written from H5. Time passed: %.2f s" % (time.time() - t0))
+                        for tmpfile in os.listdir(tmpdir):
+                            path = "%s/%s" % (tmpdir, tmpfile)
+                            db.query("LOAD DATA LOCAL INFILE '" + path + "' "
+                                     "INTO TABLE " + tablename + " "
+                                     "CHARACTER SET utf8 (bookid,wordid,count);")
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                        logging.info("CSVs input. Time passed: %.2f s" % (time.time() - t0))
+                    except:
+                       logging.exception("Error inserting %s from %s" % (ngramname, filename))
+                       continue
+                else:
+                    continue
+        if index:
+            logging.info("Creating Unigram Indexes. Time passed: %.2f s" % (time.time() - t0))
+            db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
+
+        logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
     def create_bigram_book_counts(self):
         db = self.db

@@ -23,8 +23,6 @@ for the command-line executable,
 even though it's not best practice otherwise.
 """
 
-logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', datefmt="%d/%Y %H:%M:%S")
-
 class BookwormManager(object):
     """
     This class is passed some options that tell it the name of the bookworm it's working on;
@@ -235,6 +233,7 @@ class BookwormManager(object):
 
         That's a little groaty, I know.
         """
+        logging.debug(args)
         getattr(self,args.goal)(cmd_args=args)
         
     def build(self,args):
@@ -362,7 +361,7 @@ class BookwormManager(object):
 
         Bookworm.grantPrivileges()
 
-    def add_metadata(self,args):
+    def add_metadata(self, args):
         import bookwormDB.CreateDatabase
         import bookwormDB.convertTSVtoJSONarray
         bookworm=bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
@@ -378,16 +377,30 @@ class BookwormManager(object):
                                jsonDefinition=args.field_descriptions)
 
 
-    def database_wordcounts(self, **kwargs):
+    def database_wordcounts(self, cmd_args=None, **kwargs):
         """
         Builds the wordcount components of the database. This will die
         if you can't connect to the database server.
         """
         import bookwormDB.CreateDatabase
+        
+        index = True
+        ingest = True
+        newtable = True
+
+        if cmd_args:
+            if cmd_args.index_only:
+                ingest = False
+                newtable = False
+            else:
+                index = not cmd_args.no_index
+                newtable = not cmd_args.no_delete
+            if not (newtable and ingest and index): 
+                logging.warn("database_wordcounts args not supported for bigrams yet.")
 
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         Bookworm.load_word_list()
-        Bookworm.create_unigram_book_counts()
+        Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, index=index)
         Bookworm.create_bigram_book_counts()
 
     def database(self):
@@ -536,13 +549,20 @@ def run_arguments():
     word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
     ########## Build components
     extensions_parser = subparsers.add_parser("prep", help="Build individual components: primarily used by the Makefile.")
-    extensions_subparsers = extensions_parser.add_subparsers(title="goal",help="The name of the target.", dest="goal")
+    extensions_subparsers = extensions_parser.add_subparsers(title="goal", help="The name of the target.", dest="goal")
 
+    # Bookworm prep targets that allow additional args
     catalog_prep_parser = extensions_subparsers.add_parser("preDatabaseMetadata",
                                                            help=getattr(BookwormManager, "preDatabaseMetadata").__doc__)
-    catalog_prep_parser.add_argument("--gzip", action="store_true")
+    catalog_prep_parser.add_argument("--gzip", action="store_true", help="Output a compressed catalog file. Only useful for manual needs currently, as later processes still require a decompressed file.")
     
-    for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'database_wordcounts', 'guessAtFieldDescriptions']:
+    word_ingest_parser = extensions_subparsers.add_parser("database_wordcounts",
+                                                           help=getattr(BookwormManager, "database_wordcounts").__doc__)
+    word_ingest_parser.add_argument("--no-delete", action="store_true", help="Do not delete and rebuild the token tables. Useful for a partially finished ingest.")
+    word_ingest_parser.add_argument("--no-index", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
+    word_ingest_parser.add_argument("--index-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
+    # Bookworm prep targets that don't allow additional args
+    for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'guessAtFieldDescriptions']:
         extensions_subparsers.add_parser(prep_arg, help=getattr(BookwormManager, prep_arg).__doc__)
 
     """
@@ -571,11 +591,11 @@ def run_arguments():
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args.log_level)
-    logging.basicConfig(level=numeric_level)
     # While we're at it, log with line numbers
-
-    FORMAT = "[%(filename)s:%(lineno)s - %(funcName)25s() ] %(message)s"
-    logging.basicConfig(format=FORMAT)
+    FORMAT = "[%(filename)s:%(lineno)s-%(funcName)s()] %(message)s"
+    logging.basicConfig(format=FORMAT, level=numeric_level)
+    logging.info("Info logging enabled.")
+    logging.info("Debug logging enabled.")
 
     # Create the bookworm 
     my_bookworm = BookwormManager(args.configuration,args.database)
