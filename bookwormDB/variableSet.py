@@ -244,17 +244,14 @@ class dataField:
         # cursor = db.query("""SELECT count(*) FROM """ + dfield.field + """Disk""")
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
-    def buildIDTable(self):
+    def build_ID_and_lookup_tables(self):
         IDcode = self.buildIdTable()
         for query in splitMySQLcode(IDcode):
             self.dbToPutIn.query(query)
-
-    def buildLookupTable(self):
-        dfield = self
-        lookupCode = dfield.buildIdTable()
-        lookupCode = lookupCode + dfield.fastSQLTable()
-        for query in splitMySQLcode(lookupCode):
-            dfield.dbToPutIn.query(query)
+        for query in splitMySQLcode(self.fastLookupTableIfNecessary("MYISAM")):
+            self.dbToPutIn.query(query)
+        for query in splitMySQLcode(self.fastSQLTable("MYISAM")):
+            self.dbToPutIn.query(query)
 
     def fastLookupTableIfNecessary(self, engine="MEMORY"):
 
@@ -265,39 +262,45 @@ class dataField:
         if self.datatype == 'categorical':
             logging.debug("Creating a memory lookup table for " + self.field)
             self.setIntType()
-
             self.maxlength = self.dbToPutIn.query("SELECT MAX(CHAR_LENGTH(%(field)s)) FROM %(field)s__id" % self.__dict__)
-
             self.maxlength = self.maxlength.fetchall()[0][0]
             self.maxlength = max([self.maxlength,1])
-            return("""DROP TABLE IF EXISTS tmp;
+            code = """DROP TABLE IF EXISTS tmp;
                    CREATE TABLE tmp (%(field)s__id %(intType)s ,PRIMARY KEY (%(field)s__id),
                          %(field)s VARCHAR (%(maxlength)s) ) ENGINE=%(engine)s
-                    SELECT %(field)s__id,%(field)s FROM %(field)s__id;
-                   DROP TABLE IF EXISTS %(field)sLookup;
-                   RENAME TABLE tmp to %(field)sLookup;
-                   """ % self.__dict__)
+                    SELECT %(field)s__id,%(field)s FROM %(field)s__id;""" % self.__dict__
+            tname = self.field+"Lookup"
+            if engine=="MYISAM":
+                tname += "_"
+
+            code += "DROP TABLE IF EXISTS {}; RENAME TABLE tmp to {}".format(tname,tname)
+            return code
         return ""
 
+    
     def fastSQLTable(self,engine="MEMORY"):
         #setting engine to another value will create these tables on disk.
-        returnt = ""
+        queries = ""
         self.engine = engine
+        tname = self.field + "heap"
+        if engine=="MYISAM":
+            tname += "_"
         if self.unique and self.anchor=="bookid":
             pass #when it has to be part of a larger set
         if not self.unique and self.datatype == 'categorical':
             self.setIntType()
-            returnt = returnt+"""## Creating the memory storage table for %(field)s
-                   DROP TABLE IF EXISTS tmp;
-                   CREATE TABLE tmp (%(anchor)s %(anchorType)s , INDEX (%(anchor)s),%(field)s__id %(intType)s ) ENGINE=%(engine)s;
-                   INSERT INTO tmp SELECT %(anchor)s ,%(field)s__id FROM %(field)s__id JOIN %(field)sDisk USING (%(field)s);
-                   DROP TABLE IF EXISTS %(field)sheap;
-                   RENAME TABLE tmp TO %(field)sheap;
-                   """ % self.__dict__
+            queries += """DROP TABLE IF EXISTS tmp;"""
+            queries += """CREATE TABLE tmp (%(anchor)s %(anchorType)s , INDEX (%(anchor)s),%(field)s__id %(intType)s ) ENGINE=%(engine)s;""" % self.__dict__
+            if engine=="MYISAM":
+                queries += "INSERT INTO tmp SELECT %(anchor)s ,%(field)s__id FROM %(field)s__id JOIN %(field)sDisk USING (%(field)s)" % self.__dict__
+            elif engine=="MEMORY":
+                queries += "INSERT INTO tmp SELECT * FROM {}_;".format(tname)
+            queries += "DROP TABLE IF EXISTS {}; RENAME TABLE tmp TO {};".format(tname,tname)
+            
         if self.datatype == 'categorical' and self.unique:
             pass
 
-        return returnt
+        return queries
 
     def jsonDict(self):
         """
@@ -558,9 +561,18 @@ class variableSet:
         myOutput = [output for output in myOutput if output["field"] != "filename"]
         return myOutput
 
-    def uniques(self):
-        return [variable for variable in self.variables if variable.unique]
+    def uniques(self,type="base"):
+        """
+        Some frequent patterns that tend to need to be iterated through.
+        """
 
+        if type=="base":
+            return [variable for variable in self.variables if variable.unique]
+        if type=="fast":
+            return [variable for variable in self.variables if (variable.unique and variable.fastSQL() is not None)]
+        if type=="categorical":
+            return [variable for variable in self.variables if (variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical")]
+    
     def notUniques(self):
         return [variable for variable in self.variables if not variable.unique]
 
@@ -605,7 +617,7 @@ class variableSet:
                 logging.warning("Unable find an alias in the DB for anchor" + anchor + "\n\n")
             self.fastAnchor=fastAnchor
             if fastAnchor != anchor:
-                results = db.query("SELECT * FROM %sLookup;" % (anchor))
+                results = db.query("SELECT * FROM %sLookup_;" % (anchor))
                 for row in results.fetchall():
                     bookids[row[1]] = row[0]
                 self.anchor=fastAnchor
@@ -787,7 +799,7 @@ class variableSet:
 
         for variable in self.variables:
             if variable.datatype=="categorical":
-                variable.buildIDTable()
+                variable.build_ID_and_lookup_tables()
 
     def uniqueVariableFastSetup(self,engine="MEMORY"):
         fileCommand = """DROP TABLE IF EXISTS tmp;
