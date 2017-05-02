@@ -8,15 +8,6 @@ import hashlib
 import logging
 from bwExceptions import BookwormException
 
-"""
-# There are 'fast' and 'full' tables for books and words;
-# that's so memory tables can be used in certain cases for fast, hashed
-# matching, but longer form data (like book titles) can be stored on disk.
-# Different queries use different types of calls.
-# Also, certain metadata fields are stored separately from the main catalog
-# table;
-"""
-
 # If you have bookworms stored on a different host, you can create more lines
 # like this.
 # A different host and read_default_file will let you import things onto a
@@ -109,7 +100,6 @@ def all_keys(input):
 # Most functions describe a subquery that might be combined into one big query
 # in various ways.
 
-
 class userquery:
     """
     The base class for a bookworm search.
@@ -133,7 +123,8 @@ class userquery:
             self.databaseScheme = databaseSchema(self.db)
 
         self.cursor = self.db.cursor
-        self.wordsheap = self.prefs['fastword']
+        self.wordsheap = self.fallback_table(self.prefs['fastword'])
+        
         self.words = self.prefs['fullword']
         """
         I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries:
@@ -202,7 +193,7 @@ class userquery:
 
                 lookupTableName = "%sLookup%s" %(gramType, gramPos)
                 self.outerGroups.append("%s.%s as %s" %(lookupTableName, self.word_field, group))
-                self.finalMergeTables.add(" JOIN wordsheap as %s ON %s.wordid=w%s" %(lookupTableName, lookupTableName, gramPos))
+                self.finalMergeTables.add(" JOIN %s as %s ON %s.wordid=w%s" %(self.wordsheap, lookupTableName, lookupTableName, gramPos))
                 self.groups.add("words%s.wordid as w%s" %(gramPos, gramPos))
 
             else:
@@ -379,15 +370,6 @@ class userquery:
         called "LCSH", which is matched against. This allows a bookid to be a member of multiple catalogs.
         """
 
-        # for limitation in self.prefs['separateDataTables']:
-        #    # That re.sub thing is in here because sometimes I do queries that involve renaming.
-        #    if limitation in [re.sub(" .*", "", key) for key in self.limits.keys()] or limitation in [re.sub(" .*", "", group) for group in self.groups]:
-        #        self.catalog = self.catalog + """ JOIN """ + limitation + """ USING (bookid)"""
-
-        """
-        Here it just pulls every variable and where to look for it.
-        """
-
         self.relevantTables = set()
 
         databaseScheme = self.databaseScheme
@@ -408,19 +390,53 @@ class userquery:
                 pass
                 # Could raise as well--shouldn't be errors--but this helps back-compatability.
 
-#        if "catalog" in self.relevantTables and self.method != "bibliography_query":
-#            self.relevantTables.remove('catalog')
         try:
             moreTables = self.tablesNeededForQuery(columns)
         except MySQLdb.ProgrammingError:
             # What happens on old-style Bookworm constructions.
             moreTables = set()
-        self.relevantTables = self.relevantTables.union(moreTables)
-        self.catalog = "fastcat"
+        self.relevantTables = list(self.relevantTables.union(moreTables))
+
+
+        self.relevantTables = [self.fallback_table(t) for t in self.relevantTables]
+
+        self.catalog = self.fallback_table("fastcat")
+        
         for table in self.relevantTables:
-            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams":
+            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams" and table != "fastcat_" and table != "wordsheap_":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
 
+    def fallback_table(self,tabname):
+        """
+        Fall back to the saved versions if the memory tables are unpopulated.
+
+        Use a cache first to avoid unnecessary queries, though the overhead shouldn't be much.
+        """
+        tab = tabname
+        if tab.endswith("_"):
+            return tab
+        if tab in ["words","master_bookcounts","master_bigrams","catalog"]:
+            return tab
+
+        if not hasattr(self,"fallbacks_cache"):
+            self.fallbacks_cache = {}
+            
+        if tabname in self.fallbacks_cache:
+            return self.fallbacks_cache[tabname]
+        
+        q = "SELECT COUNT(*) FROM {}".format(tab)
+        try:
+            self.db.cursor.execute(q)
+            length = self.db.cursor.fetchall()[0][0]
+            if length==0:
+                tab += "_"        
+        except MySQLdb.ProgrammingError:
+            tab += "_"
+            
+        self.fallbacks_cache[tabname] = tab
+        
+        return tab
+        
     def make_catwhere(self):
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
@@ -526,7 +542,7 @@ class userquery:
                     if self.word_field == "case_insensitive" or self.word_field == "Case_Insensitive":
                         # That's a little joke. Get it?
                         searchingFor = searchingFor.lower()
-                    selectString = "SELECT wordid FROM wordsheap WHERE %s = %%s" % self.word_field
+                    selectString = "SELECT wordid FROM %s WHERE %s = %%s" % (self.wordsheap, self.word_field)
 
                     logging.debug(selectString)
                     cursor = self.db.cursor
@@ -900,7 +916,7 @@ class userquery:
             words = self.outside_dictionary['search_limits']['word']
             # Break bigrams into single words.
             words = ' '.join(words).split(' ')
-            self.cursor.execute("""SELECT word FROM wordsheap WHERE """ + where_from_hash({self.word_field:words}))
+            self.cursor.execute("""SELECT word FROM {} WHERE """.format(self.wordsheap) + where_from_hash({self.word_field:words}))
             self.actualWords =[item[0] for item in self.cursor.fetchall()]
         else:
             self.actualWords = ["tasty", "mistake", "happened", "here"]
@@ -1048,10 +1064,10 @@ class databaseSchema:
             self.oldStyle(db)
 
     def newStyle(self, db):
-        self.tableToLookIn['bookid'] = 'fastcat'
-        self.anchorFields['bookid'] = 'fastcat'
+        self.tableToLookIn['bookid'] = self.fallback_table('fastcat')
+        self.anchorFields['bookid'] = self.fallback_table('fastcat')
         self.anchorFields['wordid'] = 'wordid'
-        self.tableToLookIn['wordid'] = 'wordsheap'
+        self.tableToLookIn['wordid'] = self.wordsheap
 
         tablenames = dict()
         tableDepends = dict()

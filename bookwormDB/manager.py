@@ -342,20 +342,21 @@ class BookwormManager(object):
         import bookwormDB.CreateDatabase
 
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
-        Bookworm.load_book_list()
+        Bookworm.variableSet.loadMetadata()
 
         # This creates a table in the database that makes the results of
         # field_descriptions accessible through the API, and updates the
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
-        # This needs to be run if the database resets. It builds a
-        # temporary MySQL table and the GUI will not work if this table is not built.
-        Bookworm.reloadMemoryTables()
+        Bookworm.create_fastcat_and_wordsheap_disk_tables()
+        
+        # The temporary memory tables are no longer automatically created on a build.
+        # To create them, use `bookworm reload_memory`.
+        # Bookworm.reloadMemoryTables()
 
         #print "adding cron job to automatically reload memory tables on launch"
         #print "(this assumes this machine is the MySQL server, which need not be the case)"
         #call(["sh","scripts/scheduleCronJob.sh"])
-
         Bookworm.jsonify_data() # Create the self.dbname.json file in the root directory.
         Bookworm.create_API_settings()
 
