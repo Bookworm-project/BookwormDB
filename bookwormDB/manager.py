@@ -348,8 +348,9 @@ class BookwormManager(object):
         # field_descriptions accessible through the API, and updates the
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
+
         Bookworm.create_fastcat_and_wordsheap_disk_tables()
-        
+
         # The temporary memory tables are no longer automatically created on a build.
         # To create them, use `bookworm reload_memory`.
         # Bookworm.reloadMemoryTables()

@@ -812,8 +812,6 @@ class variableSet:
 
         for variable in self.variables:
             if variable.datatype=="categorical":
-                print "VARIABLE"
-                print variable
                 variable.build_ID_and_lookup_tables()
                 
         if len(self.uniques()) > 0 and self.tableName!="catalog":
@@ -821,7 +819,7 @@ class variableSet:
             fileCommand = self.uniqueVariableFastSetup("MYISAM")
             for query in splitMySQLcode(fileCommand):
                 db.query(query)
-                
+
     def uniqueVariableFastSetup(self,engine="MEMORY"):
         fileCommand = "DROP TABLE IF EXISTS tmp;"
         fileCommand += "CREATE TABLE tmp ({} MEDIUMINT UNSIGNED, PRIMARY KEY  ({}), ".format(
