@@ -285,7 +285,6 @@ class dataField:
             return code
         return ""
 
-    
     def fastSQLTable(self,engine="MEMORY"):
         #setting engine to another value will create these tables on disk.
         queries = ""
@@ -298,12 +297,12 @@ class dataField:
         if not self.unique and self.datatype == 'categorical':
             self.setIntType()
             queries += """DROP TABLE IF EXISTS tmp;"""
-            queries += """CREATE TABLE tmp (%(anchor)s %(anchorType)s , INDEX (%(anchor)s),%(field)s__id %(intType)s ) ENGINE=%(engine)s;""" % self.__dict__
+            queries += """CREATE TABLE tmp (%(anchor)s %(anchorType)s , INDEX (%(anchor)s),%(field)s__id %(intType)s ) ENGINE=%(engine)s; """ % self.__dict__
             if engine=="MYISAM":
-                queries += "INSERT INTO tmp SELECT %(anchor)s ,%(field)s__id FROM %(field)s__id JOIN %(field)sDisk USING (%(field)s)" % self.__dict__
+                queries += "INSERT INTO tmp SELECT %(anchor)s ,%(field)s__id FROM %(field)s__id JOIN %(field)sDisk USING (%(field)s); " % self.__dict__
             elif engine=="MEMORY":
-                queries += "INSERT INTO tmp SELECT * FROM {}_;".format(tname)
-            queries += "DROP TABLE IF EXISTS {}; RENAME TABLE tmp TO {};".format(tname,tname)
+                queries += "INSERT INTO tmp SELECT * FROM {}_; ".format(tname)
+            queries += "DROP TABLE IF EXISTS {}; RENAME TABLE tmp TO {}; ".format(tname,tname)
             
         if self.datatype == 'categorical' and self.unique:
             pass
