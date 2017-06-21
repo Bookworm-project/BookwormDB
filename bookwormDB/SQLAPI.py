@@ -764,6 +764,7 @@ class userquery:
         %(joinSuffix)s
         GROUP BY %(groupings)s;""" % self.__dict__
 
+        logging.debug("Query: %s" % query)
         return query
 
     def returnPossibleFields(self):

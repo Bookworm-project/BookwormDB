@@ -340,10 +340,11 @@ class BookwormManager(object):
             
     def database_metadata(self, **kwargs):
         import bookwormDB.CreateDatabase
-
+        logging.debug("creating metadata db")
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
         Bookworm.load_book_list()
 
+        logging.debug("creating metadata variable tables")
         # This creates a table in the database that makes the results of
         # field_descriptions accessible through the API, and updates the
         Bookworm.loadVariableDescriptionsIntoDatabase()
@@ -385,6 +386,7 @@ class BookwormManager(object):
         import bookwormDB.CreateDatabase
         
         index = True
+        reverse_index = True
         ingest = True
         newtable = True
 
@@ -395,12 +397,13 @@ class BookwormManager(object):
             else:
                 index = not cmd_args.no_index
                 newtable = not cmd_args.no_delete
+            reverse_index = not cmd_args.no_reverse_index
             if not (newtable and ingest and index): 
                 logging.warn("database_wordcounts args not supported for bigrams yet.")
 
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         Bookworm.load_word_list()
-        Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, index=index)
+        Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, index=index, reverse_index=reverse_index)
         Bookworm.create_bigram_book_counts()
 
     def database(self):
@@ -559,6 +562,7 @@ def run_arguments():
     word_ingest_parser = extensions_subparsers.add_parser("database_wordcounts",
                                                            help=getattr(BookwormManager, "database_wordcounts").__doc__)
     word_ingest_parser.add_argument("--no-delete", action="store_true", help="Do not delete and rebuild the token tables. Useful for a partially finished ingest.")
+    word_ingest_parser.add_argument("--no-reverse_index", action="store_true", help="When creating the table, choose not to index bookid/wordid/counts. This is useful for really large builds. Because this is specified at table creation time, it does nothing with --no-delete or --index-only.")
     word_ingest_parser.add_argument("--no-index", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
     word_ingest_parser.add_argument("--index-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
     # Bookworm prep targets that don't allow additional args

@@ -22,6 +22,8 @@ warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", "Can't create database.*; database exists")
 warnings.filterwarnings("ignore", "^Unknown table .*")
 warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
+warnings.filterwarnings("ignore","Data truncated for column .*")
+warnings.filterwarnings("ignore","Incorrect integer value.*")
 
 
 def text_id_dbm():
@@ -268,7 +270,7 @@ class BookwormSQLDatabase:
         """
         self.variableSet.loadMetadata()
 
-    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True):
+    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True, reverse_index=True):
         import time
         t0 = time.time()
 
@@ -291,8 +293,9 @@ class BookwormSQLDatabase:
             db.query("DROP TABLE IF EXISTS " + tablename)
 
         logging.info("Making a SQL table to hold the %s" % ngramname)
+        reverse_index_sql = "INDEX(bookid,wordid,count), " if reverse_index else ""
         db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
-            "bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count), "
+            "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
             "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
             "count MEDIUMINT UNSIGNED NOT NULL);")
 
@@ -397,6 +400,7 @@ class BookwormSQLDatabase:
         also, crucially, it puts code specifying their fast creation there,
         where it will be executed on startup for all eternity.
         """
+        logging.debug("Building masterVariableTable")
         db = self.db
         db.query("DROP TABLE IF EXISTS masterVariableTable")
         m = db.query("""
