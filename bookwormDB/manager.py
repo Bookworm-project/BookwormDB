@@ -562,7 +562,7 @@ def run_arguments():
     word_ingest_parser = extensions_subparsers.add_parser("database_wordcounts",
                                                            help=getattr(BookwormManager, "database_wordcounts").__doc__)
     word_ingest_parser.add_argument("--no-delete", action="store_true", help="Do not delete and rebuild the token tables. Useful for a partially finished ingest.")
-    word_ingest_parser.add_argument("--no-reverse_index", action="store_true", help="When creating the table, choose not to index bookid/wordid/counts. This is useful for really large builds. Because this is specified at table creation time, it does nothing with --no-delete or --index-only.")
+    word_ingest_parser.add_argument("--no-reverse-index", action="store_true", help="When creating the table, choose not to index bookid/wordid/counts. This is useful for really large builds. Because this is specified at table creation time, it does nothing with --no-delete or --index-only.")
     word_ingest_parser.add_argument("--no-index", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
     word_ingest_parser.add_argument("--index-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
     # Bookworm prep targets that don't allow additional args
