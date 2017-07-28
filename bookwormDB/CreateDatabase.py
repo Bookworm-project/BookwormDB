@@ -311,6 +311,8 @@ class BookwormSQLDatabase:
                     logging.debug("Importing txt file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
+                    except KeyboardInterrupt:
+                        raise
                     except:
                        logging.debug("Falling back on insert without LOCAL DATA INFILE. Slower.")
                        try:
@@ -322,6 +324,8 @@ class BookwormSQLDatabase:
                                 "VALUES (%s, %s, %s);""",
                                 many_params=to_insert
                                 )
+                       except KeyboardInterrupt:
+                           raise
                        except:
                            logging.exception("Error inserting %s from %s" % (ngramname, filename))
                            continue
@@ -364,6 +368,8 @@ class BookwormSQLDatabase:
                             except:
                                 pass
                         logging.info("CSVs input. Time passed: %.2f s" % (time.time() - t0))
+                    except KeyboardInterrupt:
+                       raise
                     except:
                        logging.exception("Error inserting %s from %s" % (ngramname, filename))
                        continue
