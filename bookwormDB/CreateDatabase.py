@@ -270,13 +270,24 @@ class BookwormSQLDatabase:
         """
         self.variableSet.loadMetadata()
 
-    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True, reverse_index=True):
+    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True, reverse_index=True, table_count=1):
         import time
         t0 = time.time()
 
         db = self.db
         ngramname = "unigrams"
-        tablename = "master_bookcounts"
+        tablenameroot = "master_bookcounts"
+        # If you are splitting the input into multiple tables
+        # to be joined as a merge table, come up with multiple 
+        # table names and we'll cycle through.
+        if table_count == 1:
+            tablenames = [tablenameroot]
+        elif table_count > 1:
+            tablenames = ["%s_p%d" % (tablenameroot, i) for i in range(1, table_count+1)]
+        else:
+            logging.error("You need a positive integer for table_count")
+            raise
+
         grampath =  ".bookworm/texts/encoded/%s" % ngramname
         tmpdir = "%s/tmp" % grampath
 
@@ -290,17 +301,20 @@ class BookwormSQLDatabase:
                 shutil.rmtree(tmpdir)
         
             logging.info("Dropping older %s table, if it exists" % ngramname)
-            db.query("DROP TABLE IF EXISTS " + tablename)
+            for tablename in tablenames:
+                db.query("DROP TABLE IF EXISTS " + tablename)
 
         logging.info("Making a SQL table to hold the %s" % ngramname)
         reverse_index_sql = "INDEX(bookid,wordid,count), " if reverse_index else ""
-        db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
-            "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
-            "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
-            "count MEDIUMINT UNSIGNED NOT NULL);")
+        for tablename in tablenames:
+            db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
+                "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
+                "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+                "count MEDIUMINT UNSIGNED NOT NULL);")
 
         if ingest:
-            db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
+            for tablename in tablename:
+                db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
             db.query("set NAMES utf8;")
             db.query("set CHARACTER SET utf8;")
             logging.info("loading data using LOAD DATA LOCAL INFILE")
@@ -308,6 +322,8 @@ class BookwormSQLDatabase:
             files = os.listdir(grampath)
             for i, filename in enumerate(files):
                 if filename.endswith('.txt'):
+                    # With each input file, cycle through each table in tablenames
+                    tablename = tablenames[i % len(table_names)]
                     logging.debug("Importing txt file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
@@ -358,7 +374,9 @@ class BookwormSQLDatabase:
                                                  index=False, sep='\t', header=False,
                                                  quoting=csv.QUOTE_NONNUMERIC)
                         logging.info("CSV written from H5. Time passed: %.2f s" % (time.time() - t0))
-                        for tmpfile in os.listdir(tmpdir):
+                        for j, tmpfile in enumerate(os.listdir(tmpdir)):
+                            # With each input file, cycle through each table in tablenames
+                            tablename = tablenames[j % len(table_names)]
                             path = "%s/%s" % (tmpdir, tmpfile)
                             db.query("LOAD DATA LOCAL INFILE '" + path + "' "
                                      "INTO TABLE " + tablename + " "
@@ -377,7 +395,8 @@ class BookwormSQLDatabase:
                     continue
         if index:
             logging.info("Creating Unigram Indexes. Time passed: %.2f s" % (time.time() - t0))
-            db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
+            for tablename in tablenames:
+                db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
 
         logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
