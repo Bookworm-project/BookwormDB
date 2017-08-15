@@ -313,7 +313,7 @@ class BookwormSQLDatabase:
                 "count MEDIUMINT UNSIGNED NOT NULL);")
 
         if ingest:
-            for tablename in tablename:
+            for tablename in tablenames:
                 db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
             db.query("set NAMES utf8;")
             db.query("set CHARACTER SET utf8;")
@@ -323,7 +323,7 @@ class BookwormSQLDatabase:
             for i, filename in enumerate(files):
                 if filename.endswith('.txt'):
                     # With each input file, cycle through each table in tablenames
-                    tablename = tablenames[i % len(table_names)]
+                    tablename = tablenames[i % len(tablenames)]
                     logging.debug("Importing txt file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
@@ -376,7 +376,7 @@ class BookwormSQLDatabase:
                         logging.info("CSV written from H5. Time passed: %.2f s" % (time.time() - t0))
                         for j, tmpfile in enumerate(os.listdir(tmpdir)):
                             # With each input file, cycle through each table in tablenames
-                            tablename = tablenames[j % len(table_names)]
+                            tablename = tablenames[j % len(tablenames)]
                             path = "%s/%s" % (tmpdir, tmpfile)
                             db.query("LOAD DATA LOCAL INFILE '" + path + "' "
                                      "INTO TABLE " + tablename + " "
