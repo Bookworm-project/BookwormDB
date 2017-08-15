@@ -398,6 +398,14 @@ class BookwormSQLDatabase:
             for tablename in tablenames:
                 db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
 
+            if table_count > 1:
+                logging.info("Creating a merge table for " + ",".join(tablenames))
+                db.query("CREATE TABLE IF NOT EXISTS " + tablenameroot + " ("
+                    "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
+                    "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+                    "count MEDIUMINT UNSIGNED NOT NULL) "
+                    "ENGINE=MERGE UNION=(" + ",".join(tablenames) + ") INSERT_METHOD=LAST;")
+
         logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
     def create_bigram_book_counts(self):
