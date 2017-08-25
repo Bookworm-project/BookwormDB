@@ -4,7 +4,7 @@
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import cgi
 import cgitb
-import json
+import ujson as json
 
 cgitb.enable()
 
