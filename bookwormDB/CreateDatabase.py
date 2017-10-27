@@ -22,6 +22,8 @@ warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", "Can't create database.*; database exists")
 warnings.filterwarnings("ignore", "^Unknown table .*")
 warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
+warnings.filterwarnings("ignore","Data truncated for column .*")
+warnings.filterwarnings("ignore","Incorrect integer value.*")
 
 
 def text_id_dbm():
@@ -268,13 +270,24 @@ class BookwormSQLDatabase:
         """
         self.variableSet.loadMetadata()
 
-    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True):
+    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True, reverse_index=True, table_count=1):
         import time
         t0 = time.time()
 
         db = self.db
         ngramname = "unigrams"
-        tablename = "master_bookcounts"
+        tablenameroot = "master_bookcounts"
+        # If you are splitting the input into multiple tables
+        # to be joined as a merge table, come up with multiple 
+        # table names and we'll cycle through.
+        if table_count == 1:
+            tablenames = [tablenameroot]
+        elif table_count > 1:
+            tablenames = ["%s_p%d" % (tablenameroot, i) for i in range(1, table_count+1)]
+        else:
+            logging.error("You need a positive integer for table_count")
+            raise
+
         grampath =  ".bookworm/texts/encoded/%s" % ngramname
         tmpdir = "%s/tmp" % grampath
 
@@ -288,24 +301,34 @@ class BookwormSQLDatabase:
                 shutil.rmtree(tmpdir)
         
             logging.info("Dropping older %s table, if it exists" % ngramname)
-            db.query("DROP TABLE IF EXISTS " + tablename)
+            for tablename in tablenames:
+                db.query("DROP TABLE IF EXISTS " + tablename)
 
         logging.info("Making a SQL table to hold the %s" % ngramname)
-        db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
-            "bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count), "
-            "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
-            "count MEDIUMINT UNSIGNED NOT NULL);")
+        reverse_index_sql = "INDEX(bookid,wordid,count), " if reverse_index else ""
+        for tablename in tablenames:
+            db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
+                "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
+                "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+                "count MEDIUMINT UNSIGNED NOT NULL);")
 
         if ingest:
-            db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
+            for tablename in tablenames:
+                db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
             db.query("set NAMES utf8;")
             db.query("set CHARACTER SET utf8;")
             logging.info("loading data using LOAD DATA LOCAL INFILE")
             
-            for filename in os.listdir(grampath):
+            files = os.listdir(grampath)
+            for i, filename in enumerate(files):
                 if filename.endswith('.txt'):
+                    # With each input file, cycle through each table in tablenames
+                    tablename = tablenames[i % len(tablenames)]
+                    logging.debug("Importing txt file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
+                    except KeyboardInterrupt:
+                        raise
                     except:
                        logging.debug("Falling back on insert without LOCAL DATA INFILE. Slower.")
                        try:
@@ -317,12 +340,14 @@ class BookwormSQLDatabase:
                                 "VALUES (%s, %s, %s);""",
                                 many_params=to_insert
                                 )
+                       except KeyboardInterrupt:
+                           raise
                        except:
                            logging.exception("Error inserting %s from %s" % (ngramname, filename))
                            continue
 
                 elif filename.endswith('.h5'):
-                    logging.info("Importing h5 file, %s" % filename)
+                    logging.info("Importing h5 file, %s (%d/%d)" % (filename, i, len(files)))
                     try:
                         # When encountering an .h5 file, this looks for ngram information
                         # in a /#{ngramnames} table (e.g. /unigrams) and writes it out to
@@ -349,7 +374,9 @@ class BookwormSQLDatabase:
                                                  index=False, sep='\t', header=False,
                                                  quoting=csv.QUOTE_NONNUMERIC)
                         logging.info("CSV written from H5. Time passed: %.2f s" % (time.time() - t0))
-                        for tmpfile in os.listdir(tmpdir):
+                        for j, tmpfile in enumerate(os.listdir(tmpdir)):
+                            # With each input file, cycle through each table in tablenames
+                            tablename = tablenames[j % len(tablenames)]
                             path = "%s/%s" % (tmpdir, tmpfile)
                             db.query("LOAD DATA LOCAL INFILE '" + path + "' "
                                      "INTO TABLE " + tablename + " "
@@ -359,6 +386,8 @@ class BookwormSQLDatabase:
                             except:
                                 pass
                         logging.info("CSVs input. Time passed: %.2f s" % (time.time() - t0))
+                    except KeyboardInterrupt:
+                       raise
                     except:
                        logging.exception("Error inserting %s from %s" % (ngramname, filename))
                        continue
@@ -366,7 +395,16 @@ class BookwormSQLDatabase:
                     continue
         if index:
             logging.info("Creating Unigram Indexes. Time passed: %.2f s" % (time.time() - t0))
-            db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
+            for tablename in tablenames:
+                db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
+
+            if table_count > 1:
+                logging.info("Creating a merge table for " + ",".join(tablenames))
+                db.query("CREATE TABLE IF NOT EXISTS " + tablenameroot + " ("
+                    "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
+                    "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+                    "count MEDIUMINT UNSIGNED NOT NULL) "
+                    "ENGINE=MERGE UNION=(" + ",".join(tablenames) + ") INSERT_METHOD=LAST;")
 
         logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
@@ -395,6 +433,7 @@ class BookwormSQLDatabase:
         also, crucially, it puts code specifying their fast creation there,
         where it will be executed on startup for all eternity.
         """
+        logging.debug("Building masterVariableTable")
         db = self.db
         db.query("DROP TABLE IF EXISTS masterVariableTable")
         m = db.query("""
