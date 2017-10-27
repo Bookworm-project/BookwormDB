@@ -308,14 +308,17 @@ class APIcall(object):
         except Exception as error:
             logging.exception("Database error")
             # One common error is putting in an inappropriate column
-            column_search = re.search("Unknown column '(.+)' in 'field list'",str(error)).groups()
-            if len(column_search) > 0:
-                return Series({"status": "error", "message": "No field in database entry matching desired key `{}`".format(column_search[0])})
-            else:
-                return Series({"status": "error", "message": "Database error. "
-                            "Try checking field names.","code":str(error)})
+            try:
+                column_search = re.search("Unknown column '(.+)' in 'field list'",str(error)).groups()
+                if len(column_search) > 0:
+                    return Series({"status": "error", "message": "No field in database entry matching desired key `{}`".format(column_search[0])})
+                else:
+                    return Series({"status": "error", "message": "Database error. "
+                                   "Try checking field names.","code":str(error)})
 
-        
+            except:
+                    return Series({"status": "error", "message": "Unknown error. ",
+                                   "code":str(error)})                
         
         intersections = intersectingNames(df1, df2)
 

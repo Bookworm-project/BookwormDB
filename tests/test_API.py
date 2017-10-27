@@ -79,7 +79,7 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase("federalist_bookworm")
         db = bookworm.db
         db.query("USE federalist_bookworm")
-        wordCount = db.query("SELECT SUM(nwords) FROM fastcat").fetchall()[0][0]
+        wordCount = db.query("SELECT SUM(nwords) FROM fastcat_").fetchall()[0][0]
         # This should be 212,081, but I don't want the tests to start failing when
         # we change the tokenization rules or miscellaneous things about encoding.
         self.assertTrue(wordCount>100000)

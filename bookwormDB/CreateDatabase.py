@@ -12,8 +12,6 @@ import logging
 import warnings
 import anydbm
 
-
-
 if logging.getLogger().isEnabledFor(logging.DEBUG):
     # Catch MYSQL warnings as errors if logging is set to debug.
     warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
@@ -24,7 +22,6 @@ warnings.filterwarnings("ignore", "^Unknown table .*")
 warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
 warnings.filterwarnings("ignore","Data truncated for column .*")
 warnings.filterwarnings("ignore","Incorrect integer value.*")
-
 
 def text_id_dbm():
     """
@@ -215,11 +212,11 @@ class BookwormSQLDatabase:
         """
         self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition)
         self.variableSet.writeMetadata()
-        self.load_book_list()
+        self.variableSet.loadMetadata()        
         self.variableSet.updateMasterVariableTable()
         for variable in self.variableSet.variables:
             variable.clear_associated_memory_tables()
-        self.reloadMemoryTables()
+        #self.reloadMemoryTables()
 
     def create_database(self):
         dbname = self.dbname
@@ -265,6 +262,8 @@ class BookwormSQLDatabase:
 
     def load_book_list(self):
         """
+        Slated for deletion. 
+
         Loads in the tables that have already been created by a previous
         call to `Bookworm.variableSet.writeMetadata()`
         """
@@ -458,12 +457,22 @@ class BookwormSQLDatabase:
         self.addWordsToMasterVariableTable()
         self.variableSet.updateMasterVariableTable()
 
-    def reloadMemoryTables(self,force=False):
+    def reloadMemoryTables(self, force=False, names = None):
+        
         """
         Checks to see if memory tables need to be repopulated (by seeing if they are empty)
         and then does so if necessary.
+
+        If an array is passed to 'names', only the specified tables will be 
+        loaded into memory; otherwise, all will.
         """
-        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall()
+        
+        q = "SELECT tablename,memoryCode FROM masterTableTable"
+        existingCreateCodes = self.db.query().fetchall()
+
+        if names is not None:
+            existingCreateCodes = [e for e in existingCreateCodes if e[0] in names]
+        
         for row in existingCreateCodes:
             """
             For each table, it checks to see if the table is currently populated; if not,
@@ -482,30 +491,74 @@ class BookwormSQLDatabase:
                     self.db.query("SET optimizer_search_depth=0")
                     self.db.query(query)
 
+
+    def fastcat_creation_SQL(self, engine="MEMORY"):
+        """
+        Generate SQL to create the fastcat (memory) and fastcat_ (on-disk) tables.
+        """
+
+        tbname = "fastcat"
+        if engine=="MYISAM":
+            tbname = "fastcat_"
+            
+        fastFieldsCreateList = [
+            "bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)",
+            "nwords MEDIUMINT UNSIGNED NOT NULL"] 
+        fastFieldsCreateList += [variable.fastSQL() for variable in self.variableSet.uniques("fast")]
+        
+        create_command = """DROP TABLE IF EXISTS tmp;"""
+        create_command += "CREATE TABLE tmp ({}) ENGINE={};""".format(
+            ", ".join(fastFieldsCreateList), engine)
+
+        if engine == "MYISAM":
+            fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.uniques("fast")]
+            load_command = "INSERT INTO tmp SELECT "
+            load_command += ",".join(fastFields) + " FROM catalog USE INDEX () "
+            load_command += " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.uniques("categorical")]) + ";"
+        elif engine == "MEMORY":
+            load_command = "INSERT INTO tmp SELECT * FROM fastcat_;"
+
+        cleanup_command = "DROP TABLE IF EXISTS {};".format(tbname)
+        cleanup_command += "RENAME TABLE tmp TO {};".format(tbname)
+        return create_command + load_command + cleanup_command;
+
+    def create_fastcat_and_wordsheap_disk_tables(self):
+        for q in self.fastcat_creation_SQL("MYISAM").split(";"):
+            if q != "":
+                self.db.query(q)
+        for q in self.wordsheap_creation_SQL("MYISAM").split(";"):
+            if q != "":
+                self.db.query(q)
+
     def addFilesToMasterVariableTable(self):
-        fastFieldsCreateList = ["bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)","nwords MEDIUMINT UNSIGNED NOT NULL"] +\
-          [variable.fastSQL() for variable in self.variableSet.variables if (variable.unique and variable.fastSQL() is not None)]
-        fileCommand = """DROP TABLE IF EXISTS tmp;
-        CREATE TABLE tmp
-        (""" +",\n".join(fastFieldsCreateList) + """
-        ) ENGINE=MEMORY;"""
         #Also update the wordcounts for each text.
-        fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None]
-        fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog USE INDEX () " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
-        fileCommand += "DROP TABLE IF EXISTS fastcat;"
-        fileCommand += "RENAME TABLE tmp TO fastcat;"
+        code = self.fastcat_creation_SQL("MEMORY")
         self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="fastcat";')
         self.db.query("""INSERT IGNORE INTO masterTableTable VALUES
-                   ('fastcat','fastcat','""" + fileCommand + """')""")
+                   ('fastcat','fastcat','{}')""".format(code))
 
-    def addWordsToMasterVariableTable(self):
+
+    def wordsheap_creation_SQL(self,engine="MEMORY",max_word_length=30,max_words = 1500000):
+        tbname = "wordsheap"
+        if engine=="MYISAM":
+            tbname = "wordsheap_"
         wordCommand = "DROP TABLE IF EXISTS tmp;"
-        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
-        wordCommand += "INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens,LOWER(word) FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;"
-        wordCommand += "DROP TABLE IF EXISTS wordsheap;"
-        wordCommand += "RENAME TABLE tmp TO wordsheap;"
-        query = """INSERT IGNORE INTO masterTableTable
-                   VALUES ('wordsheap','wordsheap','""" + MySQLdb.escape_string(wordCommand) + """')"""
+        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE={};".format(engine)
+        if engine=="MYISAM":
+            wordCommand += "INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens,LOWER(word) FROM words WHERE CHAR_LENGTH(word) <= {} AND wordid <= {} ORDER BY wordid;".format(max_word_length,max_words)
+        else:
+            wordCommand += "INSERT IGNORE INTO tmp SELECT * FROM wordsheap_;"
+        wordCommand += "DROP TABLE IF EXISTS {};".format(tbname)
+        wordCommand += "RENAME TABLE tmp TO {};".format(tbname)
+        return wordCommand
+
+    def addWordsToMasterVariableTable(self, max_word_length = 30, max_words = 1500000):
+        """
+
+        """
+        wordCommand = self.wordsheap_creation_SQL("MEMORY",max_word_length,max_words)
+        query = "INSERT IGNORE INTO masterTableTable "
+        query += "VALUES ('wordsheap','wordsheap','{}'); ".format(wordCommand)
         logging.info("Creating wordsheap")
         self.db.query(query)
         
