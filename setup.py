@@ -12,7 +12,7 @@ def figure_out_cgi_directory():
 
 setup(name='bookwormDB',
       packages=["bookwormDB"],
-      version='0.4.0',
+      version='0.4.1',
       entry_points={
             'console_scripts': [
                 'bookworm = bookwormDB.manager:run_arguments'
@@ -29,7 +29,6 @@ setup(name='bookwormDB',
       # Copy the cgi-executable to a cgi-dir.
       classifiers=[
         'Development Status :: 4 - Beta',
-
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
         "Natural Language :: English",
@@ -44,6 +43,5 @@ setup(name='bookwormDB',
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"
         ],
-      install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil"]
-      
+      install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil","ujson"]
 )

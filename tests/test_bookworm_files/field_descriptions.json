@@ -1,0 +1,8 @@
+[
+    {"datatype": "searchstring", "field": "searchstring", "unique": true, "type": "text"},
+    {"datatype": "categorical", "field": "title", "unique": true, "type": "text"},
+    {"datatype": "categorical", "field": "author", "unique": true, "type": "text"},
+    {"datatype": "categorical", "field": "fedNumber", "unique": true, "type": "text"},
+    {"datatype": "categorical", "field": "paragraphNumber", "unique": true, "type": "text"},
+    {"datatype": "time", "field": "date", "unique": true, "type": "text", "derived":[{"resolution":"year"},{"resolution":"month"},{"resolution":"day"},{"resolution":"week","aggregate":"year"}]}
+]

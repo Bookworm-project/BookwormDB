@@ -23,8 +23,6 @@ for the command-line executable,
 even though it's not best practice otherwise.
 """
 
-logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', datefmt="%d/%Y %H:%M:%S")
-
 class BookwormManager(object):
     """
     This class is passed some options that tell it the name of the bookworm it's working on;
@@ -160,10 +158,10 @@ class BookwormManager(object):
                 """)
                 return
             if not os.path.exists("bookworm.cnf"):
-                self.configuration()
+                self.configuration(askk = not args.yes)
             os.makedirs(".bookworm")
         else:
-            self.configuration()
+            self.configuration(askk = not args.yes)
         
     def query(self,args):
         """
@@ -235,7 +233,8 @@ class BookwormManager(object):
 
         That's a little groaty, I know.
         """
-        getattr(self,args.goal)()
+        logging.debug(args)
+        getattr(self,args.goal)(cmd_args=args)
         
     def build(self,args):
         """
@@ -267,15 +266,19 @@ class BookwormManager(object):
         logging.info("Parsing jsoncatalog.txt")
         bookwormDB.MetaParser.ParseJSONCatalog()
         
-    def preDatabaseMetadata(self):
+    def preDatabaseMetadata(self, cmd_args=None, **kwargs):
         import bookwormDB.CreateDatabase
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         logging.info("Writing metadata to new catalog file...")
-        Bookworm.variableSet.writeMetadata()
+        if cmd_args:
+            compress = cmd_args.gzip
+        else:
+            compress = False
+        Bookworm.variableSet.writeMetadata(compress=compress)
 
         # This creates helper files in the /metadata/ folder.
 
-    def text_id_database(self):
+    def text_id_database(self, **kwargs):
         """
         This function is defined in Create Database.
         It builds a file at .bookworm/texts/textids.dbm
@@ -283,15 +286,21 @@ class BookwormManager(object):
         import bookwormDB.CreateDatabase
         bookwormDB.CreateDatabase.text_id_dbm()
         
-    def metadata(self):
+    def metadata(self, **kwargs):
         self.diskMetadata()
         self.preDatabaseMetadata()
 
-    def catalog_metadata(self):
+    def catalog_metadata(self, **kwargs):
         from bookwormDB.MetaParser import parse_initial_catalog
         parse_initial_catalog()
 
-    def guessAtFieldDescriptions(self):
+    def guessAtFieldDescriptions(self, **kwargs):
+        """
+        Use a number of rules of thumb to automatically generate a field_descriptions.json file.
+        This may bin some categories incorrectly (depending on names, for example it may treat dates
+        as either categorical or time variables).
+        """
+        
         import bookwormDB.CreateDatabase
         import json
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
@@ -325,16 +334,17 @@ class BookwormManager(object):
             Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
-    def configuration(self):
+    def configuration(self,askk):
         import bookwormDB.configuration
-        bookwormDB.configuration.create()
+        bookwormDB.configuration.create(ask_about_defaults=askk)
             
-    def database_metadata(self):
+    def database_metadata(self, **kwargs):
         import bookwormDB.CreateDatabase
-
+        logging.debug("creating metadata db")
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
         Bookworm.load_book_list()
 
+        logging.debug("creating metadata variable tables")
         # This creates a table in the database that makes the results of
         # field_descriptions accessible through the API, and updates the
         Bookworm.loadVariableDescriptionsIntoDatabase()
@@ -352,7 +362,7 @@ class BookwormManager(object):
 
         Bookworm.grantPrivileges()
 
-    def add_metadata(self,args):
+    def add_metadata(self, args):
         import bookwormDB.CreateDatabase
         import bookwormDB.convertTSVtoJSONarray
         bookworm=bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
@@ -368,17 +378,32 @@ class BookwormManager(object):
                                jsonDefinition=args.field_descriptions)
 
 
-    def database_wordcounts(self):
+    def database_wordcounts(self, cmd_args=None, **kwargs):
         """
         Builds the wordcount components of the database. This will die
         if you can't connect to the database server.
         """
         import bookwormDB.CreateDatabase
-        import ConfigParser
         
+        index = True
+        reverse_index = True
+        ingest = True
+        newtable = True
+
+        if cmd_args:
+            if cmd_args.index_only:
+                ingest = False
+                newtable = False
+            else:
+                index = not cmd_args.no_index
+                newtable = not cmd_args.no_delete
+            reverse_index = not cmd_args.no_reverse_index
+            if not (newtable and ingest and index): 
+                logging.warn("database_wordcounts args not supported for bigrams yet.")
+
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         Bookworm.load_word_list()
-        Bookworm.create_unigram_book_counts()
+        Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, index=index, reverse_index=reverse_index)
         Bookworm.create_bigram_book_counts()
 
     def database(self):
@@ -386,7 +411,7 @@ class BookwormManager(object):
         self.database_metadata()
 
 class Extension(object):
-    
+
     """
     A bookworm extension. Initialized with an args object,
     which has the element url, the location of a clonable git repo.
@@ -398,7 +423,7 @@ class Extension(object):
     def __init__(self,args,basedir="./"):
         self.args = args
         self.dir = basedir + ".bookworm/extensions/" + re.sub(".*/","",self.args.url)
-        
+
     def clone_or_pull(self):
         if not os.path.exists(self.dir):
             logging.info("cloning git repo from " + self.args.url)
@@ -406,11 +431,11 @@ class Extension(object):
         else:
             logging.info("updating pre-existing git repo at " + self.dir)
             Popen(["git","pull"],cwd=self.dir)
-            
+ 
     def make(self):
         logging.debug("Running make in " + self.dir)
         Popen(["make"],cwd=self.dir)
-        
+ 
 # Initiate MySQL connection.
 
 
@@ -476,7 +501,6 @@ def run_arguments():
 
     supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
     supplement_parser.add_argument("--field_descriptions","-d",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
-
     
     ######### Reload Memory #############
     memory_tables_parser = subparsers.add_parser("reload_memory",help="Reload the memory\
@@ -528,7 +552,22 @@ def run_arguments():
     word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
     ########## Build components
     extensions_parser = subparsers.add_parser("prep", help="Build individual components: primarily used by the Makefile.")
-    extensions_parser.add_argument("goal",help="The name of the target.")
+    extensions_subparsers = extensions_parser.add_subparsers(title="goal", help="The name of the target.", dest="goal")
+
+    # Bookworm prep targets that allow additional args
+    catalog_prep_parser = extensions_subparsers.add_parser("preDatabaseMetadata",
+                                                           help=getattr(BookwormManager, "preDatabaseMetadata").__doc__)
+    catalog_prep_parser.add_argument("--gzip", action="store_true", help="Output a compressed catalog file. Only useful for manual needs currently, as later processes still require a decompressed file.")
+    
+    word_ingest_parser = extensions_subparsers.add_parser("database_wordcounts",
+                                                           help=getattr(BookwormManager, "database_wordcounts").__doc__)
+    word_ingest_parser.add_argument("--no-delete", action="store_true", help="Do not delete and rebuild the token tables. Useful for a partially finished ingest.")
+    word_ingest_parser.add_argument("--no-reverse-index", action="store_true", help="When creating the table, choose not to index bookid/wordid/counts. This is useful for really large builds. Because this is specified at table creation time, it does nothing with --no-delete or --index-only.")
+    word_ingest_parser.add_argument("--no-index", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
+    word_ingest_parser.add_argument("--index-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
+    # Bookworm prep targets that don't allow additional args
+    for prep_arg in ['text_id_database', 'catalog_metadata', 'database_metadata', 'guessAtFieldDescriptions']:
+        extensions_subparsers.add_parser(prep_arg, help=getattr(BookwormManager, prep_arg).__doc__)
 
     """
     Some special functions
@@ -536,6 +575,7 @@ def run_arguments():
     
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
     init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
+    init_parser.add_argument("--yes","-y",help="Automatically use default values with no prompts",default=False,action="store_true")    
 
 
     # Serve the current bookworm
@@ -554,12 +594,12 @@ def run_arguments():
     # Set the logging level based on the input.
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):
-        raise ValueError('Invalid log level: %s' % loglevel)
-    logging.basicConfig(level=numeric_level)
+        raise ValueError('Invalid log level: %s' % args.log_level)
     # While we're at it, log with line numbers
-
-    FORMAT = "[%(filename)s:%(lineno)s - %(funcName)25s() ] %(message)s"
-    logging.basicConfig(format=FORMAT)
+    FORMAT = "[%(filename)s:%(lineno)s-%(funcName)s()] %(message)s"
+    logging.basicConfig(format=FORMAT, level=numeric_level)
+    logging.info("Info logging enabled.")
+    logging.info("Debug logging enabled.")
 
     # Create the bookworm 
     my_bookworm = BookwormManager(args.configuration,args.database)

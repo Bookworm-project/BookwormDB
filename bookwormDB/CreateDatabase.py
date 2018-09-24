@@ -1,15 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import subprocess
 import MySQLdb
 import re
-import sys
 import json
 import os
-from variableSet import dataField
 from variableSet import variableSet
 from variableSet import splitMySQLcode
+from bookwormDB.configuration import Configfile
 import logging
 import warnings
 import anydbm
@@ -24,6 +22,8 @@ warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", "Can't create database.*; database exists")
 warnings.filterwarnings("ignore", "^Unknown table .*")
 warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
+warnings.filterwarnings("ignore","Data truncated for column .*")
+warnings.filterwarnings("ignore","Incorrect integer value.*")
 
 
 def text_id_dbm():
@@ -45,9 +45,9 @@ def text_id_dbm():
                     continue
                 else:
                     raise
+
 class DB:
     def __init__(self,dbname=None):
-        from bookwormDB.configuration import Configfile
         try:
             configuration = Configfile("local")
             logging.debug("Connecting from the local config file")
@@ -71,10 +71,27 @@ class DB:
         
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
-        self.conn = MySQLdb.connect(read_default_file="~/.my.cnf",use_unicode='True', charset='utf8', db='', local_infile=1)
+        conf = Configfile("admin")
+        conf.read_config_files()
+        connect_args = {
+            "user": conf.config.get("client","user"),
+            "passwd": conf.config.get("client","password"),
+            "use_unicode": 'True',
+            "charset": 'utf8',
+            "db": '',
+            "local_infile": 1}
+        try:
+            self.conn = MySQLdb.connect(**connect_args)
+        except MySQLdb.OperationalError:
+            # Sometimes mysql wants to connect over this rather than a socket:
+            # falling back to it for backward-compatibility.
+            connect_args["host"] = "127.0.0.1"
+            self.conn = MySQLdb.connect(**connect_args)
+            
+            
         cursor = self.conn.cursor()
-        cursor.execute("CREATE DATABASE IF NOT EXISTS %s" % self.dbname)
-        #Don't use native query attribute here to avoid infinite loops
+        cursor.execute("CREATE DATABASE IF NOT EXISTS %s default character set utf8" % self.dbname)
+        # Don't use native query attribute here to avoid infinite loops
         cursor.execute("SET NAMES 'utf8'")
         cursor.execute("SET CHARACTER SET 'utf8'")
         if setengine:
@@ -84,29 +101,40 @@ class DB:
                 logging.error("Forcing default engine failed. On some versions of Mysql,\
                 you may need to add \"default-storage-engine=MYISAM\" manually\
                 to the [mysqld] user in /etc/my.cnf. Trying again to connect...")
-                self.connect(setengine=False) 
+                self.connect(setengine=False)
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
-
-    def query(self, sql):
+    def query(self, sql, silent=False, many_params=None):
         """
         Billy defined a separate query method here so that the common case of a connection being
         timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
         the connection and starts up nicely again.
+
+        silent: whether to suppress errors. Useful when an "IF EXISTS" clause doesn't work. 
+
+        many_params: If included, assume that executemany() is expected, with the sequence of parameter
+                        provided.
         """
         logging.debug(" -- Preparing to execute SQL code -- " + sql)
         try:
             cursor = self.conn.cursor()
-            cursor.execute(sql)
+            if many_params is not None:
+                cursor.executemany(sql, many_params)
+            else:
+                cursor.execute(sql)
         except:
             try:
                 self.connect()
                 cursor = self.conn.cursor()
-                cursor.execute(sql)
+                if many_params is not None:
+                    cursor.executemany(sql, many_params)
+                else:
+                    cursor.execute(sql)
             except:
-                logging.error("Query failed: \n" + sql + "\n")
-                raise
+                if not silent:
+                    logging.error("Query failed: \n" + sql + "\n")
+                    raise
         return cursor
 
 class BookwormSQLDatabase:
@@ -131,8 +159,17 @@ class BookwormSQLDatabase:
         This is a little wonky, and may
         be deprecated in favor of a cleaner interface.
         """
-        import bookwormDB.configuration
-        self.config_manager = bookwormDB.configuration.Configfile("local")
+        try:
+            self.config_manager = Configfile("local")
+            logging.debug("Connecting from the local config file")
+        except IOError:
+            try:
+                self.config_manager = Configfile("global")
+                logging.debug("No bookworm.cnf in local file: connecting from global defaults")
+            except IOError:
+                self.config_manager = Configfile("admin")
+                logging.debug("No bookworm.cnf in local file: connecting from admin defaults")
+                
         self.config_manager.read_config_files()
         config = self.config_manager.config
         if dbname==None:
@@ -153,12 +190,13 @@ class BookwormSQLDatabase:
 
         The Username for these privileges is pulled from the bookworm.cnf file.
         """
-        import ConfigParser
-        # This should be using the global configparser module, not the custom code here
-        config = ConfigParser.ConfigParser(allow_no_value=True)
-        config.read(["~/.my.cnf","/etc/my.cnf","/etc/mysql/my.cnf","bookworm.cnf"])
-        username=config.get("client","user")
-        password=config.get("client","password")
+
+        globalfile = Configfile("global")
+        globalfile.read_config_files()
+
+        username=globalfile.config.get("client","user")
+        password=globalfile.config.get("client","password")
+
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
     def setVariables(self,originFile,anchorField="bookid",
@@ -208,7 +246,7 @@ class BookwormSQLDatabase:
         logging.info("Making a SQL table to hold the words")
         db.query("""DROP TABLE IF EXISTS words""")
         db.query("""CREATE TABLE IF NOT EXISTS words (
-        wordid MEDIUMINT,
+        wordid MEDIUMINT UNSIGNED NOT NULL,
         word VARCHAR(255), INDEX (word),
         count BIGINT UNSIGNED,
         casesens VARBINARY(255),
@@ -232,26 +270,143 @@ class BookwormSQLDatabase:
         """
         self.variableSet.loadMetadata()
 
-    def create_unigram_book_counts(self):
+    def create_unigram_book_counts(self, newtable=True, ingest=True, index=True, reverse_index=True, table_count=1):
+        import time
+        t0 = time.time()
+
         db = self.db
-        db.query("""DROP TABLE IF EXISTS master_bookcounts""")
-        logging.info("Making a SQL table to hold the unigram counts")
-        db.query("""CREATE TABLE master_bookcounts (
-        bookid MEDIUMINT UNSIGNED NOT NULL, INDEX(bookid,wordid,count),
-        wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count),
-        count MEDIUMINT UNSIGNED NOT NULL);""")
-        db.query("ALTER TABLE master_bookcounts DISABLE KEYS")
-        logging.info("loading data using LOAD DATA LOCAL INFILE")
-        for filename in os.listdir(".bookworm/texts/encoded/unigrams"):
-            if not filename.endswith('.txt'):
-                # Sometimes other files are in there; skip them.
-                continue
-            try:
-                db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/unigrams/"+filename+"' INTO TABLE master_bookcounts CHARACTER SET utf8 (bookid,wordid,count);")
-            except:
-                raise
-        logging.info("Creating Unigram Indexes")
-        db.query("ALTER TABLE master_bookcounts ENABLE KEYS")
+        ngramname = "unigrams"
+        tablenameroot = "master_bookcounts"
+        # If you are splitting the input into multiple tables
+        # to be joined as a merge table, come up with multiple 
+        # table names and we'll cycle through.
+        if table_count == 1:
+            tablenames = [tablenameroot]
+        elif table_count > 1:
+            tablenames = ["%s_p%d" % (tablenameroot, i) for i in range(1, table_count+1)]
+        else:
+            logging.error("You need a positive integer for table_count")
+            raise
+
+        grampath =  ".bookworm/texts/encoded/%s" % ngramname
+        tmpdir = "%s/tmp" % grampath
+
+        if (len(grampath) == 0) or (grampath == "/"):
+            logging.error("Woah! Don't set the ngram path to your system root!")
+            raise
+        
+        if newtable:
+            if os.path.exists(tmpdir):
+                import shutil
+                shutil.rmtree(tmpdir)
+        
+            logging.info("Dropping older %s table, if it exists" % ngramname)
+            for tablename in tablenames:
+                db.query("DROP TABLE IF EXISTS " + tablename)
+
+        logging.info("Making a SQL table to hold the %s" % ngramname)
+        reverse_index_sql = "INDEX(bookid,wordid,count), " if reverse_index else ""
+        for tablename in tablenames:
+            db.query("CREATE TABLE IF NOT EXISTS " + tablename + " ("
+                "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
+                "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+                "count MEDIUMINT UNSIGNED NOT NULL);")
+
+        if ingest:
+            for tablename in tablenames:
+                db.query("ALTER TABLE " + tablename + " DISABLE KEYS")
+            db.query("set NAMES utf8;")
+            db.query("set CHARACTER SET utf8;")
+            logging.info("loading data using LOAD DATA LOCAL INFILE")
+            
+            files = os.listdir(grampath)
+            for i, filename in enumerate(files):
+                if filename.endswith('.txt'):
+                    # With each input file, cycle through each table in tablenames
+                    tablename = tablenames[i % len(tablenames)]
+                    logging.debug("Importing txt file, %s (%d/%d)" % (filename, i, len(files)))
+                    try:
+                        db.query("LOAD DATA LOCAL INFILE '" + grampath + "/" + filename + "' INTO TABLE " + tablename +" CHARACTER SET utf8 (bookid,wordid,count);")
+                    except KeyboardInterrupt:
+                        raise
+                    except:
+                       logging.debug("Falling back on insert without LOCAL DATA INFILE. Slower.")
+                       try:
+                            import pandas as pd
+                            df = pd.read_csv(grampath + "/" + filename, sep='\t', header=None)
+                            to_insert = df.apply(tuple, axis=1).tolist()
+                            db.query(
+                                "INSERT INTO " + tablename + " (bookid,wordid,count) "
+                                "VALUES (%s, %s, %s);""",
+                                many_params=to_insert
+                                )
+                       except KeyboardInterrupt:
+                           raise
+                       except:
+                           logging.exception("Error inserting %s from %s" % (ngramname, filename))
+                           continue
+
+                elif filename.endswith('.h5'):
+                    logging.info("Importing h5 file, %s (%d/%d)" % (filename, i, len(files)))
+                    try:
+                        # When encountering an .h5 file, this looks for ngram information
+                        # in a /#{ngramnames} table (e.g. /unigrams) and writes it out to
+                        # temporary TSV files.
+                        # Dask is used here simply because it's a dead simple way to multithread
+                        # the TSV writing and lower the overhead versus having a TSV already staged.
+                        import csv
+                        import pandas as pd
+                        try:
+                            import dask.dataframe as dd
+                        except:
+                            logging.exception("Ingesting h5 files requires dask")
+                        try:
+                            os.makedirs(tmpdir)
+                        except OSError:
+                            if not os.path.isdir(tmpdir):
+                                raise
+                        # Dask will use #{n_cores-1} threads when saving CSVs.
+                        # Ingest and key reload times are identical to txt import, so the only
+                        # additional overhead is reading the file (small effect) and writing the csv.
+                        ddf = dd.read_hdf(grampath + "/" + filename,
+                                          ngramname, mode='r', chunksize=2000000)
+                        ddf.reset_index().to_csv(tmpdir + '/tmp.*.tsv',
+                                                 index=False, sep='\t', header=False,
+                                                 quoting=csv.QUOTE_NONNUMERIC)
+                        logging.info("CSV written from H5. Time passed: %.2f s" % (time.time() - t0))
+                        for j, tmpfile in enumerate(os.listdir(tmpdir)):
+                            # With each input file, cycle through each table in tablenames
+                            tablename = tablenames[j % len(tablenames)]
+                            path = "%s/%s" % (tmpdir, tmpfile)
+                            db.query("LOAD DATA LOCAL INFILE '" + path + "' "
+                                     "INTO TABLE " + tablename + " "
+                                     "CHARACTER SET utf8 (bookid,wordid,count);")
+                            try:
+                                os.remove(path)
+                            except:
+                                pass
+                        logging.info("CSVs input. Time passed: %.2f s" % (time.time() - t0))
+                    except KeyboardInterrupt:
+                       raise
+                    except:
+                       logging.exception("Error inserting %s from %s" % (ngramname, filename))
+                       continue
+                else:
+                    continue
+        if index:
+            logging.info("Creating Unigram Indexes. Time passed: %.2f s" % (time.time() - t0))
+            for tablename in tablenames:
+                db.query("ALTER TABLE " + tablename + " ENABLE KEYS")
+
+            if table_count > 1:
+                logging.info("Creating a merge table for " + ",".join(tablenames))
+                db.query("CREATE TABLE IF NOT EXISTS " + tablenameroot + " ("
+                    "bookid MEDIUMINT UNSIGNED NOT NULL, " + reverse_index_sql +
+                    "wordid MEDIUMINT UNSIGNED NOT NULL, INDEX(wordid,bookid,count), "
+                    "count MEDIUMINT UNSIGNED NOT NULL) "
+                    "ENGINE=MERGE UNION=(" + ",".join(tablenames) + ") INSERT_METHOD=LAST;")
+
+        logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
     def create_bigram_book_counts(self):
         db = self.db
@@ -278,6 +433,7 @@ class BookwormSQLDatabase:
         also, crucially, it puts code specifying their fast creation there,
         where it will be executed on startup for all eternity.
         """
+        logging.debug("Building masterVariableTable")
         db = self.db
         db.query("DROP TABLE IF EXISTS masterVariableTable")
         m = db.query("""
@@ -307,7 +463,7 @@ class BookwormSQLDatabase:
         Checks to see if memory tables need to be repopulated (by seeing if they are empty)
         and then does so if necessary.
         """
-        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall();
+        existingCreateCodes = self.db.query("SELECT tablename,memoryCode FROM masterTableTable").fetchall()
         for row in existingCreateCodes:
             """
             For each table, it checks to see if the table is currently populated; if not,
@@ -316,17 +472,18 @@ class BookwormSQLDatabase:
             """
             tablename = row[0]
             try:
-                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename))
+                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename), silent = True)
                 currentLength = cursor.fetchall()[0][0]
                 logging.debug("Current Length is %d" %currentLength)
             except:
                 currentLength = 0
             if currentLength==0 or force:
                 for query in splitMySQLcode(row[1]):
+                    self.db.query("SET optimizer_search_depth=0")
                     self.db.query(query)
 
     def addFilesToMasterVariableTable(self):
-        fastFieldsCreateList = ["bookid MEDIUMINT, PRIMARY KEY (bookid)","nwords MEDIUMINT"] +\
+        fastFieldsCreateList = ["bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)","nwords MEDIUMINT UNSIGNED NOT NULL"] +\
           [variable.fastSQL() for variable in self.variableSet.variables if (variable.unique and variable.fastSQL() is not None)]
         fileCommand = """DROP TABLE IF EXISTS tmp;
         CREATE TABLE tmp
@@ -334,7 +491,7 @@ class BookwormSQLDatabase:
         ) ENGINE=MEMORY;"""
         #Also update the wordcounts for each text.
         fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None]
-        fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
+        fileCommand += "INSERT INTO tmp SELECT " + ",".join(fastFields) + " FROM catalog USE INDEX () " + " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";"
         fileCommand += "DROP TABLE IF EXISTS fastcat;"
         fileCommand += "RENAME TABLE tmp TO fastcat;"
         self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="fastcat";')
@@ -343,7 +500,7 @@ class BookwormSQLDatabase:
 
     def addWordsToMasterVariableTable(self):
         wordCommand = "DROP TABLE IF EXISTS tmp;"
-        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
+        wordCommand += "CREATE TABLE tmp (wordid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (wordid), word VARCHAR(30), INDEX (word), casesens VARBINARY(30),UNIQUE INDEX(casesens), lowercase CHAR(30), INDEX (lowercase) ) ENGINE=MEMORY;"
         wordCommand += "INSERT IGNORE INTO tmp SELECT wordid as wordid,word,casesens,LOWER(word) FROM words WHERE CHAR_LENGTH(word) <= 30 AND wordid <= 1500000 ORDER BY wordid;"
         wordCommand += "DROP TABLE IF EXISTS wordsheap;"
         wordCommand += "RENAME TABLE tmp TO wordsheap;"
@@ -377,7 +534,7 @@ class BookwormSQLDatabase:
                 ui_components.append(newdict)
         try:
             mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-            output['default_search']  = [
+            output['default_search'] = [
                                          {
                                           "search_limits": [{"word":["test"]}],
                                           "time_measure": mytime,
@@ -414,12 +571,14 @@ class BookwormSQLDatabase:
         """
         logging.info("Updating stems from Porter algorithm...")
         from nltk import PorterStemmer
+        db = self.db
+
         stemmer = PorterStemmer()
         cursor = db.query("""SELECT word FROM words""")
         words = cursor.fetchall()
         for local in words:
-            word = ''.join(local) #Could probably take the first element of the tuple as well?
-            #Apostrophes have the save stem as the word, if they're included
+            word = ''.join(local)  # Could probably take the first element of the tuple as well?
+            # Apostrophes have the save stem as the word, if they're included
             word = word.replace("'s","")
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""

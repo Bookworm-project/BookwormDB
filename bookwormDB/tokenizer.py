@@ -29,17 +29,17 @@ def wordRegex():
     global re
     if re is None:
         import regex as re
-    MasterExpression = ur"\p{L}+"
+    MasterExpression = ur"\w+"
     possessive = MasterExpression + ur"'s"
     numbers = r"(?:[\$])?\d+"
     decimals = numbers + r"\.\d+"
     abbreviation = r"(?:mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\."
     sharps = r"[a-gjxA-GJX]#"
-    punctuators = r"[^\p{L}\p{Z}]"
+    punctuators = r"[^\w\p{Z}]"
     """
     Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms 
     """
-    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)#
+    bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
     return bigregex
 
 
@@ -215,7 +215,7 @@ class tokenizer(object):
         copies of the text to itself.
         """
         self.tokenize()
-        return zip(*[self.tokens[n:] for n in range(n)])
+        return zip(*[self.tokens[i:] for i in range(n)])
 
     def unigrams(self):
         return self.ngrams(1)
@@ -226,7 +226,6 @@ class tokenizer(object):
     def trigrams(self):
         return self.ngrams(3)
 
-    
     def counts(self,whichType):
         count = dict()
         for gram in getattr(self,whichType)():
@@ -240,7 +239,7 @@ class tokenizer(object):
 class preTokenized(object):
     """
     This class is a little goofy: it mimics the behavior of a tokenizer
-    one data that's already been tokenized by something like 
+    one data that's already been tokenized by something like
     Google Ngrams or JStor Data for Research.
     """
 
@@ -291,15 +290,15 @@ def print_token_stream(input,regex=None,require_ids=True):
     for row in input:
         if require_ids:
             parts = row.split("\t",1)
-            # filename = parts[0]
             try:
                 tokens = tokenizer(parts[1])
             except IndexError:
-                logging.warning("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
+                logging.warning("Found no tab in the input for row starting with\n" +
+                                row[:50] + "\n...skipping row")
                 continue
         else:
             tokens = tokenizer(row)
-        out= u" ".join(tokens.tokenize())
+        out = u" ".join(tokens.tokenize())
         print out.encode("utf-8")
     
 

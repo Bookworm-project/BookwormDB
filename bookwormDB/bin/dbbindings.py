@@ -4,7 +4,7 @@
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import cgi
 import cgitb
-import json
+import ujson as json
 
 cgitb.enable()
 
@@ -17,7 +17,7 @@ def headers(method, errorcode=False):
           'X-Requested-With, X-CSRF-Token'
 
     if errorcode:
-	print "Status: %d" % errorcode
+        print "Status: %d" % errorcode
 
     if method != "return_tsv":
         print "Content-type: text/html\n"
