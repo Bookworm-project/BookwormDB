@@ -567,3 +567,5 @@ def run_arguments():
     # Call the current action with the arguments passed in.
     getattr(my_bookworm,args.action)(args)
     
+if __name__ == "__main__":
+    run_arguments()
