@@ -43,5 +43,5 @@ setup(name='bookwormDB',
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"
         ],
-      install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil"]
+      install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil","ujson"]
 )
