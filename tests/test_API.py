@@ -40,6 +40,116 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         m = json.loads(SQLAPIcall(query).execute())
         self.assertTrue(len(m)==5)
 
+    def test_ne_with_one_entry(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{
+                    "author": {"$ne": ["HAMILTON"]}
+                },
+                "counttype":"TextPercent",
+                "groups":["author"],
+                "method":"return_json"
+        }
+        
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(len(m)==4)
+
+    def test_ne_with_two_entries(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{
+                    "author": {"$ne": ["HAMILTON","DISPUTED"]}
+                },
+                "counttype":"TextPercent",
+                "groups":["author"],
+                "method":"return_json"
+        }
+
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(len(m)==3)
+
+
+    def test_ne_with_two_entries(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{
+                    "author": {"$ne": ["HAMILTON","DISPUTED"]}
+                },
+                "counttype":"TextPercent",
+                "groups":["author"],
+                "method":"return_json"
+        }
+
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(len(m)==3)
+
+
+    def test_or_with_two_entries(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{
+                    "$or": [
+                        {"author": ["HAMILTON"]},
+                        {"author": ["DISPUTED"]}
+                    ]
+                },
+                "counttype":"TextCount",
+                "groups":["author"],
+                "method":"return_json"
+        }
+
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(len(m)==2)
+
+    def test_lte_and_gte(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{
+                    "fedNumber":{"$lte":10,"$gte":5}
+                },
+                "counttype":"TextCount",
+                "groups":["fedNumber"],
+                "method":"return_json"
+        }
+
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(len(m)==6)
+        
+    def test_and_with_two_entries(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{
+                    "$and": [
+                        {"author": ["HAMILTON"]},
+                        {"fedNumber":[40]}
+                    ]
+                },
+                "counttype":"TextCount",
+                "groups":["author"],
+                "method":"return_json"
+        }
+
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(len(m)==0)
+        
     def test_adding_metadata_to_bookworm(self):
         """
         Build out some dummy metadata: label the difference

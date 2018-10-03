@@ -342,6 +342,33 @@ class userquery:
 
         return neededTables
 
+    def needed_columns(self):
+        """
+        Given a query, what are the columns that the compiled search will need materialized?
+
+        Important for joining appropriate tables to the search.
+
+        Needs a recursive function so it will find keys deeply nested inside "$or" searches.
+        """
+        cols = []
+        def pull_keys(entry):
+            val = []
+            if isinstance(entry,list) and not isinstance(entry,basestring):
+                for element in entry:
+                    val += pull_keys(element)
+            elif isinstance(entry,dict):
+                for k,v in entry.iteritems():
+                    if k[0] != "$":
+                        val.append(k)
+                    else:
+                        val += pull_keys(v)
+            else:
+                return []
+            return [re.sub(" .*","",key) for key in val]
+        
+        return pull_keys(self.limits) + [re.sub(" .*","",g) for g in self.groups]
+        
+        
     def create_catalog_table(self):
         self.catalog = self.prefs['fastcat'] # 'catalog' # Can be replaced with a more complicated query in the event of longer joins.
 
@@ -365,7 +392,7 @@ class userquery:
 
         databaseScheme = self.databaseScheme
         columns = []
-        for columnInQuery in [re.sub(" .*", "", key) for key in self.limits.keys()] + [re.sub(" .*", "", group) for group in self.groups]:
+        for columnInQuery in self.needed_columns():
             columns.append(columnInQuery)
             try:
                 self.relevantTables.add(databaseScheme.tableToLookIn[columnInQuery])
@@ -399,6 +426,7 @@ class userquery:
         catlimits = dict()
         for key in self.limits.keys():
             # !!Warning--none of these phrases can be used in a bookworm as a custom table names.
+            
             if key not in ('word', 'word1', 'word2', 'hasword') and not re.search("words\d", key):
                 catlimits[key] = self.limits[key]
         if len(catlimits.keys()) > 0:
@@ -517,7 +545,7 @@ class userquery:
                 # XXX for backward compatability
                 self.words_searched = phrase
                 # XXX end deprecated block
-            self.wordswhere = "(" + ' OR '.join(limits) + ")"
+            self.wordswhere = "(" + ' AND '.join(limits) + ")"
             if limits == []:
                 # In the case that nothing has been found, tell it explicitly to search for
                 # a condition when nothing will be found.
@@ -1086,10 +1114,12 @@ def to_unicode(obj, encoding='utf-8'):
         obj = unicode(str(obj), encoding)
     return obj
 
-def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
+def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
     whereterm = []
     # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
     # For more complicated bits, it gets all recursive until the bits are all in terms of list.
+    if joiner is None:
+        joiner = " AND "
     for key in myhash.keys():
         values = myhash[key]
         if isinstance(values, basestring) or isinstance(values, int) or isinstance(values, float):
@@ -1097,15 +1127,31 @@ def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
             # to a list for you.
             values = [values]
         # Or queries are special, since the default is "AND". This toggles that around for a subportion.
-        if key == '$or' or key == "$OR":
+
+        if key == "$or" or key == "$OR":
+            local_set = []
             for comparison in values:
-                whereterm.append(where_from_hash(comparison, joiner=" OR ", comp=comp))
-                # The or doesn't get populated any farther down.
+                local_set.append(where_from_hash(comparison, comp=comp))
+            whereterm.append(" ( " + " OR ".join(local_set) + " )")
+        elif key == '$and' or key == "$AND":
+            for comparison in values:
+                whereterm.append(where_from_hash(comparison, joiner=" AND ", comp=comp))                
         elif isinstance(values, dict):
-            # Certain function operators can use MySQL terms. These are the only cases that a dict can be passed as a limitations
-            operations = {"$gt":">", "$ne":"!=", "$lt":"<", "$grep":" REGEXP ", "$gte":">=", "$lte":"<=", "$eq":"="}
+            if joiner is None:
+                joiner = " AND "
+            # Certain function operators can use MySQL terms.
+            # These are the only cases that a dict can be passed as a limitations
+            operations = {"$gt":">", "$ne":"!=", "$lt":"<",
+                          "$grep":" REGEXP ", "$gte":">=",
+                          "$lte":"<=", "$eq":"="}
+            
             for operation in values.keys():
-                whereterm.append(where_from_hash({key:values[operation]}, comp=operations[operation], joiner=joiner))
+                if operation == "$ne":
+                    # If you pass a lot of ne values, they must *all* be false.
+                    subjoiner = " AND "
+                else:
+                    subjoiner = " OR "
+                whereterm.append(where_from_hash({key:values[operation]}, comp=operations[operation], list_joiner=subjoiner))
         elif isinstance(values, list):
             # and this is where the magic actually happens:
             # the cases where the key is a string, and the target is a list.
@@ -1135,7 +1181,9 @@ def where_from_hash(myhash, joiner=" AND ", comp = " = ", escapeStrings=True):
                 # Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
                 # Obviously that's no great loss, but there might be something I'm missing that would be desire a similar format somehow.
                 # (In cases where the same book could have two different years associated with it)
-
-                whereterm.append(" (" + " OR ".join([" (" + key+comp+quotesep+escape(value)+quotesep+") " for value in values])+ ") ")
-    return "(" + joiner.join(whereterm) + ")"
+                whereterm.append(" (" + list_joiner.join([" (" + key+comp+quotesep+escape(value)+quotesep+") " for value in values])+ ") ")
+    if len(whereterm) > 1:
+        return "(" + joiner.join(whereterm) + ")"
+    else:
+        return whereterm[0]
     # This works pretty well, except that it requires very specific sorts of terms going in, I think.

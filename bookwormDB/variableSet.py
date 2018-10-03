@@ -617,24 +617,37 @@ class variableSet:
 
         return bookids
 
-    def writeMetadata(self,limit=float("Inf")):
+    def writeMetadata(self,limit=float("Inf"),compress=False):
         #Write out all the metadata into files that MySQL is able to read in.
         """
         This is a general purpose, with a few special cases for the primary use case that this is the
         "catalog" table that hold the primary lookup information.
         """
+        import gzip
         linenum = 1
         variables = self.variables
         bookids = self.anchorLookupDictionary()
 
-        metadatafile = open(self.originFile)
+        try:
+            # Try as gzipped file. Overhead is trivial.
+            metadatafile = gzip.GzipFile(self.originFile)
+            metadatafile.peek(0)
+        except:
+            metadatafile = open(self.originFile)
 
 
         #Open files for writing to
+        path = os.path.dirname(self.catalogLocation)
         try:
-            catalog = open(self.catalogLocation,'w')
-        except IOError:
-            os.makedirs(os.path.dirname(self.catalogLocation))
+            os.makedirs(path)
+        except OSError:
+            if not os.path.isdir(path):
+                raise
+
+        if compress:
+            self.catalogLocation = self.catalogLocation + '.gz'
+            catalog = gzip.GzipFile(self.catalogLocation, 'w')
+        else:
             catalog = open(self.catalogLocation,'w')
 
         for variable in [variable for variable in variables if not variable.unique]:
