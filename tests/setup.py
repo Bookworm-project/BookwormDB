@@ -19,7 +19,7 @@ def setup_bookworm():
 
     import bookwormDB.configuration
     os.chdir(sys.path[0] + "/test_bookworm_files")
-    rmtree(".bookworm")
+    rmtree(".bookworm", ignore_errors = True)
     
     bookwormDB.configuration.create(ask_about_defaults=False, database="federalist_bookworm")
 
@@ -57,7 +57,7 @@ def setup_bookworm_unicode():
 
     import bookwormDB.configuration
     os.chdir(sys.path[0] + "/test_bookworm_files_unicode")
-    rmtree(".bookworm")
+    rmtree(".bookworm", ignore_errors = True)
     
     bookwormDB.configuration.create(ask_about_defaults=False,database="unicode_test_bookworm")
     
