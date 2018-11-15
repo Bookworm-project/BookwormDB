@@ -11,6 +11,7 @@ from bwExceptions import BookwormException
 import re
 import json
 import logging
+import numpy as np
 
 """
 The general API is some functions for working with pandas to calculate
@@ -449,7 +450,7 @@ class APIcall(object):
 
         def fixNumpyType(input):
             # This is, weirdly, an occasional problem but not a constant one.
-            if str(input.dtype) == "int64":
+            if type(input) is np.int64:
                 return int(input)
             else:
                 return input

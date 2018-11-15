@@ -9,69 +9,7 @@ import os
 from subprocess import call as call
 import sys
 import json
-
-def setup_bookworm():
-    """
-    Creates a test bookworm. Removes any existing databases called "federalist_bookworm"
-    """
-    logging.info("\n\nTESTING BOOKWORM CREATION\n\n")
-    import MySQLdb
-    from warnings import filterwarnings
-    filterwarnings('ignore', category = MySQLdb.Warning)
-
-    import bookwormDB.configuration
-    os.chdir(sys.path[0] + "/test_bookworm_files")
-    bookwormDB.configuration.create(ask_about_defaults=False,database="federalist_bookworm")
-
-    try:
-        db.query("DROP DATABASE federalist_bookworm")
-    except MySQLdb.OperationalError as e:
-        if e[0]==1008:
-            pass
-        else:
-            raise
-    except Exception, e:
-        """
-        This is some weird MariaDB exception. It sucks that I'm compensating for it here.
-        """
-        if e[0]=="Cannot load from mysql.proc. The table is probably corrupted":
-            pass
-        else:
-            logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
-            
-    call(["bookworm --log-level warning build all"],shell=True,cwd=sys.path[0] + "/test_bookworm_files")
-
-def setup_bookworm_unicode():
-    """
-    Creates a test bookworm. Removes any existing databases called "unicode_test_bookworm"
-    """
-    logging.info("\n\nTESTING BOOKWORM CREATION\n\n")
-    import MySQLdb
-    from warnings import filterwarnings
-    filterwarnings('ignore', category = MySQLdb.Warning)
-
-    import bookwormDB.configuration
-    os.chdir(sys.path[0] + "/test_bookworm_files_unicode")
-    bookwormDB.configuration.create(ask_about_defaults=False,database="unicode_test_bookworm")
-
-    try:
-        db.query("DROP DATABASE unicode_test_bookworm")
-    except MySQLdb.OperationalError as e:
-        if e[0]==1008:
-            pass
-        else:
-            raise
-    except Exception, e:
-        """
-        This is some weird MariaDB exception. It sucks that I'm compensating for it here.
-        """
-        if e[0]=="Cannot load from mysql.proc. The table is probably corrupted":
-            pass
-        else:
-            logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
-            
-    call(["bookworm --log-level warning build all"],shell=True,cwd=sys.path[0] + "/test_bookworm_files_unicode")
-    
+from setup import setup_bookworm, setup_bookworm_unicode
 
 class Bookworm_SQL_Creation(unittest.TestCase):
 

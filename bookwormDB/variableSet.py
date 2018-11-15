@@ -522,7 +522,7 @@ class variableSet:
         For the base case, they're catalog and fastcat: otherwise, it's just they key
         and the first variable associated with it.
         """
-        if self.originFile == ".bookworm/metadata/jsoncatalog_derived.txt":
+        if os.path.split(self.originFile)[-1] == 'jsoncatalog_derived.txt':
             self.tableName = "catalog"
             self.fastName = "fastcat"
             
