@@ -1,5 +1,7 @@
+from __future__ import print_function
+from __future__ import absolute_import
 import sys
-from tokenizer import *
+from .tokenizer import *
 
 for row in sys.stdin:
     parts = row.split("\t",1)
@@ -10,4 +12,4 @@ for row in sys.stdin:
         logging.warning("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
         continue
     out= u" ".join(tokens.tokenize())
-    print out.encode("utf-8")
+    print(out.encode("utf-8"))

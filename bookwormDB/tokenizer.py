@@ -1,5 +1,6 @@
 #! /usr/bin/python
 
+from __future__ import print_function
 import random
 import sys
 import os
@@ -152,7 +153,7 @@ class tokenBatches(object):
                     # The test is necessary because otherwise this prints a blank line.
                     outputFile.write("\n".join(output) + "\n")
                 
-            except IOError, e:
+            except IOError as e:
                 logging.exception(e)
 
         if write_completed:
@@ -299,7 +300,7 @@ def print_token_stream(input,regex=None,require_ids=True):
         else:
             tokens = tokenizer(row)
         out = u" ".join(tokens.tokenize())
-        print out.encode("utf-8")
+        print(out.encode("utf-8"))
     
 
 def encodePreTokenizedStream(infile,levels=["unigrams"]):

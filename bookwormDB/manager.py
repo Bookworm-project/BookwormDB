@@ -1,3 +1,4 @@
+from __future__ import print_function
 import re
 from subprocess import call
 from subprocess import Popen
@@ -112,7 +113,7 @@ class BookwormManager(object):
                         path = os.path.join(root,name)
                         content = open(path).read().replace("\n"," ").replace("\t"," ").replace("\r"," ")
                         identity = path.replace(args.file,"").replace(".txt","").strip("/")
-                        print identity + "\t" + content
+                        print(identity + "\t" + content)
             elif os.path.exists(args.file) and (args.file.endswith(".sh")):
                 logging.debug("Attempting to print text stream by executing the script at" + args.file)
                 Popen(["./" + args.file])
@@ -173,7 +174,7 @@ class BookwormManager(object):
         
         query = json.loads(args.APIcall)
         caller = SQLAPIcall(query)
-        print caller.execute()
+        print(caller.execute())
         
     def serve(self,args):
 
@@ -205,12 +206,12 @@ class BookwormManager(object):
 
         httpd = HTTPServer(("", PORT), CGIHTTPServer.CGIHTTPRequestHandler)
 
-        print "\n\n" + "****"*20
-        print "A local bookworm server is now running"
-        print "You can now view some charts in a web-browser at http://localhost:%d/D3" % PORT
-        print "If you have a time variable, linecharts are at http://localhost:%d/%s" % (PORT,self.dbname)
-        print "Please note that this is not a very secure way: if you plan to put your bookworm"
-        print "on the open web, consider using apache."
+        print("\n\n" + "****"*20)
+        print("A local bookworm server is now running")
+        print("You can now view some charts in a web-browser at http://localhost:%d/D3" % PORT)
+        print("If you have a time variable, linecharts are at http://localhost:%d/%s" % (PORT,self.dbname))
+        print("Please note that this is not a very secure way: if you plan to put your bookworm")
+        print("on the open web, consider using apache.")
         httpd.serve_forever()
 
         

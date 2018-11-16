@@ -1,3 +1,4 @@
+from __future__ import print_function
 import bookwormDB
 import bookwormDB.CreateDatabase
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
@@ -33,7 +34,7 @@ def setup_bookworm():
         else:
             print(e)
             raise
-    except Exception, e:
+    except Exception as e:
         """
         This is some weird MariaDB exception. It sucks that I'm compensating for it here.
         """
@@ -70,7 +71,7 @@ def setup_bookworm_unicode():
         else:
             print(e)
             raise
-    except Exception, e:
+    except Exception as e:
         """
         This is some weird MariaDB exception. It sucks that I'm compensating for it here.
         """

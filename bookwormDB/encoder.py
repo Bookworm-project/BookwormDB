@@ -1,5 +1,6 @@
 #!/usr/bin/python
-from tokenizer import *
+from __future__ import absolute_import
+from .tokenizer import *
 import os
 import cPickle as pickle
 import sys

@@ -1,12 +1,14 @@
 #!/usr/local/bin/python
 
+from __future__ import print_function
+from __future__ import absolute_import
 import json
 import re
 import copy
 import MySQLdb
 import hashlib
 import logging
-from bwExceptions import BookwormException
+from .bwExceptions import BookwormException
 
 # If you have bookworms stored on a different host, you can create more lines
 # like this.
@@ -188,7 +190,7 @@ class userquery:
                     try:
                         gramPos = multigramSearch.groups()[1]
                     except:
-                        print "currently you must specify which bigram element you want (eg, 'bigram1')"
+                        print("currently you must specify which bigram element you want (eg, 'bigram1')")
                         raise
 
                 lookupTableName = "%sLookup%s" %(gramType, gramPos)
@@ -502,7 +504,7 @@ class userquery:
                 self.cursor.execute("CREATE TABLE %s (bookid MEDIUMINT, PRIMARY KEY (bookid)) ENGINE=MYISAM;" %tmpcatalog)
                 self.cursor.execute("INSERT IGNORE INTO %s %s;" %(tmpcatalog, listofBookids))
 
-            except MySQLdb.OperationalError, e:
+            except MySQLdb.OperationalError as e:
                 # Usually the error will be 1050, which is a good thing: it means we don't need to
                 # create the table.
                 # If it's not, something bad is happening.

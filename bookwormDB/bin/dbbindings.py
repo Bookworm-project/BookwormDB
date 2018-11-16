@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # So we load in the terms that allow the API implementation to happen for now.
+from __future__ import print_function
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import cgi
 import cgitb
@@ -11,22 +12,22 @@ cgitb.enable()
 
 def headers(method, errorcode=False):
 
-    print 'Access-Control-Allow-Origin: *'
-    print 'Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS'
-    print 'Access-Control-Allow-Headers: Origin, Accept, Content-Type, ' \
-          'X-Requested-With, X-CSRF-Token'
+    print('Access-Control-Allow-Origin: *')
+    print('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS')
+    print('Access-Control-Allow-Headers: Origin, Accept, Content-Type, ' \
+          'X-Requested-With, X-CSRF-Token')
 
     if errorcode:
-        print "Status: %d" % errorcode
+        print("Status: %d" % errorcode)
 
     if method != "return_tsv":
-        print "Content-type: text/html\n"
+        print("Content-type: text/html\n")
 
     elif method == "return_tsv":
-        print "Content-type: text; charset=utf-8"
-        print "Content-Disposition: filename=Bookworm-data.txt"
-        print "Pragma: no-cache"
-        print "Expires: 0\n"
+        print("Content-type: text; charset=utf-8")
+        print("Content-Disposition: filename=Bookworm-data.txt")
+        print("Pragma: no-cache")
+        print("Expires: 0\n")
 
 
 def debug(string):
@@ -35,10 +36,10 @@ def debug(string):
     No calls should be permanently left in the code ever, or they will break
     things badly.
     """
-    print headers('1')
-    print "<br>"
-    print string
-    print "<br>"
+    print(headers('1'))
+    print("<br>")
+    print(string)
+    print("<br>")
 
 
 def main(JSONinput):
@@ -63,10 +64,10 @@ def main(JSONinput):
             headers(query['method'], errorcode=code)
         else:
             headers(query['method'])
-        print json.dumps(resp)
+        print(json.dumps(resp))
     else:
         headers(query['method'])
-        print resp
+        print(resp)
 
     return True
 

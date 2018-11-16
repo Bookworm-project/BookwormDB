@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+from __future__ import print_function
 import ConfigParser
 import os
 import re
@@ -55,10 +56,10 @@ def create(ask_about_defaults=True,database=None):
 
     for field in ["user","password"]:
         try:
-            print systemConfigFile.get("client",field)
+            print(systemConfigFile.get("client",field))
             defaults[field] = systemConfigFile.get("client",field)
         except ConfigParser.NoSectionError:
-            print systemConfigFile.get("mysql",field)
+            print(systemConfigFile.get("mysql",field))
             defaults[field] = systemConfigFile.get("mysql",field)
 
     config = ConfigParser.ConfigParser()
@@ -206,10 +207,10 @@ class Configfile:
         try:            
             db = MySQLdb.connect(read_default_file="~/.my.cnf")
             db.cursor().execute("GRANT SELECT ON *.* to root@localhost")
-        except MySQLdb.OperationalError, message:
+        except MySQLdb.OperationalError as message:
             try:
                 db = MySQLdb.connect(user="root",passwd="",host="127.0.0.1")
-            except MySQLdb.OperationalError, message:
+            except MySQLdb.OperationalError as message:
                 user = raw_input("""Can't log in automatically as {}:
                 Please enter an *administrative* username for your mysql with
                 grant privileges: """.format(getpass.getuser()))
@@ -259,7 +260,7 @@ class Configfile:
             
         try:
             cur.execute("SET PASSWORD FOR '%s'@'localhost'=PASSWORD('%s')" % (user.strip('"').strip("'"),new_password.strip('"').strip("'")))
-        except MySQLdb.OperationalError, message:	# handle trouble
+        except MySQLdb.OperationalError as message:	# handle trouble
             errorcode = message[0]
             if errorcode==1133:
                 logging.info("creating a new %s user called %s" %(self.usertype,user))
@@ -297,21 +298,21 @@ def change_root_password_if_necessary():
     """
     try:
         db = MySQLdb.connect(user="root",passwd="root",host="localhost")
-        print "'root' is an insecure root password for MySQL: starting a process to change it. You can just re-enter 'root' if you want."
+        print("'root' is an insecure root password for MySQL: starting a process to change it. You can just re-enter 'root' if you want.")
     except:
         try:
             db = MySQLdb.connect(user="root",passwd="",host="localhost")
-            print "Your root MySQL password is blank; starting a process to change it. You can just hit return at the prompts to keep it blank if you want."
+            print("Your root MySQL password is blank; starting a process to change it. You can just hit return at the prompts to keep it blank if you want.")
         except:
-            print "Root mysql password is neither blank nor 'root', so it's up to you to change it."
+            print("Root mysql password is neither blank nor 'root', so it's up to you to change it.")
             return
 
     root = Configfile("root",default="/root/.my.cnf")
     root.change_client_password()
     root.write_out()
-    print """
+    print("""
     root .my.cnf file updated with password at %s; delete that file if you don't want the root password anywhere on your server.
-    """ % root.location
+    """ % root.location)
   
 def parse_args():
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -390,7 +391,7 @@ def reconfigure_passwords(names_to_parse,force=False):
     if len(privileged_names) > 0 and whoami != "root":
         # Some of these can only be automatically upgraded as root, probably.
         # We could try-catch this, I guess, but it's such a tiny set right now.
-        print "Using sudo to process password change(s) for " + " and ".join(list(privileged_names)) + ". The system may now request your root password." 
+        print("Using sudo to process password change(s) for " + " and ".join(list(privileged_names)) + ". The system may now request your root password.") 
         if not force:
             args = ["sudo","bookworm","config","mysql","--users"]
         else:

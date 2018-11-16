@@ -46,3 +46,4 @@ dist
 tests/test_bookworm_files/.bookworm/
 tests/test_bookworm_files/http_server/
 tests/test_bookworm_files_unicode/.bookworm
+*.bak

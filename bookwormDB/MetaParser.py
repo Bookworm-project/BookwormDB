@@ -192,7 +192,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                         "did not convert to proper date. Moving on...")
                         # raise
                         pass
-                    except Exception, e:
+                    except Exception as e:
                         logging.warning('*'*50)
                         logging.warning('ERROR: %s\nINFO: %s\n' % (str(e), e.__doc__))
                         logging.warning('*'*50)

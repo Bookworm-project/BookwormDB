@@ -1,13 +1,14 @@
 #!/usr/bin/python
 
+from __future__ import absolute_import
 from pandas import merge
 from pandas import Series
 from pandas.io.sql import read_sql
 from copy import deepcopy
 from collections import defaultdict
-from SQLAPI import DbConnect
-from SQLAPI import userquery
-from bwExceptions import BookwormException
+from .SQLAPI import DbConnect
+from .SQLAPI import userquery
+from .bwExceptions import BookwormException
 import re
 import json
 import logging
@@ -412,7 +413,7 @@ class APIcall(object):
                     if method == "return_books":
                         return query.execute()
                     return json.dumps(query.execute())
-                except Exception, e:
+                except Exception as e:
                     if len(str(e)) > 1 and e[1].startswith("Unknown database"):
                         return "No such bookworm {}".format(e[1].replace("Unknown database",""))
                 except:

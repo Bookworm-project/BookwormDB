@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import os
 import sys
-from tokenizer import *
+from .tokenizer import *
 import logging
 import argparse
 

@@ -1,12 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from __future__ import absolute_import
 import MySQLdb
 import re
 import json
 import os
-from variableSet import variableSet
-from variableSet import splitMySQLcode
+from .variableSet import variableSet
+from .variableSet import splitMySQLcode
 from bookwormDB.configuration import Configfile
 import logging
 import warnings

@@ -1,3 +1,4 @@
+from __future__ import print_function
 import urllib
 import os
 import re
@@ -53,9 +54,9 @@ for file in files:
                     vals = [t[key] for key in ('ip', 'database',
                                                'words_collation', 'word',
                                                'TV_show', 'director')]
-                    print "\t".join(vals).encode("utf-8")
+                    print("\t".join(vals).encode("utf-8"))
 
             except KeyError:
                 raise
 
-print len(words)
+print(len(words))
