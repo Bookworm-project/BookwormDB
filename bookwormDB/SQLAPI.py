@@ -561,7 +561,7 @@ class userquery:
                 # XXX for backward compatability
                 self.words_searched = phrase
                 # XXX end deprecated block
-            self.wordswhere = "(" + ' AND '.join(limits) + ")"
+            self.wordswhere = "(" + ' OR '.join(limits) + ")"
             if limits == []:
                 # In the case that nothing has been found, tell it explicitly to search for
                 # a condition when nothing will be found.

@@ -246,7 +246,6 @@ class APIcall(object):
                            code=400)
                 raise BookwormException(err)
 
-
     def prepare_search_and_compare_queries(self):
 
         call1 = deepcopy(self.query)
@@ -509,7 +508,7 @@ class SQLAPIcall(APIcall):
     support "WordCount" and "TextCount" methods.
     """
 
-    def generate_pandas_frame(self, call):
+    def generate_pandas_frame(self, call = None):
         """
 
         This is good example of the query that actually fetches the results.
@@ -519,6 +518,10 @@ class SQLAPIcall(APIcall):
         more legacy code.
 
         """
+
+        if call is None:
+            call = self.query
+
         con = DbConnect(prefs, self.query['database'])
         q = userquery(call).query()
         df = read_sql(q, con.db)

@@ -38,7 +38,23 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         }
         
         m = json.loads(SQLAPIcall(query).execute())
-        self.assertTrue(len(m)==5)
+        self.assertEqual(len(m),5)
+
+
+    def test_multiword_search(self):
+        from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+        import json
+        
+        query = {
+                "database":"federalist_bookworm",
+                "search_limits":{"word":["on","upon"]},
+                "counttype":"TextPercent",
+                "method":"return_json",
+                "groups": []
+        }
+        
+        m = json.loads(SQLAPIcall(query).execute())
+        self.assertTrue(m[0] > 33)
 
     def test_ne_with_one_entry(self):
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
@@ -111,7 +127,7 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         }
 
         m = json.loads(SQLAPIcall(query).execute())
-        self.assertTrue(len(m)==2)
+        self.assertEqual(len(m),2)
 
     def test_lte_and_gte(self):
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
