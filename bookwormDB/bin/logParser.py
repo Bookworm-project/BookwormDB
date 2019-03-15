@@ -1,5 +1,7 @@
 from __future__ import print_function
-import urllib
+from future import standard_library
+standard_library.install_aliases()
+import urllib.request, urllib.parse, urllib.error
 import os
 import re
 import gzip
@@ -27,7 +29,7 @@ for file in files:
             t['ip'] = fullmatch[0]
             match = fullmatch[2]
             try:
-                data = json.loads(urllib.unquote(match).decode('utf8'))
+                data = json.loads(urllib.parse.unquote(match).decode('utf8'))
             except ValueError:
                 continue
             try:
@@ -49,7 +51,7 @@ for file in files:
                                 p[constraint] = (",".join(limit[constraint]))
                             except KeyError:
                                 p[constraint] = ""
-                    for key in p.keys():
+                    for key in list(p.keys()):
                         t[key] = p[key]
                     vals = [t[key] for key in ('ip', 'database',
                                                'words_collation', 'word',

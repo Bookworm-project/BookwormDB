@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from __future__ import print_function
-import ConfigParser
+import configparser
 import os
 import re
 import MySQLdb
@@ -33,7 +33,7 @@ def create(ask_about_defaults=True,database=None):
     Usually the user can just hit enter.
     """
 
-    systemConfigFile = ConfigParser.SafeConfigParser(allow_no_value=True)
+    systemConfigFile = configparser.SafeConfigParser(allow_no_value=True)
 
     # It checks each of these files for defaults in turn
 
@@ -41,7 +41,7 @@ def create(ask_about_defaults=True,database=None):
     for location in possible_bookworm_locations:
         try:
             systemConfigFile.read([location])
-        except ConfigParser.MissingSectionHeaderError:
+        except configparser.MissingSectionHeaderError:
             logging.debug("skipping {} because it has no sections".format(location))
     defaults = dict()
     # The default bookwormname is just the current location
@@ -58,19 +58,19 @@ def create(ask_about_defaults=True,database=None):
         try:
             print(systemConfigFile.get("client",field))
             defaults[field] = systemConfigFile.get("client",field)
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             print(systemConfigFile.get("mysql",field))
             defaults[field] = systemConfigFile.get("mysql",field)
 
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
 
     for section in ["client"]:
         config.add_section(section)
 
     if ask_about_defaults:
-        database = raw_input("What is the name of the bookworm [" + defaults['database'] + "]: ")
-        password = raw_input("What is the *client* password for MySQL [" + defaults["password"] + "]: ")
-        user = raw_input("What is the *client* username for MySQL [" + defaults["user"] + "]: ")
+        database = input("What is the name of the bookworm [" + defaults['database'] + "]: ")
+        password = input("What is the *client* password for MySQL [" + defaults["password"] + "]: ")
+        user = input("What is the *client* username for MySQL [" + defaults["user"] + "]: ")
     else:
         (database,password,user) = ("","","")
          
@@ -92,7 +92,7 @@ def create(ask_about_defaults=True,database=None):
 
 
 
-class Configfile:
+class Configfile(object):
     
     def __init__(self,usertype,possible_locations=None,default=None,ask_about_defaults=True):
         """
@@ -114,7 +114,7 @@ class Configfile:
         
         self.location = None
         
-        self.config = ConfigParser.ConfigParser(allow_no_value=True)
+        self.config = configparser.ConfigParser(allow_no_value=True)
         
         for string in possible_locations:
             if os.path.exists(string):
@@ -159,7 +159,7 @@ class Configfile:
         used_files = self.meta_locations_from_type()
         try:
             self.config.read(used_files)
-        except ConfigParser.MissingSectionHeaderError:
+        except configparser.MissingSectionHeaderError:
             """
             Some files throw this error if you have an empty
             my.cnf. This throws those out of the list, and tries again.
@@ -167,7 +167,7 @@ class Configfile:
             for file in used_files:
                 try:
                     self.config.read(file)
-                except ConfigParser.MissingSectionHeaderError:
+                except configparser.MissingSectionHeaderError:
                     used_files.remove(file)
             successes = self.config.read(used_files)
             
@@ -211,17 +211,17 @@ class Configfile:
             try:
                 db = MySQLdb.connect(user="root",passwd="",host="127.0.0.1")
             except MySQLdb.OperationalError as message:
-                user = raw_input("""Can't log in automatically as {}:
+                user = input("""Can't log in automatically as {}:
                 Please enter an *administrative* username for your mysql with
                 grant privileges: """.format(getpass.getuser()))
-                password = raw_input("Now enter the password for that user: ")
+                password = input("Now enter the password for that user: ")
                 db = MySQLdb.connect(user=user,passwd=password,host="127.0.0.1")
 
         cur = db.cursor()
         self.ensure_section("client")
         try:
             user = self.config.get("client","user")
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             if self.usertype == "root":
                 user = "root"
                 self.config.set("client","user","root")
@@ -232,7 +232,7 @@ class Configfile:
                 }
                 default_user = defaults[self.usertype]
                 if self.ask_about_defaults:
-                    user = raw_input("\nNo username found for the user in the %s role. Please enter the name for the %s user, or hit enter to use '%s': """ % (self.usertype,self.usertype,default_user))
+                    user = input("\nNo username found for the user in the %s role. Please enter the name for the %s user, or hit enter to use '%s': """ % (self.usertype,self.usertype,default_user))
                     if user=="":
                         user = default_user
                     self.config.set("client","user",user)
@@ -249,11 +249,11 @@ class Configfile:
             new_password = 0
 
             while not confirmation == new_password:
-                new_password = raw_input("Please enter a new password for user " + user + ", or hit enter to keep the current password: ")
+                new_password = input("Please enter a new password for user " + user + ", or hit enter to keep the current password: ")
                 if new_password=="":
                     new_password=self.config.get("client","password")
                     break
-                confirmation = raw_input("Please re-enter the new password for " + user + ": ")
+                confirmation = input("Please re-enter the new password for " + user + ": ")
         else:
             # when forcing, generate a random password using uuid.
             new_password = uuid.uuid1().hex
@@ -280,12 +280,12 @@ class Configfile:
         
         mysqldoptions = {"max_allowed_packet":"512M","sort_buffer_size":"8M","read_buffer_size":"4M","read_rnd_buffer_size":"8M","bulk_insert_buffer_size":"512M","myisam_sort_buffer_size":"512M","myisam_max_sort_file_size":"2500G","key_buffer_size":"2500M","query_cache_size":"32M","tmp_table_size":"1024M","max_heap_table_size":"2048M","character_set_server":"utf8","query_cache_type":"1","query_cache_limit":"2M"}
 
-        for option in mysqldoptions.keys():
+        for option in list(mysqldoptions.keys()):
             if not self.config.has_option("mysqld",option):
                 self.config.set("mysqld",option,mysqldoptions[option])
             else:
                 if mysqldoptions[option] != self.config.get("mysqld",option):
-                    choice = raw_input("Do you want to change the value for " + option + " from " + self.config.get("mysqld",option) + " to the bookworm-recommended " + mysqldoptions[option] + "? (y/N): ")
+                    choice = input("Do you want to change the value for " + option + " from " + self.config.get("mysqld",option) + " to the bookworm-recommended " + mysqldoptions[option] + "? (y/N): ")
                     if choice=="y":
                         self.config.set("mysqld",option,mysqldoptions[option])
                                        
@@ -344,7 +344,7 @@ def update_settings_for(name,force=False):
         if not force and False:
             # I can't see any reason to keep this code:
             # Let's wait to delete it, though.
-            default_cnf_file_location = raw_input("Please enter the full path \
+            default_cnf_file_location = input("Please enter the full path \
             (no tildes) for the home directory of the user who will be \
             the administrator.\
             For example, if your username is 'mrubio',\

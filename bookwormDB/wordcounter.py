@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from __future__ import absolute_import
+from __future__ import division
 from .tokenizer import *
 import sys
 import subprocess
@@ -25,7 +26,7 @@ def write_word_ids_from_feature_counts(featurefile, sep=None):
             wordcounts[word] += count
         except KeyError:
             wordcounts[word] = count
-    tuples = [(v,k) for k,v in wordcounts.iteritems()]
+    tuples = [(v,k) for k,v in wordcounts.items()]
     tuples.sort()
     tuples.reverse()
     wordid = 0
@@ -40,7 +41,7 @@ def exportToDisk(wordcounts,diskFile,keepThreshold=5):
     this lets us keep the most common words continually in memory, and only write out (say) 'the' once, at the end.
     """
     commonwords = dict()
-    for key in wordcounts.iterkeys():
+    for key in wordcounts.keys():
         if wordcounts[key] < keepThreshold:
             key = key
             output = key + " " + str(wordcounts[key]) + "\n"
@@ -75,7 +76,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
             n+=1
             if n % 100000000==0:
                 elapsed = timeit.default_timer() - start_time
-                logging.info(str(float(len(wordcounts))/1000000) + " million distinct entries at " + str(float(n)/1000000000) + " billion words---" + str(elapsed) + " seconds since last print")
+                logging.info("{} million distinct entries at {} billino words".format(len(wordcounts)/1e06, n/1e09))
                 start_time = timeit.default_timer()
             item = item.rstrip("\n")
             try: 
@@ -84,9 +85,7 @@ def WordsTableCreate(maxDictionaryLength=1000000, maxMemoryStorage=20000000):
                 wordcounts[item] = 1
 
             while len(wordcounts) > maxMemoryStorage:
-                logging.info("exporting to disk at " + str(float(len(wordcounts))/1000000) + " million words")
                 wordcounts = exportToDisk(wordcounts,diskFile=database,keepThreshold=keepThreshold)
-                logging.info("after export, it's " + str(float(len(wordcounts))/1000000) + " million words")
                 if len(wordcounts) > .8*float(maxMemoryStorage):
                     #If that's not enough to get down to a small dictionary,
                     #try again with a new higher limit.

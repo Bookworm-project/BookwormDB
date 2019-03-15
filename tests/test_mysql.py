@@ -1,3 +1,4 @@
+from builtins import hex
 import unittest
 import bookwormDB
 import bookwormDB.configuration

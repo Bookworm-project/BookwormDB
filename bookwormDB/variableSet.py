@@ -9,15 +9,12 @@ from MySQLdb import escape_string
 import logging
 import subprocess
 
-
-def to_unicode(obj, encoding='utf-8'):
-    if isinstance(obj, basestring):
-        if not isinstance(obj, unicode):
-            obj = unicode(obj, encoding)
+def to_unicode(obj):
+    if isinstance(obj, bytes):
+        obj = str(obj)
     if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, decimal.Decimal):
-        obj = unicode(str(obj), encoding)
+        obj = str(obj)
     return obj
-
 
 def splitMySQLcode(string):
     """
@@ -87,7 +84,7 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
     """
     description = {"field":metadataname,"datatype":"categorical","type":"character","unique":True}
 
-    example = dictionary.keys()[0]
+    example = list(dictionary.keys())[0]
 
     if type(example) == int:
         description["type"] = "integer"
@@ -102,7 +99,7 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
         description["datatype"] = "time"
 
     values = [dictionary[key] for key in dictionary]
-    averageNumberOfEntries = sum(values) / len(values)
+    averageNumberOfEntries = sum(values)/ len(values)
 
     if averageNumberOfEntries > 2:
         description["datatype"] = "categorical"
@@ -110,7 +107,7 @@ def guessBasedOnNameAndContents(metadataname,dictionary):
     return description
 
 
-class dataField:
+class dataField(object):
     """
     This define a class that supports a data field from a json definition.
     We'll use this to spit out appropriate sql code and JSON where needed.
@@ -129,7 +126,7 @@ class dataField:
         self.anchorType = anchorType
         self.anchor = anchor
 
-        for key in definition.iterkeys():
+        for key in definition.keys():
             vars(self)[key] = definition[key]
         self.dbToPutIn = dbToPutIn
 
@@ -453,8 +450,9 @@ class dataField:
                 WHERE dbname='%s'""" % self.fastAnchor).fetchall()[0][0]
             except:
                 parentTab="fastcat"
-            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' % (self.field + "heap"))     
-            self.dbToPutIn.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"heap",parentTab,escape_string(code)))
+            self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' % (self.field + "heap"))
+            q = "INSERT INTO masterTableTable VALUES (%s,%s,%s)"
+            self.dbToPutIn.query(q, (self.field + "heap", parentTab, code))
         if self.datatype=="categorical":
             #Variable Info
             
@@ -463,20 +461,32 @@ class dataField:
             INSERT IGNORE INTO masterVariableTable
                     (dbname,     name,      type,       tablename,
                       anchor,      alias,     status,description)
-           VALUES
+            VALUES
                     ('%(field)s__id','%(field)s','lookup','%(fasttab)s',
                     '%(anchor)s','%(alias)s','hidden','') """ % self.__dict__
             self.dbToPutIn.query(code)
             #Separate Table Info
             code = self.fastLookupTableIfNecessary()
             self.dbToPutIn.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %(self.field + "Lookup"))
-            self.dbToPutIn.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.field+"Lookup",self.fasttab,escape_string(code)))
+
+#            code = escape_string(code)
+#            if isinstance(code, bytes):
+#                    code = str(code, 'utf-8')
+#            if (code.startswith(b'b')):
+#                print("\n\n")
+#                print(code)
+
+#            self.dbToPutIn.query(q)
+
+            q = "INSERT INTO masterTableTable VALUES (%s, %s, %s)"
+            
+            self.dbToPutIn.query(q, (self.field+"Lookup", self.fasttab, code))
+            
 
 # Ugh! This could probably be solved just by putting a lot of backticks in the code!
-
 mySQLreservedWords = set(["ACCESSIBLE", "ADD", "ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE", "BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL", "CASCADE", "CASE", "CHANGE", "CHAR", "CHARACTER", "CHECK", "COLLATE", "COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE", "CONVERT", "CREATE", "CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER", "CURSOR", "DATABASE", "DATABASES", "DAY_HOUR", "DAY_MICROSECOND", "DAY_MINUTE", "DAY_SECOND", "DEC", "DECIMAL", "DECLARE", "DEFAULT", "DELAYED", "DELETE", "DESC", "DESCRIBE", "DETERMINISTIC", "DISTINCT", "DISTINCTROW", "DIV", "DOUBLE", "DROP", "DUAL", "EACH", "ELSE", "ELSEIF", "ENCLOSED", "ESCAPED", "EXISTS", "EXIT", "EXPLAIN", "FALSE", "FETCH", "FLOAT", "FLOAT4", "FLOAT8", "FOR", "FORCE", "FOREIGN", "FROM", "FULLTEXT", "GENERAL", "GRANT", "GROUP", "HAVING", "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_MINUTE", "HOUR_SECOND", "IF", "IGNORE", "IGNORE_SERVER_IDS", "IN", "INDEX", "INFILE", "INNER", "INOUT", "INSENSITIVE", "INSERT", "INT", "INT1", "INT2", "INT3", "INT4", "INT8", "INTEGER", "INTERVAL", "INTO", "IS", "ITERATE", "JOIN", "KEY", "KEYS", "KILL", "LEADING", "LEAVE", "LEFT", "LIKE", "LIMIT", "LINEAR", "LINES", "LOAD", "LOCALTIME", "LOCALTIMESTAMP", "LOCK", "LONG", "LONGBLOB", "LONGTEXT", "LOOP", "LOW_PRIORITY", "MASTER_HEARTBEAT_PERIOD[c]", "MASTER_SSL_VERIFY_SERVER_CERT", "MATCH", "MAXVALUE", "MEDIUMBLOB", "MEDIUMINT", "MEDIUMTEXT", "MIDDLEINT", "MINUTE_MICROSECOND", "MINUTE_SECOND", "MOD", "MODIFIES", "NATURAL", "NOT", "NO_WRITE_TO_BINLOG", "NULL", "NUMERIC", "ON", "OPTIMIZE", "OPTION", "OPTIONALLY", "OR", "ORDER", "OUT", "OUTER", "OUTFILE", "PRECISION", "PRIMARY", "PROCEDURE", "PURGE", "RANGE", "READ", "READS", "READ_WRITE", "REAL", "REFERENCES", "REGEXP", "RELEASE", "RENAME", "REPEAT", "REPLACE", "REQUIRE", "RESIGNAL", "RESTRICT", "RETURN", "REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SCHEMAS", "SECOND_MICROSECOND", "SELECT", "SENSITIVE", "SEPARATOR", "SET", "SHOW", "SIGNAL", "SLOW[d]", "SMALLINT", "SPATIAL", "SPECIFIC", "SQL", "SQLEXCEPTION", "SQLSTATE", "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS", "SQL_SMALL_RESULT", "SSL", "STARTING", "STRAIGHT_JOIN", "TABLE", "TERMINATED", "THEN", "TINYBLOB", "TINYINT", "TINYTEXT", "TO", "TRAILING", "TRIGGER", "TRUE", "UNDO", "UNION", "UNIQUE", "UNLOCK", "UNSIGNED", "UPDATE", "USAGE", "USE", "USING", "UTC_DATE", "UTC_TIME", "UTC_TIMESTAMP", "VALUES", "VARBINARY", "VARCHAR", "VARCHARACTER", "VARYING", "WHEN", "WHERE", "WHILE", "WITH", "WRITE", "XOR", "YEAR_MONTH", "ZEROFILL"])
             
-class variableSet:
+class variableSet(object):
     def __init__(self,
                 originFile=".bookworm/metadata/jsoncatalog_derived.txt",
                 anchorField="bookid",
@@ -494,7 +504,6 @@ class variableSet:
             logging.warning("""No field_descriptions file specified, so guessing based on variable names.
             Unintended consequences are possible""")
             self.jsonDefinition=self.guessAtFieldDescriptions()
-            jsonDefinition=self.jsonDefinition
         else:
             self.jsonDefinition = json.loads(open(jsonDefinition,"r").read())
 
@@ -561,15 +570,19 @@ class variableSet:
                             allMyKeys[key][value] = 1
             if i > stopAfter:
                 break
+
         myOutput = []
 
         for metadata in allMyKeys:
+            
             bestGuess = guessBasedOnNameAndContents(metadata,allMyKeys[metadata])
             if unique==False:
                 bestGuess['unique'] = False
+            
             myOutput.append(bestGuess)
 
         myOutput = [output for output in myOutput if output["field"] != "filename"]
+
         return myOutput
 
     def uniques(self,type="base"):
@@ -713,13 +726,16 @@ class variableSet:
                         myfield = ''
                     mainfields.append(to_unicode(myfield))
             catalogtext = '%s\n' % '\t'.join(mainfields)
-            catalog.write(catalogtext.encode('utf-8'))
-
+            try:
+                catalog.write(catalogtext.encode('utf-8'))
+            except TypeError:
+                catalog.write(catalogtext)
+                
             for variable in [variable for variable in variables if not variable.unique]:
                 # Each of these has a different file it must write to...
                 outfile = variable.output
                 lines = entry.get(variable.field, [])
-                if isinstance(lines,(basestring,int)):
+                if isinstance(lines, (str, bytes, int)):
                     """
                     Allow a single element to be represented as a string
                     """
@@ -869,7 +885,7 @@ class variableSet:
                     logging.error("Unable to find a table to join the anchor (%s) against" % self.fastAnchor)
                     raise
             self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.fastName)
-            self.db.query("INSERT INTO masterTableTable VALUES ('%s','%s','%s')" % (self.fastName,parentTab,escape_string(fileCommand)))
+            self.db.query("INSERT INTO masterTableTable VALUES (%s, %s, %s)", (self.fastName,parentTab,escape_string(fileCommand)))
     
     def createNwordsFile(self):
         """

@@ -12,7 +12,7 @@ def figure_out_cgi_directory():
 
 setup(name='bookwormDB',
       packages=["bookwormDB"],
-      version='0.4.1',
+      version='0.5',
       entry_points={
             'console_scripts': [
                 'bookworm = bookwormDB.manager:run_arguments'
@@ -37,8 +37,8 @@ setup(name='bookwormDB',
         "Operating System :: Unix",
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         "Topic :: Sociology :: History",
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"

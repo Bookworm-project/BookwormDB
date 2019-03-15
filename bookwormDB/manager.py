@@ -34,7 +34,7 @@ class BookwormManager(object):
     
     def __init__(self,cnf_file=None,database=None,user=None,password=None):
         # This will likely be changed if it isn't None.
-        import ConfigParser
+        import configparser
 
         self.basedir = None
         for i in range(10):
@@ -49,7 +49,7 @@ class BookwormManager(object):
         if cnf_file is None:
             cnf_file=self.basedir + "/bookworm.cnf"
             
-        config = ConfigParser.ConfigParser(allow_no_value=True)
+        config = configparser.ConfigParser(allow_no_value=True)
         config.read([cnf_file])
         if config.has_section("client"):
             """
@@ -178,8 +178,8 @@ class BookwormManager(object):
         
     def serve(self,args):
 
-        import CGIHTTPServer
-        from BaseHTTPServer import HTTPServer
+        import http.server
+        from http.server import HTTPServer
         import shutil
 
         base_dir = args.dir
@@ -204,7 +204,7 @@ class BookwormManager(object):
         # Actually serve it.
         PORT = args.port
 
-        httpd = HTTPServer(("", PORT), CGIHTTPServer.CGIHTTPRequestHandler)
+        httpd = HTTPServer(("", PORT), http.server.CGIHTTPRequestHandler)
 
         print("\n\n" + "****"*20)
         print("A local bookworm server is now running")
@@ -296,6 +296,7 @@ class BookwormManager(object):
         parse_initial_catalog()
 
     def guessAtFieldDescriptions(self, **kwargs):
+        
         """
         Use a number of rules of thumb to automatically generate a field_descriptions.json file.
         This may bin some categories incorrectly (depending on names, for example it may treat dates
@@ -304,8 +305,8 @@ class BookwormManager(object):
         
         import bookwormDB.CreateDatabase
         import json
-        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,variableFile=None)
-        Bookworm.setVariables("jsoncatalog.txt",jsonDefinition=None)
+        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname, variableFile=None)
+        Bookworm.setVariables("jsoncatalog.txt", jsonDefinition=None)
         import os
         if not os.path.exists("field_descriptions.json"):
             output = open("field_descriptions.json","w")
@@ -346,8 +347,10 @@ class BookwormManager(object):
         Bookworm.variableSet.loadMetadata()
 
         logging.debug("creating metadata variable tables")
+        
         # This creates a table in the database that makes the results of
         # field_descriptions accessible through the API, and updates the
+        
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
 
@@ -374,9 +377,11 @@ class BookwormManager(object):
             # TSV is just converted into JSON in a file at tmp.txt, and slurped in that way.
             if args.key is None:
                 args.key = open(args.file).readline().split("\t")[0]
-            bookwormDB.convertTSVtoJSONarray.convertToJSON(args.file)
-            args.file="tmp.txt"
-        bookworm.importNewFile(args.file,
+            f = "tmp.txt"
+            bookwormDB.convertTSVtoJSONarray.convertToJSON(args.file, f)
+            args.file = f
+            
+        bookworm.importNewFile(args.file, 
                                anchorField=args.key,
                                jsonDefinition=args.field_descriptions)
 
@@ -436,8 +441,9 @@ class Extension(object):
             Popen(["git","pull"],cwd=self.dir)
  
     def make(self):
+        logging.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         logging.debug("Running make in " + self.dir)
-        Popen(["make"],cwd=self.dir)
+        Popen(["make"], cwd=self.dir)
  
 # Initiate MySQL connection.
 

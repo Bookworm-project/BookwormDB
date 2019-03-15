@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 
-from __future__ import print_function
-from __future__ import absolute_import
+
+from .variableSet import to_unicode
 import json
 import re
 import copy
@@ -82,8 +82,8 @@ def all_keys(input):
     """
     values = []
     if isinstance(input, dict):
-        values = input.keys()
-        for key in input.keys():
+        values = list(input.keys())
+        for key in list(input.keys()):
             values = values + all_keys(input[key])
     if isinstance(input, list):
         for value in input:
@@ -102,11 +102,11 @@ def all_keys(input):
 # Most functions describe a subquery that might be combined into one big query
 # in various ways.
 
-class userquery:
+class userquery(object):
     """
     The base class for a bookworm search.
     """
-    def __init__(self, outside_dictionary = {"counttype":["Percentage_of_Books"], "search_limits":{"word":["polka dot"], "LCSH":["Fiction"]}}, db=None, databaseScheme=None):
+    def __init__(self, outside_dictionary = {}, db=None, databaseScheme=None):
         # Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         fail_if_nonword_characters_in_columns(outside_dictionary)
         try:
@@ -234,7 +234,7 @@ class userquery:
 
         self.counttype = outside_dictionary.setdefault('counttype', ["WordCount"])
 
-        if isinstance(self.counttype, basestring):
+        if isinstance(self.counttype, (str, bytes)):
             self.counttype = [self.counttype]
 
         # index is deprecated, but the old version uses it.
@@ -257,15 +257,15 @@ class userquery:
         deprecated--tagged for deletion.
         """
         self.compare_dictionary = copy.deepcopy(self.outside_dictionary)
-        if 'compare_limits' in self.outside_dictionary.keys():
+        if 'compare_limits' in list(self.outside_dictionary.keys()):
             self.compare_dictionary['search_limits'] = self.outside_dictionary['compare_limits']
             del self.outside_dictionary['compare_limits']
-        elif sum([bool(re.search(r'\*', string)) for string in self.outside_dictionary['search_limits'].keys()]) > 0:
+        elif sum([bool(re.search(r'\*', string)) for string in list(self.outside_dictionary['search_limits'].keys())]) > 0:
             # If any keys have stars at the end, drop them from the compare set
             # This is often a _very_ helpful definition for succinct comparison queries of many types.
             # The cost is that an asterisk doesn't allow you
 
-            for key in self.outside_dictionary['search_limits'].keys():
+            for key in list(self.outside_dictionary['search_limits'].keys()):
                 if re.search(r'\*', key):
                     # rename the main one to not have a star
                     self.outside_dictionary['search_limits'][re.sub(r'\*', '', key)] = self.outside_dictionary['search_limits'][key]
@@ -274,7 +274,7 @@ class userquery:
                     del self.compare_dictionary['search_limits'][key]
         else: # if nothing specified, we compare the word to the corpus.
             deleted = False
-            for key in self.outside_dictionary['search_limits'].keys():
+            for key in list(self.outside_dictionary['search_limits'].keys()):
                 if re.search('words?\d', key) or re.search('gram$', key) or re.match(r'word', key):
                     del self.compare_dictionary['search_limits'][key]
                     deleted = True
@@ -282,7 +282,7 @@ class userquery:
                 # If there are no words keys, just delete the first key of any type.
                 # Sort order can't be assumed, but this is a useful failure mechanism of last resort. Maybe.
                 try:
-                    del self.compare_dictionary['search_limits'][self.outside_dictionary['search_limits'].keys()[0]]
+                    del self.compare_dictionary['search_limits'][list(self.outside_dictionary['search_limits'].keys())[0]]
                 except:
                     pass
         """
@@ -298,7 +298,7 @@ class userquery:
         # These are locally useful, and depend on the search limits put in.
         self.limits = self.search_limits
         # Treat empty constraints as nothing at all, not as full restrictions.
-        for key in self.limits.keys():
+        for key in list(self.limits.keys()):
             if self.limits[key] == []:
                 del self.limits[key]
         self.set_operations()
@@ -346,11 +346,11 @@ class userquery:
         cols = []
         def pull_keys(entry):
             val = []
-            if isinstance(entry,list) and not isinstance(entry,basestring):
+            if isinstance(entry,list) and not isinstance(entry,(str, bytes)):
                 for element in entry:
                     val += pull_keys(element)
             elif isinstance(entry,dict):
-                for k,v in entry.iteritems():
+                for k,v in entry.items():
                     if k[0] != "$":
                         val.append(k)
                     else:
@@ -403,7 +403,9 @@ class userquery:
         self.relevantTables = [self.fallback_table(t) for t in self.relevantTables]
 
         self.catalog = self.fallback_table("fastcat")
-        
+        if self.catalog == "fastcat_":
+            self.prefs['fastcat'] = "fastcat_"
+            
         for table in self.relevantTables:
             if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams" and table != "fastcat_" and table != "wordsheap_":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
@@ -442,16 +444,16 @@ class userquery:
     def make_catwhere(self):
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
-        for key in self.limits.keys():
+        for key in list(self.limits.keys()):
             # !!Warning--none of these phrases can be used in a bookworm as a custom table names.
             
             if key not in ('word', 'word1', 'word2', 'hasword') and not re.search("words\d", key):
                 catlimits[key] = self.limits[key]
-        if len(catlimits.keys()) > 0:
+        if len(list(catlimits.keys())) > 0:
             self.catwhere = where_from_hash(catlimits)
         else:
             self.catwhere = "TRUE"
-        if 'hasword' in self.limits.keys():
+        if 'hasword' in list(self.limits.keys()):
             """
             Because derived tables don't carry indexes, we're just making the new tables
             with indexes on the fly to be stored in a temporary database, "bookworm_scratch"
@@ -474,7 +476,7 @@ class userquery:
             # filtering by the limits as well.
             # It's not obvious to me which will be faster.
             mydict['search_limits'] = copy.deepcopy(self.limits)
-            if isinstance(mydict['search_limits']['hasword'], basestring):
+            if isinstance(mydict['search_limits']['hasword'], (str, bytes)):
                 # Make sure it's an array
                 mydict['search_limits']['hasword'] = [mydict['search_limits']['hasword']]
             """
@@ -521,11 +523,11 @@ class userquery:
         """
 
         for gramterm in ['unigram', 'bigram']:
-            if gramterm in self.limits.keys() and "word" not in self.limits.keys():
+            if gramterm in list(self.limits.keys()) and "word" not in list(self.limits.keys()):
                 self.limits['word'] = self.limits[gramterm]
                 del self.limits[gramterm]
 
-        if 'word' in self.limits.keys():
+        if 'word' in list(self.limits.keys()):
             """
             This doesn't currently allow mixing of one and two word searches together in a logical way.
             It might be possible to just join on both the tables in MySQL--I'm not completely sure what would happen.
@@ -558,7 +560,7 @@ class userquery:
                     self.max_word_length = max(self.max_word_length, n)
 
                 # Strings have already been escaped, so don't need to be escaped again.
-                if len(locallimits.keys()) > 0:
+                if len(list(locallimits.keys())) > 0:
                     limits.append(where_from_hash(locallimits, comp = " = ", escapeStrings=False))
                 # XXX for backward compatability
                 self.words_searched = phrase
@@ -571,7 +573,7 @@ class userquery:
 
         wordlimits = dict()
 
-        limitlist = copy.deepcopy(self.limits.keys())
+        limitlist = copy.deepcopy(list(self.limits.keys()))
 
         for key in limitlist:
             if re.search("words\d", key):
@@ -579,7 +581,7 @@ class userquery:
                 self.max_word_length = max(self.max_word_length, 2)
                 del self.limits[key]
 
-        if len(wordlimits.keys()) > 0:
+        if len(list(wordlimits.keys())) > 0:
             self.wordswhere = where_from_hash(wordlimits)
 
         return self.wordswhere
@@ -600,7 +602,7 @@ class userquery:
             err = dict(code=400, message="Phrase is longer than what Bookworm supports")
             raise BookwormException(err)
 
-        needsTopics = bool(re.search("topic", self.selections)) or ("topic" in self.limits.keys())
+        needsTopics = bool(re.search("topic", self.selections)) or ("topic" in list(self.limits.keys()))
 
         if needsBigrams:
 
@@ -635,7 +637,7 @@ class userquery:
                 NATURAL JOIN
                  master_bookcounts as main
             '''
-            # ON (''' + self.prefs['fastcat'] + '''.bookid=main.bookid)'''
+
             self.wordstables = """
               JOIN ( %(wordsheap)s as words1)  ON (main.wordid = words1.wordid)
              """ % self.__dict__
@@ -680,7 +682,7 @@ class userquery:
 
         backCompatability = {"Occurrences_per_Million_Words":"WordsPerMillion", "Raw_Counts":"WordCount", "Percentage_of_Books":"TextPercent", "Number_of_Books":"TextCount"}
 
-        for oldKey in backCompatability.keys():
+        for oldKey in list(backCompatability.keys()):
             self.counttype = [re.sub(oldKey, backCompatability[oldKey], entry) for entry in self.counttype]
 
         self.bookoperation = {}
@@ -708,7 +710,7 @@ class userquery:
         self.bookoperation['TotalTexts'] = self.bookoperation['TextCount']
         self.bookoperation['SumTexts'] = self.bookoperation['TextCount']
 
-        for stattype in self.bookoperation.keys():
+        for stattype in list(self.bookoperation.keys()):
             if re.search("Word", stattype):
                 self.catoperation[stattype] = "sum(nwords) as WordCount"
             if re.search("Text", stattype):
@@ -919,9 +921,10 @@ class userquery:
             words = self.outside_dictionary['search_limits']['word']
             # Break bigrams into single words.
             words = ' '.join(words).split(' ')
-            self.cursor.execute("""SELECT word FROM {} WHERE """.format(self.wordsheap) + where_from_hash({self.word_field:words}))
-            self.actualWords =[item[0] for item in self.cursor.fetchall()]
+            self.cursor.execute("SELECT word FROM {} WHERE {}".format(self.wordsheap, where_from_hash({self.word_field:words})))
+            self.actualWords = [item[0] for item in self.cursor.fetchall()]
         else:
+            raise TypeError("Suspiciously low word count")
             self.actualWords = ["tasty", "mistake", "happened", "here"]
 
     def custom_SearchString_additions(self, returnarray):
@@ -1028,7 +1031,7 @@ class derived_table(object):
         self.db.db.commit()
 
 
-class databaseSchema:
+class databaseSchema(object):
     """
     This class stores information about the database setup that is used to optimize query creation query
     and so that queries know what tables to include.
@@ -1119,19 +1122,6 @@ class databaseSchema:
         self.anchorFields['bookid'] = 'fastcat'
         self.anchorFields['wordid'] = 'wordid'
         self.tableToLookIn['wordid'] = 'wordsheap'
-    #############
-    # ##GENERAL#### #These are general purpose functional types of things not implemented in the class.
-    #############
-
-def to_unicode(obj, encoding='utf-8'):
-    if isinstance(obj, basestring):
-        if not isinstance(obj, unicode):
-            obj = unicode(obj, encoding)
-    elif isinstance(obj, int):
-        obj=unicode(str(obj), encoding)
-    else:
-        obj = unicode(str(obj), encoding)
-    return obj
 
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
     whereterm = []
@@ -1139,9 +1129,9 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
     # For more complicated bits, it gets all recursive until the bits are all in terms of list.
     if joiner is None:
         joiner = " AND "
-    for key in myhash.keys():
+    for key in list(myhash.keys()):
         values = myhash[key]
-        if isinstance(values, basestring) or isinstance(values, int) or isinstance(values, float):
+        if isinstance(values, (str, bytes)) or isinstance(values, int) or isinstance(values, float):
             # This is just human-being handling. You can pass a single value instead of a list if you like, and it will just convert it
             # to a list for you.
             values = [values]
@@ -1164,7 +1154,7 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
                           "$grep":" REGEXP ", "$gte":">=",
                           "$lte":"<=", "$eq":"="}
             
-            for operation in values.keys():
+            for operation in list(values.keys()):
                 if operation == "$ne":
                     # If you pass a lot of ne values, they must *all* be false.
                     subjoiner = " AND "
@@ -1185,22 +1175,22 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
             else:
                 # Note that about a third of the code is spent on escaping strings.
                 if escapeStrings:
-                    if isinstance(values[0], basestring):
+                    if isinstance(values[0], (str, bytes)):
                         quotesep = "'"
                     else:
                         quotesep = ""
 
                     def escape(value):
-                        return MySQLdb.escape_string(to_unicode(value))
+                        # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.                        
+                        return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
                 else:
-
                     def escape(value):
                         return to_unicode(value)
                     quotesep = ""
-                # Note the "OR" here. There's no way to pass in a query like "year=1876 AND year=1898" as currently set up.
-                # Obviously that's no great loss, but there might be something I'm missing that would be desire a similar format somehow.
-                # (In cases where the same book could have two different years associated with it)
-                whereterm.append(" (" + list_joiner.join([" (" + key+comp+quotesep+escape(value)+quotesep+") " for value in values])+ ") ")
+
+                joined = list_joiner.join([" ({}{}{}{}{}) ".format(key, comp, quotesep, escape(value), quotesep) for value in values])
+                whereterm.append(" ( {} ) ".format(joined))
+
     if len(whereterm) > 1:
         return "(" + joiner.join(whereterm) + ")"
     else:

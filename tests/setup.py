@@ -27,7 +27,7 @@ def setup_bookworm():
     db = bookwormDB.CreateDatabase.DB(dbname="mysql")
     
     try:
-        db.query("DROP DATABASE federalist_bookworm")
+        db.query("DROP DATABASE IF EXISTS federalist_bookworm")
     except MySQLdb.OperationalError as e:
         if e[0]==1008:
             pass
@@ -64,7 +64,7 @@ def setup_bookworm_unicode():
     
     db = bookwormDB.CreateDatabase.DB(dbname="mysql")
     try:
-        db.query("DROP DATABASE unicode_test_bookworm")
+        db.query("DROP DATABASE IF EXISTS unicode_test_bookworm")
     except MySQLdb.OperationalError as e:
         if e[0]==1008:
             pass

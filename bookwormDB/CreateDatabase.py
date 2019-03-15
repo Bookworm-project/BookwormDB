@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import
 import MySQLdb
 import re
 import json
@@ -11,7 +10,7 @@ from .variableSet import splitMySQLcode
 from bookwormDB.configuration import Configfile
 import logging
 import warnings
-import anydbm
+import dbm as anydbm
 
 if logging.getLogger().isEnabledFor(logging.DEBUG):
     # Catch MYSQL warnings as errors if logging is set to debug.
@@ -44,7 +43,7 @@ def text_id_dbm():
                 else:
                     raise
 
-class DB:
+class DB(object):
     def __init__(self,dbname=None):
         try:
             configuration = Configfile("local")
@@ -103,23 +102,23 @@ class DB:
         logging.debug("Connecting to %s" % self.dbname)
         cursor.execute("USE %s" % self.dbname)
 
-    def query(self, sql, silent=False, many_params=None):
+    def query(self, sql, params = None, many_params=None):
         """
-        Billy defined a separate query method here so that the common case of a connection being
-        timed out doesn't cause the whole shebang to fall apart: instead, it just reboots
+        If a connection times out, reboot
         the connection and starts up nicely again.
-
-        silent: whether to suppress errors. Useful when an "IF EXISTS" clause doesn't work. 
 
         many_params: If included, assume that executemany() is expected, with the sequence of parameter
                         provided.
         """
         logging.debug(" -- Preparing to execute SQL code -- " + sql)
+        logging.debug(" -- with params {}".format(params))        
+        
         try:
             cursor = self.conn.cursor()
             if many_params is not None:
                 cursor.executemany(sql, many_params)
             else:
+                
                 cursor.execute(sql)
         except:
             try:
@@ -128,14 +127,17 @@ class DB:
                 if many_params is not None:
                     cursor.executemany(sql, many_params)
                 else:
-                    cursor.execute(sql)
+                    if params is None:
+                        cursor.execute(sql)
+                    else:
+                        cursor.execute(sql, params)
             except:
-                if not silent:
-                    logging.error("Query failed: \n" + sql + "\n")
-                    raise
+                logging.error("Query failed: \n" + sql + "\n")
+                raise
+
         return cursor
 
-class BookwormSQLDatabase:
+class BookwormSQLDatabase(object):
 
     """
     This class gives interactions methods to a MySQL database storing Bookworm
@@ -197,7 +199,7 @@ class BookwormSQLDatabase:
 
         self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
     
-    def setVariables(self,originFile,anchorField="bookid",
+    def setVariables(self, originFile, anchorField="bookid",
                      jsonDefinition=".bookworm/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
@@ -233,11 +235,8 @@ class BookwormSQLDatabase:
         "Setting up permissions for web user..."
         db.query("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'localhost' IDENTIFIED BY '" + dbpassword + "'")
         db.query("FLUSH PRIVILEGES")
-        try:
-            #a field to store stuff we might need later.
-            db.query("CREATE TABLE IF NOT EXISTS bookworm_information (entry VARCHAR(255), PRIMARY KEY (entry), value VARCHAR(50000))")
-        except:
-            raise
+        #a field to store stuff we might need later.
+        db.query("CREATE TABLE IF NOT EXISTS bookworm_information (entry VARCHAR(255), PRIMARY KEY (entry), value VARCHAR(50000))")
 
     def load_word_list(self):
         db = self.db
@@ -420,10 +419,8 @@ class BookwormSQLDatabase:
         db.query("ALTER TABLE master_bigrams DISABLE KEYS")
         logging.info("loading data using LOAD DATA LOCAL INFILE")
         for filename in os.listdir(".bookworm/texts/encoded/bigrams"):
-            try:
-                db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bigrams CHARACTER SET utf8 (bookid,word1,word2,count);")
-            except:
-                raise
+            db.query("LOAD DATA LOCAL INFILE '.bookworm/texts/encoded/bigrams/"+filename+"' INTO TABLE master_bigrams CHARACTER SET utf8 (bookid,word1,word2,count);")
+
         logging.info("Creating bigram indexes")
         db.query("ALTER TABLE master_bigrams ENABLE KEYS")
 
@@ -482,7 +479,7 @@ class BookwormSQLDatabase:
             """
             tablename = row[0]
             try:
-                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename), silent = True)
+                cursor = self.db.query("SELECT count(*) FROM %s" %(tablename))
                 currentLength = cursor.fetchall()[0][0]
                 logging.debug("Current Length is %d" %currentLength)
             except:
@@ -598,7 +595,7 @@ class BookwormSQLDatabase:
                                          }
                                         ]
         except:
-            logging.warning("WARNING: Not enough info for a default search (like, no time variable maybe?)--likely to be some big problems with your bookworm.")
+            logging.warning("No default search created because of insufficient data.")
         output['ui_components'] = ui_components
         outfile = open('.bookworm/%s.json' % dbname, 'w')
         outfile.write(json.dumps(output))

@@ -126,7 +126,7 @@ class tokenBatches(object):
 
             counts = tokens.counts(level)
 
-            for wordset,count in counts.iteritems():
+            for wordset,count in counts.items():
                 skip = False
                 wordList = []
                 for word in wordset:
@@ -216,7 +216,7 @@ class tokenizer(object):
         copies of the text to itself.
         """
         self.tokenize()
-        return zip(*[self.tokens[i:] for i in range(n)])
+        return list(zip(*[self.tokens[i:] for i in range(n)]))
 
     def unigrams(self):
         return self.ngrams(1)

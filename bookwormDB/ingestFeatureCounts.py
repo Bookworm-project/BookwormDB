@@ -54,7 +54,7 @@ def writeWordIDs(featurefile, sep=None):
             wordcounts[word] += count
         except KeyError:
             wordcounts[word] = count
-    tuples = [(v,k) for k,v in wordcounts.iteritems()]
+    tuples = [(v,k) for k,v in wordcounts.items()]
     tuples.sort()
     tuples.reverse()
     wordid = 0

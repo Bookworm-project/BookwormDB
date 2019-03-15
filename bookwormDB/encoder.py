@@ -2,7 +2,7 @@
 from __future__ import absolute_import
 from .tokenizer import *
 import os
-import cPickle as pickle
+import pickle as pickle
 import sys
 import re
 

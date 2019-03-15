@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-from __future__ import absolute_import
 from pandas import merge
 from pandas import Series
 from pandas.io.sql import read_sql
@@ -35,7 +34,7 @@ def calculateAggregates(df, parameters):
     but there are a lot of cool things you can do with those:
     basic things like frequency, all the way up to TF-IDF.
     """
-    parameters = map(str,parameters)
+    parameters = list(map(str,parameters))
     parameters = set(parameters)
     
     if "WordCount" in parameters:
@@ -43,8 +42,8 @@ def calculateAggregates(df, parameters):
     if "TextCount" in parameters:
         df["TextCount"] = df["TextCount_x"]
     if "WordsPerMillion" in parameters:
-        df["WordsPerMillion"] = (df["WordCount_x"].multiply(1000000) /
-                                 df["WordCount_y"])        
+        df["WordsPerMillion"] = (df["WordCount_x"].multiply(1000000)/
+                                 df["WordCount_y"])
     if "TotalWords" in parameters:
         df["TotalWords"] = df["WordCount_y"]
     if "SumWords" in parameters:
@@ -55,7 +54,7 @@ def calculateAggregates(df, parameters):
     if "TextPercent" in parameters:
         df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
     if "TextRatio" in parameters:
-        df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]        
+        df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]       
     if "TotalTexts" in parameters:
         df["TotalTexts"] = df["TextCount_y"]
     if "SumTexts" in parameters:
@@ -69,9 +68,8 @@ def calculateAggregates(df, parameters):
 
     if "TFIDF" in parameters:
         from numpy import log as log
-        df.eval("TF = WordCount_x/WordCount_y")
-        df["TFIDF"] = ((df["WordCount_x"]/df["WordCount_y"]) *
-                       log(df["TextCount_y"]/df['TextCount_x']))
+        df["TF"] = df["WordCount_x"]/df["WordCount_y"]
+        df["TFIDF"] = df["TF"] * df["TextCount_y"]/df['TextCount_x']
 
     def DunningLog(df=df, a="WordCount_x", b="WordCount_y"):
         from numpy import log as log
@@ -208,7 +206,7 @@ class APIcall(object):
         compare_limits = deepcopy(search_limits)
 
         asterisked = False
-        for limit in search_limits.keys():
+        for limit in list(search_limits.keys()):
             if re.search(r'^\*', limit):
                 search_limits[limit.replace('*', '')] = search_limits[limit]
                 del search_limits[limit]
@@ -220,7 +218,7 @@ class APIcall(object):
 
         # Next, try deleting the word term.
 
-        for word_term in search_limits.keys():
+        for word_term in list(search_limits.keys()):
             if word_term in ['word', 'unigram', 'bigram']:
                 del compare_limits[word_term]
 
@@ -259,7 +257,7 @@ class APIcall(object):
         call2['search_limits'] = self.get_compare_limits()
 
         # Drop out asterisks for that syntactic sugar.
-        for limit in call1['search_limits'].keys():
+        for limit in list(call1['search_limits'].keys()):
             if re.search(r'^\*', limit):
                 call1['search_limits'][limit.replace('*', '')] = \
                         call1['search_limits'][limit]
@@ -374,7 +372,7 @@ class APIcall(object):
 
             elif method == "return_pickle" or method == "DataFrame":
                 frame = self.data()
-                from cPickle import dumps as pickleDumps
+                from pickle import dumps as pickleDumps
                 return pickleDumps(frame, protocol=-1)
 
         elif version == 2:

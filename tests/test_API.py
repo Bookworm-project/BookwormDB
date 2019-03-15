@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from builtins import range
+from builtins import object
 import unittest
 import bookwormDB
 import bookwormDB.CreateDatabase
@@ -176,24 +178,29 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         manager = BookwormManager(database="federalist_bookworm")
 
         # Create a phony derived field to test metadata supplementing
-        newMetadata = open("/tmp/test_bookworm_metadata.tsv","w")
-        newMetadata.write("paragraphNumber\toddness\n")
+
+        
         def even_even(number):
             if number % 2 == 0:
                 return "even"
             return "odd"
-                
-        for n in range(500):
-            newMetadata.write("%d\t%s\n" %(n,even_even(n)))
 
-        class Dummy:
+        tmp_file = "{}/test_bookworm_metadata.tsv".format(sys.path[0])
+        
+        with open(tmp_file,"w") as newMetadata:
+            newMetadata.write("paragraphNumber\toddness\n")                
+            for n in range(500):
+                newMetadata.write("%d\t%s\n" %(n,even_even(n)))
+                
+        class Dummy(object):
             """
             Just quickly create a namespace to stand in for the command-line args.
             """
             key = "paragraphNumber"
             format = "tsv"
-            file = "/tmp/test_bookworm_metadata.tsv"
-            field_descriptions = None # Test the guessing at field_descriptions while we're at it
+            file = tmp_file
+            # Test the guessing at field_descriptions while we're at it
+            field_descriptions = None
 
         import os
         manager.add_metadata(Dummy)

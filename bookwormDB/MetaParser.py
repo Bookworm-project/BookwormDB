@@ -1,9 +1,15 @@
+from __future__ import division
 from datetime import date
 import datetime
 import dateutil.parser
 import json
 import sys
 import logging
+
+def old_div(x, y):
+    # Yikes! But shouldn't matter.
+    # To clean up later.
+    return x/y
 
 fields_to_derive = []
 fields = []
@@ -146,7 +152,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     derive["aggregate"] == "year":
                                 dt = date(intent[0], intent[1], intent[2])
                                 k = "%s_week_year" % field["field"]
-                                line[k] = int(dt.timetuple().tm_yday/7)*7
+                                line[k] = int(old_div(dt.timetuple().tm_yday,7))*7
                             elif derive["resolution"] == 'hour' and \
                                     derive["aggregate"] == "day":
                                 k = "%s_hour_day" % field["field"]
@@ -173,7 +179,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 k = "%s_week" % field['field']
                                 dt = date(intent[0], intent[1], intent[2])
                                 inttime = DaysSinceZero(dt)
-                                time = int(inttime/7)*7
+                                time = int(old_div(inttime,7))*7
                                 #Not starting on Sunday or anything funky like that. Actually, I don't know what we're starting on. Adding an integer here would fix that.
                                 line[k] = time
                             elif derive['resolution'] == 'day':
