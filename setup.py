@@ -20,7 +20,7 @@ setup(
                 'bookworm = bookwormDB.manager:run_arguments'
             ],
       },
-      data_files = [(figure_out_cgi_directory(), ["bookwormDB/bin/dbbindings.py"])],
+#      data_files = [(figure_out_cgi_directory(), ["bookwormDB/bin/dbbindings.py"])],
       description="Create, deploy, and serve a Bookworm instance.",
       long_description = "\n".join(open("README.rst").readlines()),
       package_data={'bookwormDB':['etc/*','bin/*']},
