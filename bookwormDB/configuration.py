@@ -16,8 +16,10 @@ def create(ask_about_defaults=True,database=None):
     Through interactive prompts at the command line, builds up a file at
     bookworm.cnf that can be used to set preferences for the installation.
     """
- 
-    print("""Welcome to Bookworm.
+
+    if ask_about_defaults:
+        print("""
+    Welcome to Bookworm.
     ~~~~~~~~~~~~~~~~~~~~
     First off, let's build a configuration file. This will live
     at bookworm.cnf in the current directory: if you mistype anything,
@@ -27,6 +29,9 @@ def create(ask_about_defaults=True,database=None):
     enter to accept the default:
 
     """)
+    else:
+        logging.info("Auto-generating config file.")
+    
 
     """
     First, we go to great efforts to find some sensible defaults
@@ -72,7 +77,7 @@ def create(ask_about_defaults=True,database=None):
         password = input("What is the *client* password for MySQL [" + defaults["password"] + "]: ")
         user = input("What is the *client* username for MySQL [" + defaults["user"] + "]: ")
     else:
-        (database,password,user) = ("","","")
+        (database, password, user) = ("","","")
          
     if database=="":
         database = defaults['database']
@@ -321,18 +326,11 @@ def parse_args():
     parser.add_argument("users",nargs="+",choices=["admin","global","root"])
     return parser.parse_args()
 
-def make_bookworm_folder(loc = "/etc/bookworm"):
+def make_bookworm_folder(loc = os.path.expanddir(["~", ".bookworm"]):
     whoami = getpass.getuser()
-    
     if not os.path.exists(loc):
-        print("Creating config files in /etc/bookworm.")
-        print("This may require an admin password.")    
-        
-        try:
-            subprocess.check_call(["sudo","mkdir",loc])
-        except:
-            raise
-    subprocess.check_call(["sudo","chown","-R",whoami,loc])
+        print("Creating config files in {}".format(loc))
+        subprocess.check_call(["mkdir",loc])
         
 def update_settings_for(name,force=False):
     """
@@ -373,12 +371,9 @@ def update_settings_for(name,force=False):
 def reconfigure_passwords(names_to_parse,force=False):
     """
     Takes a list of roles to reset passwords for, and
-    then
-
-    force indicates that it will go ahead and reset the admin role
+    then force indicates that it will go ahead and reset the admin role
     while logged in as root, or other strange situations that arise
     that seem like a bad idea.
-
     """
     names_to_parse = set(names_to_parse)
     whoami = getpass.getuser()
@@ -387,17 +382,6 @@ def reconfigure_passwords(names_to_parse,force=False):
     # a subprocess as root for those that do.
     privileged_names = names_to_parse.intersection(['global','root'])
     unprivileged_names = names_to_parse.intersection(['admin'])
-
-    if len(privileged_names) > 0 and whoami != "root":
-        # Some of these can only be automatically upgraded as root, probably.
-        # We could try-catch this, I guess, but it's such a tiny set right now.
-        print("Using sudo to process password change(s) for " + " and ".join(list(privileged_names)) + ". The system may now request your root password.") 
-        if not force:
-            args = ["sudo","bookworm","config","mysql","--users"]
-        else:
-            args = ["sudo","bookworm","config","--force","mysql","--users"]
-        subprocess.call(args + list(privileged_names))
-        names_to_parse = unprivileged_names
-
+                         
     for name in names_to_parse:
         update_settings_for(name,force=force)
