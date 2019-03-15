@@ -8,9 +8,11 @@ def figure_out_cgi_directory():
     """
     for dir in ["/usr/lib/cgi-bin","/Library/WebServer/CGI-Executables/","/var/www/cgi-bin","/tmp","."]:
         if os.path.exists(dir):
-            return dir
-
-setup(name='bookwormDB',
+            if os.access(dir, os.R_OK):
+                return dir
+            
+setup(
+    name='bookwormDB',
       packages=["bookwormDB"],
       version='0.5',
       entry_points={
@@ -18,15 +20,14 @@ setup(name='bookwormDB',
                 'bookworm = bookwormDB.manager:run_arguments'
             ],
       },
-      data_files = [(figure_out_cgi_directory(),["bookwormDB/bin/dbbindings.py"])],
+      data_files = [(figure_out_cgi_directory(), ["bookwormDB/bin/dbbindings.py"])],
       description="Create, deploy, and serve a Bookworm instance.",
-      long_description = open("README.rst").readlines(),
+      long_description = "\n".join(open("README.rst").readlines()),
       package_data={'bookwormDB':['etc/*','bin/*']},
       url="http://github.com/Bookworm-Project",
       author="Benjamin Schmidt",
-      author_email="b.schmidt@neu.edu",
+      author_email="bmschmidt@gmail.com",
       license="MIT",
-      # Copy the cgi-executable to a cgi-dir.
       classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
@@ -43,5 +44,5 @@ setup(name='bookwormDB',
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"
         ],
-      install_requires= ["numpy","regex","nltk","numpy","pandas","mysql-python","python-dateutil","ujson"]
+      install_requires = ["numpy","regex","nltk","numpy","pandas","mysqlclient","python-dateutil","ujson"]
 )
