@@ -4,7 +4,7 @@ from __future__ import print_function
 import random
 import sys
 import os
-import anydbm
+from .sqliteKV import KV
 import time
 import logging
 
@@ -30,8 +30,8 @@ def wordRegex():
     global re
     if re is None:
         import regex as re
-    MasterExpression = ur"\w+"
-    possessive = MasterExpression + ur"'s"
+    MasterExpression = r"\w+"
+    possessive = MasterExpression + r"'s"
     numbers = r"(?:[\$])?\d+"
     decimals = numbers + r"\.\d+"
     abbreviation = r"(?:mr|ms|mrs|dr|prof|rev|rep|sen|st|sr|jr|ft|gen|adm|lt|col|etc)\."
@@ -48,12 +48,14 @@ def readDictionaryFile(prefix=""):
     look = dict()
     for line in open(prefix + ".bookworm/texts/wordlist/wordlist.txt"):
         line = line.rstrip("\n")
-        splat = line.split("\t")
-        look[splat[1]] = splat[0]
+        v, k, _ = line.split("\t")
+        look[k] = v
     return look
 
 def readIDfile(prefix=""):
-    return anydbm.open(prefix + ".bookworm/texts/textids.dbm")
+    if not os.path.exists(".bookworm/metadata/textids.sqlite"):
+        raise FileNotFoundError("No textids DB: run `bookworm build textids`")
+    return KV(prefix + ".bookworm/metadata/textids.sqlite")
 
 class tokenBatches(object):
     """
@@ -76,12 +78,19 @@ class tokenBatches(object):
         self.completedFile = open(".bookworm/texts/encoded/completed/" + self.id,"w")
         self.outputFiles = dict()
         for level in levels:
-            self.outputFiles[level] = open(".bookworm/texts/encoded/" + level + "/" + self.id + ".txt","w")
-
+            self.outputFiles[level] = open(".bookworm/texts/encoded/{}/{}.txt".format(level, self.id),"w")
+        self.attachDictionaryAndID()
+        
     def attachDictionaryAndID(self):
         self.dictionary = readDictionaryFile()
         self.IDfile = readIDfile()
 
+
+    def close(self):
+        self.completedFile.close()
+        for v in self.outputFiles.values():
+            v.close()
+        
     def encodeRow(self,
                   row,
                   source="raw_text", # Can also be "countfile", in which case each row is a tab separated list of [filename,ngram,count], where ngrams can contain spaces.
@@ -100,9 +109,9 @@ class tokenBatches(object):
             except IndexError:
                 logging.warn("\nFound no tab in the input for '" + filename + "'...skipping row\n")
             
-        if source=="countfile":
+        if source == "countfile":
             try:
-                (filename,token,count) = row.split("\t")
+                (filename, token, count) = row.split("\t")
             except:
                 logging.error("Can't find tab\n***************")
                 logging.error(row)
@@ -114,7 +123,7 @@ class tokenBatches(object):
         except KeyError:
             if source=="raw_text":
                 logging.warn("Warning: file " + filename + " not found in jsoncatalog.txt, not encoding")
-            elif source=="countfile":
+            elif source == "countfile":
                 # Silent error currently, so that we don't warn for each term
                 # of each missing file
                 pass
@@ -137,16 +146,10 @@ class tokenBatches(object):
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
                         """
-                        try:
-                            # This may not be the most efficient place to check this,
-                            # but `dict["gut"] is not the same as dict[u"gut"]
-                            # The try-catch block here accounts for that case.
-                            wordList.append(dictionary[word.encode("utf-8")])
-                        except KeyError:
-                            skip = True
+                        skip = True                        
                 if not skip:
                     wordids = "\t".join(wordList)
-                    output.append("\t".join([textid,wordids,str(count)]))
+                    output.append("{}\t{}\t{}".format(int(textid), wordids, count))
 
             try:
                 if len(output) > 0:
@@ -174,15 +177,9 @@ class tokenizer(object):
     
     """
     
-    def __init__(self,string,tokenization_regex=None):
+    def __init__(self, string, tokenization_regex=None):
         global haveWarnedUnicode
-        try:
-            self.string = string.decode("UTF-8")
-        except:
-            if not haveWarnedUnicode:
-                logging.warning("WARNING: some of your input files seem not to be valid unicode. Silently ignoring all non-unicode characters from now on in this thread.\n")
-                haveWarnedUnicode = True
-            self.string = string.decode("UTF-8","ignore")
+        self.string = string
         self.tokenization_regex = tokenization_regex
 
     def tokenize(self):
@@ -215,6 +212,7 @@ class tokenizer(object):
         All the ngrams in the text can be created as a tuple by zipping an arbitrary number of
         copies of the text to itself.
         """
+        
         self.tokenize()
         return list(zip(*[self.tokens[i:] for i in range(n)]))
 
@@ -275,33 +273,6 @@ def encode_text_stream():
             tokenBatch.encodeRow(line)
             
     #And printout again at the end
-
-def print_token_stream(input,regex=None,require_ids=True):
-    """
-    Reads text files as input; tokenizes and separates by spaces.
-    Can be naively parsed as space-delimited by the next tool in the chain.
-
-    require_ids indicates whether the input is in standard bookworm format
-    (one document per line, beginning with an id followed by a tab)
-    or not.
-    """
-    if regex is not None:
-        # There should be something here to change the tokenizer options.
-        pass
-    for row in input:
-        if require_ids:
-            parts = row.split("\t",1)
-            try:
-                tokens = tokenizer(parts[1])
-            except IndexError:
-                logging.warning("Found no tab in the input for row starting with\n" +
-                                row[:50] + "\n...skipping row")
-                continue
-        else:
-            tokens = tokenizer(row)
-        out = u" ".join(tokens.tokenize())
-        print(out.encode("utf-8"))
-    
 
 def encodePreTokenizedStream(infile,levels=["unigrams"]):
     """

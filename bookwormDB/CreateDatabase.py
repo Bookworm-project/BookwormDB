@@ -10,38 +10,18 @@ from .variableSet import splitMySQLcode
 from bookwormDB.configuration import Configfile
 import logging
 import warnings
-import dbm as anydbm
+from .sqliteKV import KV
 
-if logging.getLogger().isEnabledFor(logging.DEBUG):
+#if logging.getLogger().isEnabledFor(logging.DEBUG):
     # Catch MYSQL warnings as errors if logging is set to debug.
-    warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
+#    warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
 
 warnings.filterwarnings('ignore', 'Table .* already exists')
-warnings.filterwarnings("ignore", "Can't create database.*; database exists")
-warnings.filterwarnings("ignore", "^Unknown table .*")
-warnings.filterwarnings("ignore","Table 'mysql.table_stats' doesn't exist")
-warnings.filterwarnings("ignore","Data truncated for column .*")
-warnings.filterwarnings("ignore","Incorrect integer value.*")
-
-def text_id_dbm():
-    """
-    This quickly creates a key-value store for textids: storing on disk
-    dramatically reduces memory consumption for bookworms of over 
-    1 million documents.
-    """
-    dbm = anydbm.open(".bookworm/texts/textids.dbm","c")
-    for file in os.listdir(".bookworm/texts/textids"):
-        for line in open(".bookworm/texts/textids/" + file):
-            line = line.rstrip("\n")
-            splat = line.split("\t")
-            try:
-                dbm[splat[1]] = splat[0]
-            except IndexError:
-                if line=="":
-                    # It's OK to have a blank line, let's say.
-                    continue
-                else:
-                    raise
+warnings.filterwarnings("ignore", ".*Can't create database.*; database exists.*")
+warnings.filterwarnings("ignore", ".*Unknown table.*")
+warnings.filterwarnings("ignore", "Table 'mysql.table_stats' doesn't exist")
+warnings.filterwarnings("ignore", "Data truncated for column .*")
+warnings.filterwarnings("ignore", "Incorrect integer value.*")
 
 class DB(object):
     def __init__(self,dbname=None):
@@ -597,8 +577,9 @@ class BookwormSQLDatabase(object):
         except:
             logging.warning("No default search created because of insufficient data.")
         output['ui_components'] = ui_components
-        outfile = open('.bookworm/%s.json' % dbname, 'w')
-        outfile.write(json.dumps(output))
+        
+        with open('.bookworm/%s.json' % dbname, 'w') as outfile:
+            outfile.write(json.dumps(output))
 
     def create_API_settings(self):
         db = self.db

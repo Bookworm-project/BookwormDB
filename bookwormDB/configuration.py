@@ -326,7 +326,7 @@ def parse_args():
     parser.add_argument("users",nargs="+",choices=["admin","global","root"])
     return parser.parse_args()
 
-def make_bookworm_folder(loc = os.path.expanddir(["~", ".bookworm"]):
+def make_bookworm_folder(loc = os.path.expanduser("~/.bookworm")):
     whoami = getpass.getuser()
     if not os.path.exists(loc):
         print("Creating config files in {}".format(loc))

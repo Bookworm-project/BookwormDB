@@ -353,6 +353,6 @@ if __name__=="__main__":
     except:
         logging.basicConfig(level=10)
         setup_bookworm()
-        setup_bookworm_unicode()        
+        setup_bookworm_unicode()
     logging.basicConfig(level=10)    
     unittest.main()

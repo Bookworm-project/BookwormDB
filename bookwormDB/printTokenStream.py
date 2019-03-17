@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
 import sys
 from .tokenizer import *
 
@@ -11,5 +9,5 @@ for row in sys.stdin:
     except IndexError:
         logging.warning("Found no tab in the input for \n" + filename[:50] + "\n...skipping row")
         continue
-    out= u" ".join(tokens.tokenize())
-    print(out.encode("utf-8"))
+    out= " ".join(tokens.tokenize())
+    print(out)

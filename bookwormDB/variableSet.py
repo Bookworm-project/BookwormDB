@@ -8,6 +8,7 @@ import re
 from MySQLdb import escape_string
 import logging
 import subprocess
+from .sqliteKV import KV
 
 def to_unicode(obj):
     if isinstance(obj, bytes):
@@ -17,6 +18,7 @@ def to_unicode(obj):
     return obj
 
 def splitMySQLcode(string):
+    
     """
     MySQL code can only be executed one command at a time, and fails if it has any empty slots
     So as a convenience wrapper, I'm just splitting it and returning an array.
@@ -27,54 +29,6 @@ def splitMySQLcode(string):
         # Occurs when the field is completely empty
         output = []
     return output
-
-
-class textids(dict):
-    """
-    This class is a dictionary that maps file-locations (which can be many characters long)
-    to bookids (which are 3-byte integers).
-    It's critically important to keep the already-existing data valid;
-    so it doesn't overwrite the
-    old stuff, instead it makes sure this python dictionary is always aligned with
-    the text files on
-    disk. As a result, additions to it always have to be made through the 'bump'
-    method rather than
-    ordinary assignment (since I, Ben, didn't know how to reset the default hash
-    assignment to include
-    this): and it has to be closed at the end to ensure the file is up-to-date at the end.
-
-    Create a dictionary, and initialize it with all the bookids we already have.
-    And make it so that any new entries are also written to disk, so that they are kept permanently.
-
-    """
-
-    def __init__(self):
-        try:
-            subprocess.call(['mkdir','.bookworm/texts/textids'])
-        except:
-            pass
-        filelists = os.listdir(".bookworm/texts/textids")
-        numbers = [0]
-        for filelist in filelists:
-            for line in open(".bookworm/texts/textids/%s" % filelist):
-                parts = line.replace('\n', '').split("\t")
-                if len(parts) == 2:
-                    # Allowing terminal newline.
-                    self[parts[1]] = int(parts[0])
-                    numbers.append(int(parts[0]))
-
-        self.new = open('.bookworm/texts/textids/new', 'a')
-        self.max = max(numbers)
-
-    def bump(self,newFileName):
-        self.max = self.max + 1
-        writing = self.new
-        writing.write('%s\t%s\n' % (str(self.max), newFileName.encode('utf-8')))
-        self[newFileName] = self.max
-        return self.max
-
-    def close(self):
-        self.new.close()
 
 
 def guessBasedOnNameAndContents(metadataname,dictionary):
@@ -175,6 +129,7 @@ class dataField(object):
         This returns something like "author VARCHAR(255)",
         a small definition string with an index, potentially.
         """
+        
         mysqltypes = {
             "character": "VARCHAR(255)",
             "integer": "INT",
@@ -500,18 +455,19 @@ class variableSet(object):
         logging.debug(jsonDefinition)
             
         if jsonDefinition==None:
-            #Make a guess, why not?
-            logging.warning("""No field_descriptions file specified, so guessing based on variable names.
-            Unintended consequences are possible""")
+            logging.warning("No field_descriptions.json file provided, so guessing based",
+                            "on variable names. Unintended consequences are possible")
             self.jsonDefinition=self.guessAtFieldDescriptions()
         else:
-            self.jsonDefinition = json.loads(open(jsonDefinition,"r").read())
+            with open(jsonDefinition,"r") as fin:
+                self.jsonDefinition = json.loads(fin.read())
 
         self.setTableNames()
         self.catalogLocation = ".bookworm/metadata/" + self.tableName + ".txt"
 
 
         self.variables = []
+
         for item in self.jsonDefinition:
             #The anchor field has special methods hard coded in.
             
@@ -605,7 +561,7 @@ class variableSet(object):
         anchor = self.anchorField
         self.fastAnchor = self.anchorField
         
-        if anchor=="bookid" and self.tableName!="catalog":
+        if anchor == "bookid" and self.tableName != "catalog":
             self.fastAnchor="bookid"
             bookids = DummyDict()
             
@@ -617,7 +573,7 @@ class variableSet(object):
                 It is faster, better, and (on the first run only) sometimes necessary
                 to pull the textids from the original files, not the database.
                 """
-                bookids = textids()
+                bookids = KV(".bookworm/metadata/textids.sqlite")
                 for variable in self.variables:
                     variable.anchor=self.fastAnchor
             except IOError:
@@ -653,23 +609,17 @@ class variableSet(object):
 
         return bookids
 
-    def writeMetadata(self,limit=float("Inf"),compress=False):
+    def writeMetadata(self,limit=float("Inf")):
         #Write out all the metadata into files that MySQL is able to read in.
         """
         This is a general purpose, with a few special cases for the primary use case that this is the
         "catalog" table that hold the primary lookup information.
         """
-        import gzip
         linenum = 1
         variables = self.variables
         bookids = self.anchorLookupDictionary()
 
-        try:
-            # Try as gzipped file. Overhead is trivial.
-            metadatafile = gzip.GzipFile(self.originFile)
-            metadatafile.peek(0)
-        except:
-            metadatafile = open(self.originFile)
+        metadatafile = open(self.originFile)
 
 
         #Open files for writing to
@@ -680,16 +630,13 @@ class variableSet(object):
             if not os.path.isdir(path):
                 raise
 
-        if compress:
-            self.catalogLocation = self.catalogLocation + '.gz'
-            catalog = gzip.GzipFile(self.catalogLocation, 'w')
-        else:
-            catalog = open(self.catalogLocation,'w')
+        catalog = open(self.catalogLocation, 'w')
 
         for variable in [variable for variable in variables if not variable.unique]:
             variable.output = open(variable.outputloc, 'w')
 
         for entry in metadatafile:
+            
             try:
                 entry = json.loads(entry)
             except:
@@ -709,16 +656,20 @@ class variableSet(object):
                 bookid = bookids[entry[self.anchorField]]
             except KeyError:
                 if self.tableName=="catalog":
-                    bookid = bookids.bump(entry[self.anchorField])
+                    logging.warning("No entry for {}".format(entry[self.anchorField]))
+                    continue
+                    # bookid = bookids.bump(entry[self.anchorField])
                 else:
                     #If the key isn't in the name table, we have no use for this entry.
                     continue
             mainfields = [str(bookid),to_unicode(entry[self.anchorField])]
+            
             if self.tableName != "catalog":
                 #It can get problematic to have them both, so we're just writing over the
                 #anchorField here.
                 mainfields = [str(bookid)]
             # First, pull the unique variables and write them to the 'catalog' table
+            
             for var in [variable for variable in variables if variable.unique]:
                 if var.field not in [self.anchorField,self.fastAnchor]:
                     myfield = entry.get(var.field, "")
@@ -727,7 +678,7 @@ class variableSet(object):
                     mainfields.append(to_unicode(myfield))
             catalogtext = '%s\n' % '\t'.join(mainfields)
             try:
-                catalog.write(catalogtext.encode('utf-8'))
+                catalog.write(catalogtext)
             except TypeError:
                 catalog.write(catalogtext)
                 
@@ -745,7 +696,7 @@ class variableSet(object):
                 for line in lines:
                     try:
                         writing = '%s\t%s\n' % (str(bookid), to_unicode(line))
-                        outfile.write(writing.encode('utf-8'))
+                        outfile.write(writing)
                     except:
                         logging.warning("some sort of error with bookid no. " +str(bookid) + ": " + json.dumps(lines))
                         pass
@@ -754,12 +705,8 @@ class variableSet(object):
             linenum=linenum+1
         for variable in [variable for variable in variables if not variable.unique]:
             variable.output.close()
-        try:
-            bookids.close()
-        except AttributeError:
-            #When it's a pure dictionary, not the weird textfile hybrid
-            pass
         catalog.close()
+        metadatafile.close()
 
     def loadMetadata(self):
         """

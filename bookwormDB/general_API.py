@@ -358,7 +358,7 @@ class APIcall(object):
                     self.query['search_limits'] = self.query['search_limits'][0]
 
             form = method[7:] if method[:6] == 'return' else method
-            logging.warn("method == \"%s\" is deprecated. Use method=\"data\" "
+            logging.warning("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
 
             if method == "return_json" or method == "json":

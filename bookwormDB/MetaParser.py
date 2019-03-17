@@ -2,36 +2,37 @@ from __future__ import division
 from datetime import date
 import datetime
 import dateutil.parser
-import json
+import ujson as json
 import sys
+import os
 import logging
+from multiprocessing import Queue, Process
+from queue import Empty
+from .multiprocessingHelp import mp_stats, running_processes
+import time
 
-def old_div(x, y):
-    # Yikes! But shouldn't matter.
-    # To clean up later.
-    return x/y
 
-fields_to_derive = []
-fields = []
 defaultDate = datetime.datetime(datetime.MINYEAR, 1, 1)
 
 def DaysSinceZero(dateobj):
     #Zero isn't a date, which python knows but MySQL and javascript don't.
     return (dateobj - date(1,1,1)).days + 366
 
-def ParseFieldDescs():
-    global fields_to_derive
-    global fields
-    f = open('.bookworm/metadata/field_descriptions.json', 'r')
+def ParseFieldDescs(write = False):
+    f = open('field_descriptions.json', 'r')
     try:
         fields = json.loads(f.read())
     except ValueError:
         raise ValueError("Error parsing JSON: Check to make sure that your field_descriptions.json file is valid?")
-    f.close()
 
-    derivedFile = open('.bookworm/metadata/field_descriptions_derived.json', 'w')
+
+    if write:
+        derivedFile = open('.bookworm/metadata/field_descriptions_derived.json', 'w')
+
     output = []
-
+    
+    fields_to_derive = []
+    
     for field in fields:
         if field["datatype"] == "time":
             if "derived" in field:
@@ -52,27 +53,38 @@ def ParseFieldDescs():
                 tmp = dict(datatype="time", type="integer", unique=True)
                 tmp["field"] = '_'.join([field["field"], derive["resolution"]])
                 output.append(tmp)
-    derivedFile.write(json.dumps(output))
-    derivedFile.close()
-
-
-
-def ParseJSONCatalog(target="default",source = "default"):
-    global fields_to_derive
-    if target=="default":
-        target=open(".bookworm/metadata/jsoncatalog_derived.txt", "w")
-    if source=="default":
-        source = open(".bookworm/metadata/jsoncatalog.txt", "r")
+    if write:
+        derivedFile.write(json.dumps(output))
+        derivedFile.close()
         
-    f = target
-    for data in source:
-        for char in ['\t', '\n']:
-            data = data.replace(char, '')
-        try:
-            line = json.loads(data)
-        except:
-            sys.stderr.write('JSON Parsing Failed:\n%s\n' % data)
+    return (fields_to_derive, fields)
+
+def parse_json_catalog(line_queue, processes, modulo):
+    fields_to_derive, fields = ParseFieldDescs(write = False)
+    
+    if os.path.exists("jsoncatalog.txt"):
+        mode = "json"
+        fin = open("jsoncatalog.txt")
+        
+    if os.path.exists("catalog.csv"):
+        mode = "csv"
+        import csv
+        fin  = csv.DictReader("catalog.csv")
+        
+    for i, line in enumerate(fin):
+        if i % processes != modulo:
             continue
+        
+        for char in ['\t', '\n']:
+            line = line.replace(char, '')
+
+        if mode == "json":
+            try:
+                line = json.loads(line)
+            except:
+                logging.warn("Couldn't parse catalog line {}".format(line))
+                continue
+            
         for field in fields:
             # Smash together misidentified lists
             try:
@@ -80,14 +92,19 @@ def ParseJSONCatalog(target="default",source = "default"):
                     line[field["field"]] = "--".join(line[field["field"]])
             except KeyError:
                 pass
+        
         for field in fields_to_derive:
+            
             """
-            Using fields_to_derive as a shorthand for dates--this may break if we get more ambitious about derived fields,
+            Using fields_to_derive as a shorthand for dates--this may break 
+            if we get more ambitious about derived fields,
             but this whole metadata-parsing code needs to be refactored anyway.
 
-            Note: this code is inefficient--it parses the same date multiple times. We should be parsing the date once and pulling 
+            Note: this code is inefficient--it parses the same date multiple times. 
+            We should be parsing the date once and pulling 
             derived fields out of that one parsing.
             """
+            
             try:
                 if line[field["field"]]=="":
                     # Use blankness as a proxy for unknown
@@ -119,8 +136,6 @@ def ParseJSONCatalog(target="default",source = "default"):
                     """
                     content = [str(line[field['field']])]
                     intent = [line[field['field']]]
-            if not content:
-                continue
             else:
                 for derive in field["derived"]:
                     try:
@@ -152,7 +167,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                     derive["aggregate"] == "year":
                                 dt = date(intent[0], intent[1], intent[2])
                                 k = "%s_week_year" % field["field"]
-                                line[k] = int(old_div(dt.timetuple().tm_yday,7))*7
+                                line[k] = int(dt.timetuple().tm_yday/7)*7
                             elif derive["resolution"] == 'hour' and \
                                     derive["aggregate"] == "day":
                                 k = "%s_hour_day" % field["field"]
@@ -179,7 +194,7 @@ def ParseJSONCatalog(target="default",source = "default"):
                                 k = "%s_week" % field['field']
                                 dt = date(intent[0], intent[1], intent[2])
                                 inttime = DaysSinceZero(dt)
-                                time = int(old_div(inttime,7))*7
+                                time = int(inttime/7)*7
                                 #Not starting on Sunday or anything funky like that. Actually, I don't know what we're starting on. Adding an integer here would fix that.
                                 line[k] = time
                             elif derive['resolution'] == 'day':
@@ -203,14 +218,41 @@ def ParseJSONCatalog(target="default",source = "default"):
                         logging.warning('ERROR: %s\nINFO: %s\n' % (str(e), e.__doc__))
                         logging.warning('*'*50)
                 line.pop(field["field"])
-        f.write('%s\n' % json.dumps(line))
-        f.flush()
-    f.close()
+        try:
+            line_queue.put((line["filename"], json.dumps(line)))
+        except KeyError:
+            logging.warning("No filename key in {}".format(line))
+    logging.debug("Metadata thread done after {} lines".format(i))
 
-def parse_initial_catalog(target=sys.stdout,source=sys.stdin):
-    ParseFieldDescs()
-    ParseJSONCatalog(target=target,source=source)
+
+def parse_catalog_multicore():
+    from .sqliteKV import KV
+    cpus, _ = mp_stats()
+    encoded_queue = Queue(10000)
+    workers = []
     
-if __name__=="__main__":
-    ParseFieldDescs()
-    ParseJSONCatalog(target=sys.stdout,source=sys.stdin)
+    for i in range(cpus):
+        p = Process(target = parse_json_catalog, args = (encoded_queue, cpus, i))
+        p.start()
+        workers.append(p)
+    output = open(".bookworm/metadata/jsoncatalog_derived.txt", "w")
+
+    bookids = KV(".bookworm/metadata/textids.sqlite")
+    
+    while True:
+        try:
+            filename, n = encoded_queue.get_nowait()
+            output.write(n + "\n")
+            bookids.register(filename)
+            
+        except Empty:
+            if running_processes(workers):
+                # Give it a sec to fill back up to avoid this thread taking up
+                # a full processor.
+                time.sleep(0.01)
+            else:
+                # We're done!
+                break
+            
+    bookids.close()
+    output.close()

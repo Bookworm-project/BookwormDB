@@ -63,6 +63,7 @@ def setup_bookworm_unicode():
     bookwormDB.configuration.create(ask_about_defaults=False,database="unicode_test_bookworm")
     
     db = bookwormDB.CreateDatabase.DB(dbname="mysql")
+    
     try:
         db.query("DROP DATABASE IF EXISTS unicode_test_bookworm")
     except MySQLdb.OperationalError as e:
