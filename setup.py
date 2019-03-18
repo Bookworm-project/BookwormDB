@@ -44,5 +44,5 @@ setup(
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"
         ],
-      install_requires = ["numpy","regex","nltk","numpy","pandas","mysqlclient","python-dateutil","ujson"]
+      install_requires = ["numpy","regex","nltk","pandas","mysqlclient","python-dateutil","ujson", "psutil"]
 )
