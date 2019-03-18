@@ -34,12 +34,11 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
     def test_config_files(self):
         logging.info("\n\nTESTING CONFIG FILE ACCESS\n\n")
         def test_config_file(conf):
-            conf.read_config_files()
             user = conf.config.get("client","user")
             pw = conf.config.get("client","password")
             return (user,pw)
 
-        global_configuration_file = bookwormDB.configuration.Configfile("global")
+        global_configuration_file = bookwormDB.configuration.Configfile("read_only")
         admin_configuration_file = bookwormDB.configuration.Configfile("admin")
 
         (admin_user,admin_pw) = test_config_file(global_configuration_file)

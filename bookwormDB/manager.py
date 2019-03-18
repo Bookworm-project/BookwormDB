@@ -28,39 +28,37 @@ class BookwormManager(object):
     """
     This class is passed some options that tell it the name of the bookworm it's working on;
     some of the methods here are the directly callable as the command line arguments.
-
+section'client'
     This is what calls the various other bookworm scripts, whether Python or not.
     """
     
-    def __init__(self,cnf_file=None,database=None,user=None,password=None):
+    def __init__(self, cnf_file=None, database=None):
+        
         # This will likely be changed if it isn't None.
         import configparser
 
         self.basedir = None
+        self.dbname = None
         for i in range(10):
             basedir = "../"*i
             if os.path.exists(basedir + ".bookworm"):
                 self.basedir = basedir
+                break
             if self.basedir==None:
-                logging.debug("No bookworm directory found; proceeding on nonetheless.")
-        
-        self.dbname=database
+                logging.debug("No bookworm directory found; hopefully this isn't a build call.")
 
-        if cnf_file is None:
-            cnf_file=self.basedir + "/bookworm.cnf"
-            
-        config = configparser.ConfigParser(allow_no_value=True)
-        config.read([cnf_file])
-        if config.has_section("client"):
-            """
-            Silently go along if the config doesn't exist.
-            """
-            self.dbname = config.get("client","database")
-            ## These could also be handled from the command line,
-            ## but it's such a limit case I'm not yet supporting it.
-            self.dbuser = config.get("client","user")
-            self.dbpassword = config.get("client","password")
-
+        if cnf_file is not None:
+            config = configparser.ConfigParser(allow_no_value=True)
+            config.read([cnf_file])
+            if config.has_section("client"):
+                """
+                Silently go along if the config doesn't exist.
+                """
+                try:
+                    self.dbname = config.get("client", "database")
+                except configParser.NoOptionError:
+                    pass
+                
         # More specific options override the config file
         if database is not None:
             # Passed in dbname takes precedence over config file.
@@ -72,7 +70,7 @@ class BookwormManager(object):
         """
         if args.target=="mysql":
             import bookwormDB.configuration
-            bookwormDB.configuration.reconfigure_passwords(args.users,args.force)
+            bookwormDB.configuration.reconfigure_passwords(args.users, args.force)
             
     def tokenize(self,args):
         
@@ -146,7 +144,7 @@ class BookwormManager(object):
             else:
                 bookwormDB.wordcounter.WordsTableCreate()
             
-    def init(self,args):
+    def init(self, args):
         """
         Initialize the current directory as a bookworm directory.
         """
@@ -159,6 +157,14 @@ class BookwormManager(object):
                 """)
                 return
             if not os.path.exists("bookworm.cnf"):
+                fout = open("bookworm.cnf", "w")
+                if self.dbname:
+                    loc = self.dbname
+                else:
+                    loc = os.path.relpath(".", "..")
+                    print("Configuring Bookworm named '{}'".format(loc))
+                    print("Change the file at bookworm.cnf if this is undesirable".format(loc))
+                fout.write("[client]\ndatabase = {}".format(loc))
                 self.configuration(askk = not args.yes)
                 
         else:
@@ -278,6 +284,8 @@ class BookwormManager(object):
     def preDatabaseMetadata(self, args=None, **kwargs):
         self.derived_catalog(args)
         import bookwormDB.CreateDatabase
+        # Doesn't need a created database yet, just needs access
+        # to some pieces.
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
         logging.info("Writing metadata to new catalog file...")
         Bookworm.variableSet.writeMetadata()
@@ -339,10 +347,6 @@ class BookwormManager(object):
             Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
-    def configuration(self,askk):
-        import bookwormDB.configuration
-        bookwormDB.configuration.create(ask_about_defaults=askk)
-            
     def database_metadata(self, args):
         import bookwormDB.CreateDatabase
         logging.debug("creating metadata db")
@@ -413,7 +417,7 @@ class BookwormManager(object):
             if not (newtable and ingest and index): 
                 logging.warn("database_wordcounts args not supported for bigrams yet.")
 
-        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
+        Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
         Bookworm.load_word_list()
         Bookworm.create_unigram_book_counts(newtable=newtable, ingest=ingest, index=index, reverse_index=reverse_index)
         Bookworm.create_bigram_book_counts()
@@ -467,6 +471,7 @@ def run_arguments():
 
     parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm")
     parser.add_argument("--configuration","-c",help="The name of the configuration file to read options from: by default, 'bookworm.cnf' in the current directory.", default="bookworm.cnf")
+    
     parser.add_argument("--database","-d",help="The name of the bookworm database in MySQL to connect to: by default, read from the active configuration file.", default=None)
 
     parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
@@ -615,7 +620,7 @@ def run_arguments():
     logging.info("Debug logging enabled.")
 
     # Create the bookworm 
-    my_bookworm = BookwormManager(args.configuration,args.database)
+    my_bookworm = BookwormManager(args.configuration, args.database)
 
     # Call the current action with the arguments passed in.
     getattr(my_bookworm,args.action)(args)

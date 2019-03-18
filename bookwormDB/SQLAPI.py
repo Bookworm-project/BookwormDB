@@ -17,42 +17,40 @@ from .bwExceptions import BookwormException
 general_prefs = dict()
 general_prefs["default"] = {"fastcat": "fastcat",
                             "fastword": "wordsheap",
-                            "database": "YourDatabaseNameHere",
                             "fullcat": "catalog",
                             "fullword": "words",
-                            "read_default_file": "/etc/mysql/my.cnf"}
+                            "read_default_file": "/etc/mysql/my.cnf"
+}
 
 class DbConnect(object):
     # This is a read-only account
     def __init__(self, prefs=general_prefs['default'], database=None,
                  host=None):
+        
         self.dbname = database
-
+        
         import bookwormDB.configuration
-
-        try:
-            configuration_file = bookwormDB.configuration.Configfile("global")
-        except IOError:
-            configuration_file = bookwormDB.configuration.Configfile("admin")
-
-        self.config_file = configuration_file
+        conf = bookwormDB.configuration.Configfile("read_only").config
 
         if database is None:
             database = prefs['database']
 
         connargs = {
-                "db": database,
-                "read_default_file": configuration_file.location,
-                "use_unicode": 'True',
-                "charset": 'utf8'
-                }
+            "db": database,
+            "use_unicode": 'True',
+            "charset": 'utf8',
+            "user": conf.get("client", "user"),
+            "password": conf.get("client", "password")
+        }
 
         if host:
             connargs['host'] = host
         # For back-compatibility:
         elif "HOST" in prefs:
             connargs['host'] = prefs['HOST']
-
+        else:
+            host = "localhost"
+            
         try:
             self.db = MySQLdb.connect(**connargs)
         except:
@@ -62,10 +60,9 @@ class DbConnect(object):
                 connargs["host"] = "127.0.0.1"
                 self.db = MySQLdb.connect(**connargs)
             except:
-                logging.error(configuration_file.location)
                 raise
+            
         self.cursor = self.db.cursor()
-
 
 def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
@@ -106,7 +103,7 @@ class userquery(object):
     """
     The base class for a bookworm search.
     """
-    def __init__(self, outside_dictionary = {}, db=None, databaseScheme=None):
+    def __init__(self, outside_dictionary = {}, db = None, databaseScheme = None):
         # Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         fail_if_nonword_characters_in_columns(outside_dictionary)
         try:

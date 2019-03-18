@@ -18,10 +18,6 @@ addons:
 
 install:
   - pip install .
-  #- sudo python setup.py install
 
-before_script:
-  - bookworm config --force mysql
-  
 script:
   - cd tests && python test_mysql.py && python test_API.py

@@ -448,7 +448,6 @@ class variableSet(object):
                 jsonDefinition=None,
                 db=None):
         self.db = db
-        self.dbname = db.dbname
         self.anchorField = anchorField
         self.originFile=originFile
         self.jsonDefinition=jsonDefinition

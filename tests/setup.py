@@ -81,7 +81,9 @@ def setup_bookworm_unicode():
         else:
             logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
             
-    call(["bookworm --log-level warning build all"],shell=True,cwd=sys.path[0] + "/test_bookworm_files_unicode")
+    call(["bookworm --log-level warning build all"],
+         shell=True,
+         cwd=sys.path[0] + "/test_bookworm_files_unicode")
 
 
 if __name__=="__main__":

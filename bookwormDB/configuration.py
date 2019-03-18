@@ -3,6 +3,7 @@
 from __future__ import print_function
 import configparser
 import os
+import sys
 import re
 import MySQLdb
 import argparse
@@ -11,12 +12,12 @@ import subprocess
 import logging
 import uuid
 
-def create(ask_about_defaults=True,database=None):
+def create(ask_about_defaults=True, database=None):
     """
     Through interactive prompts at the command line, builds up a file at
     bookworm.cnf that can be used to set preferences for the installation.
     """
-
+ 
     if ask_about_defaults:
         print("""
     Welcome to Bookworm.
@@ -32,41 +33,24 @@ def create(ask_about_defaults=True,database=None):
     else:
         logging.info("Auto-generating config file.")
     
-
     """
     First, we go to great efforts to find some sensible defaults
     Usually the user can just hit enter.
     """
 
     systemConfigFile = configparser.SafeConfigParser(allow_no_value=True)
-
-    # It checks each of these files for defaults in turn
-
-    possible_bookworm_locations = ["/.my.cnf",os.path.expanduser("~/my.cnf"),os.path.expanduser("~/.my.cnf"),"/etc/mysql/my.cnf","/etc/my.cnf","/root/.my.cnf","bookworm.cnf"]
-    for location in possible_bookworm_locations:
-        try:
-            systemConfigFile.read([location])
-        except configparser.MissingSectionHeaderError:
-            logging.debug("skipping {} because it has no sections".format(location))
+    
     defaults = dict()
     # The default bookwormname is just the current location
 
     if database is None:
-        defaults['database'] = os.path.relpath(".","..")
+        defaults['database'] = os.path.relpath(".", "..")
     else:
         defaults['database'] = database
 
-    defaults["user"] = ""
+    defaults["user"] = "bookworm"
     defaults["password"] = ""
-
-    for field in ["user","password"]:
-        try:
-            print(systemConfigFile.get("client",field))
-            defaults[field] = systemConfigFile.get("client",field)
-        except configparser.NoSectionError:
-            print(systemConfigFile.get("mysql",field))
-            defaults[field] = systemConfigFile.get("mysql",field)
-
+    
     config = configparser.ConfigParser()
 
     for section in ["client"]:
@@ -74,32 +58,14 @@ def create(ask_about_defaults=True,database=None):
 
     if ask_about_defaults:
         database = input("What is the name of the bookworm [" + defaults['database'] + "]: ")
-        password = input("What is the *client* password for MySQL [" + defaults["password"] + "]: ")
-        user = input("What is the *client* username for MySQL [" + defaults["user"] + "]: ")
     else:
-        (database, password, user) = ("","","")
-         
-    if database=="":
         database = defaults['database']
 
-    if user=="":
-        user = defaults["user"]
-
-    if password =="":
-        password = defaults["password"]
-
-
-    config.set("client","database",re.sub(" ","_",database))
-    config.set("client","password",password)
-    config.set("client","user",user)
-
-    config.write(open("bookworm.cnf","w"))
-
-
+    config.set("client", "database", re.sub(" ","_",database))
+    config.write(open("bookworm.cnf", "w"))
 
 class Configfile(object):
-    
-    def __init__(self,usertype,possible_locations=None,default=None,ask_about_defaults=True):
+    def __init__(self, usertype, possible_locations=None, default=None, ask_about_defaults=True):
         """
         Initialize with the type of the user. The last encountered file on
         the list is the one that will be used.
@@ -108,60 +74,46 @@ class Configfile(object):
         
         If ask_about_defaults is false, it will do a force installation.
         """
-                
+        
+        if not usertype in ['read_only', 'admin']:
+            raise NotImplementedError("Only read_only and admin supported")
+        
         self.ask_about_defaults = ask_about_defaults
-
+        
         logging.info("Creating user of type " + usertype)
+        
         self.usertype = usertype
 
         if possible_locations is None:
-            possible_locations = self.meta_locations_from_type()
-        
+            possible_locations = self.default_locations_from_type(usertype)
+            
         self.location = None
         
         self.config = configparser.ConfigParser(allow_no_value=True)
-        
+
+        if usertype=="admin":
+            self.ensure_section("client")
+            self.ensure_section("mysqld")
+            
+            self.config.set("client", "host", "localhost")        
+            self.config.set("client", "user", "root")
+            self.config.set("client", "password", "")
+            self.config.set("mysqld", "host", "localhost")
+        else:
+            self.ensure_section("client")
+            self.config.set("client", "host", "localhost")        
+            self.config.set("client", "user", "bookworm")
+            self.config.set("client", "password", "")
+
+        self.read_config_files(possible_locations)
+
         for string in possible_locations:
             if os.path.exists(string):
-                self.location=string
-
-        if self.location is None:
-            import json
-            logging.warning("No configuration file found in any of %s" %(json.dumps(possible_locations)))
-            if default is None:
-                raise IOError("No mysql configuration file could be found for the %s user, and no default to create" %usertype)
-            else:
-                self.location=default
-                logging.info("No configuration files at at any of [%s]. Creating a new configuration file for %s at %s" %(",".join(possible_locations),self.usertype,self.location))
-        else:
-            logging.info("Reading configuration file for %s from %s" %(self.usertype,self.location))
+                self.location = string
         
-    def meta_locations_from_type(self):
-        """
-        Set the local ConfigParser to contain values from an appropriate stack 
-        of configuration files for MySQL.
 
-        For 'local' access, for example, it uses a local file at "bookworm.cnf", 
-        and then looks for global (select-only) settings, and finally uses 
-        administrative settings for values that exist nowhere else.
+    def read_config_files(self, used_files):
 
-        They appear front-to-back in the arrays below because 
-
-        For sanity sake, only admin has any chance at getting root access.
-        """
-        admin = self.default_locations_from_type("admin")
-        glob = self.default_locations_from_type("global")
-        root = self.default_locations_from_type("root")
-        local = self.default_locations_from_type("local")
-        if self.usertype=="admin":
-            return glob + root + admin
-        if self.usertype=="global":
-            return admin + local + glob
-        if self.usertype=="local":
-            return admin + glob + local
-
-    def read_config_files(self):
-        used_files = self.meta_locations_from_type()
         try:
             self.config.read(used_files)
         except configparser.MissingSectionHeaderError:
@@ -175,107 +127,30 @@ class Configfile(object):
                 except configparser.MissingSectionHeaderError:
                     used_files.remove(file)
             successes = self.config.read(used_files)
-            
+
+        
+
     def default_locations_from_type(self,usertype):
         """
         The default locations for each usertype.
         Note that these are in ascending order of importance:
-        so the preferred location for admin and global configuration
+        so the preferred location for admin and read_only configuration
         is in /etc/bookworm/admin.cnf
         and /etc/bookworm/client.cnf
         """
-        if usertype == "root":
-            return ["/root/.my.cnf"]
+
         if usertype=="admin":
             return [os.path.abspath(os.path.expanduser("~/.my.cnf")),
                     os.path.abspath(os.path.expanduser("~/my.cnf")),
                     "/etc/bookworm/admin.cnf"]
-        if usertype == "global":
-            return ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf",
-                    "/etc/mysql/conf.d/mysql.cnf","/etc/bookworm/client.cnf"]
-        if usertype == "local":
-            # look for a bookworm.cnf file in or above the current directory.
-            # Max out at 20 directory levels deep because let's be reasonable.
-            return ["../" * i + "bookworm.cnf" for i in range(20,-1,-1)]
+        if usertype == "read_only":
+            return ["/etc/bookworm/client.cnf"]
         else:
             return []
 
     def ensure_section(self,section):
         if not self.config.has_section(section):
             self.config.add_section(section)
-
-    def change_client_password(self):
-        """
-        Changes the client password in the config file AND updates the
-        MySQL server with the new password at the same time.
-        """
-        try:            
-            db = MySQLdb.connect(read_default_file="~/.my.cnf")
-            db.cursor().execute("GRANT SELECT ON *.* to root@localhost")
-        except MySQLdb.OperationalError as message:
-            try:
-                db = MySQLdb.connect(user="root",passwd="",host="127.0.0.1")
-            except MySQLdb.OperationalError as message:
-                user = input("""Can't log in automatically as {}:
-                Please enter an *administrative* username for your mysql with
-                grant privileges: """.format(getpass.getuser()))
-                password = input("Now enter the password for that user: ")
-                db = MySQLdb.connect(user=user,passwd=password,host="127.0.0.1")
-
-        cur = db.cursor()
-        self.ensure_section("client")
-        try:
-            user = self.config.get("client","user")
-        except configparser.NoOptionError:
-            if self.usertype == "root":
-                user = "root"
-                self.config.set("client","user","root")
-            else:
-                defaults = {
-                    "global": "bookworm_client",
-                    "admin": "bookworm_admin"
-                }
-                default_user = defaults[self.usertype]
-                if self.ask_about_defaults:
-                    user = input("\nNo username found for the user in the %s role. Please enter the name for the %s user, or hit enter to use '%s': """ % (self.usertype,self.usertype,default_user))
-                    if user=="":
-                        user = default_user
-                    self.config.set("client","user",user)
-                else:
-                    defaults = {
-                        "global": "bookworm_client",
-                        "admin": "bookworm_admin"
-                    }
-                    user = defaults[self.usertype]
-                    self.config.set("client","user",user)
-
-        if self.ask_about_defaults:
-            confirmation = 1
-            new_password = 0
-
-            while not confirmation == new_password:
-                new_password = input("Please enter a new password for user " + user + ", or hit enter to keep the current password: ")
-                if new_password=="":
-                    new_password=self.config.get("client","password")
-                    break
-                confirmation = input("Please re-enter the new password for " + user + ": ")
-        else:
-            # when forcing, generate a random password using uuid.
-            new_password = uuid.uuid1().hex
-            
-        try:
-            cur.execute("SET PASSWORD FOR '%s'@'localhost'=PASSWORD('%s')" % (user.strip('"').strip("'"),new_password.strip('"').strip("'")))
-        except MySQLdb.OperationalError as message:	# handle trouble
-            errorcode = message[0]
-            if errorcode==1133:
-                logging.info("creating a new %s user called %s" %(self.usertype,user))
-                if self.usertype=="admin":
-                    cur.execute("GRANT ALL ON *.* TO '%s'@'localhost' IDENTIFIED BY '%s' WITH GRANT OPTION" % (user,new_password))
-                if self.usertype=="global":
-                    cur.execute("GRANT SELECT ON *.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (user,new_password))
-            else:
-                raise
-        self.config.set("client","password",new_password)
 
     def set_bookworm_options(self):
         """
@@ -287,7 +162,7 @@ class Configfile(object):
 
         for option in list(mysqldoptions.keys()):
             if not self.config.has_option("mysqld",option):
-                self.config.set("mysqld",option,mysqldoptions[option])
+                self.config.set("mysqld", option, mysqldoptions[option])
             else:
                 if mysqldoptions[option] != self.config.get("mysqld",option):
                     choice = input("Do you want to change the value for " + option + " from " + self.config.get("mysqld",option) + " to the bookworm-recommended " + mysqldoptions[option] + "? (y/N): ")
@@ -295,93 +170,24 @@ class Configfile(object):
                         self.config.set("mysqld",option,mysqldoptions[option])
                                        
     def write_out(self):
-        self.config.write(open(self.location,"w"))
-
-def change_root_password_if_necessary():
-    """
-    The root password should not be "root". So we change it if it is.
-    """
-    try:
-        db = MySQLdb.connect(user="root",passwd="root",host="localhost")
-        print("'root' is an insecure root password for MySQL: starting a process to change it. You can just re-enter 'root' if you want.")
-    except:
-        try:
-            db = MySQLdb.connect(user="root",passwd="",host="localhost")
-            print("Your root MySQL password is blank; starting a process to change it. You can just hit return at the prompts to keep it blank if you want.")
-        except:
-            print("Root mysql password is neither blank nor 'root', so it's up to you to change it.")
-            return
-
-    root = Configfile("root",default="/root/.my.cnf")
-    root.change_client_password()
-    root.write_out()
-    print("""
-    root .my.cnf file updated with password at %s; delete that file if you don't want the root password anywhere on your server.
-    """ % root.location)
-  
-def parse_args():
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument("--sub","-s",help="run as subprocess")
-    parser.add_argument("--force","-f",help="run as subprocess",action="store_true",default=False)
-    parser.add_argument("users",nargs="+",choices=["admin","global","root"])
-    return parser.parse_args()
-
-def make_bookworm_folder(loc = os.path.expanduser("~/.bookworm")):
-    whoami = getpass.getuser()
-    if not os.path.exists(loc):
-        print("Creating config files in {}".format(loc))
-        subprocess.check_call(["mkdir",loc])
+        """
+        Write out a new version of the configfile to stdout. 
+        The user is responsible for putting this somewhere it will
+        affect the MySQL preferences
+        """
+        self.config.write(sys.stdout)
         
-def update_settings_for(name,force=False):
-    """
-    There are three roles: different things need to be changed for each.
-    """
-    if name=="root":
-        change_root_password_if_necessary()
-    if name=="admin":
-        if not force and False:
-            # I can't see any reason to keep this code:
-            # Let's wait to delete it, though.
-            default_cnf_file_location = input("Please enter the full path \
-            (no tildes) for the home directory of the user who will be \
-            the administrator.\
-            For example, if your username is 'mrubio',\
-            on OS X it might be /Users/mrubio/: ") + "/.my.cnf"
-            
-        else:
-            make_bookworm_folder("/etc/bookworm")
-            default_cnf_file_location = "/etc/bookworm/admin.cnf"
-        admin = Configfile("admin",
-            [default_cnf_file_location],
-            default=default_cnf_file_location,
-            ask_about_defaults = not force)
-        admin.change_client_password()
-        admin.write_out()
-    if name=="global":
-        make_bookworm_folder("/etc/bookworm")
-        default_cnf_file_location = "/etc/msyql/my.cnf"
-        client = Configfile("global",
-            default=default_cnf_file_location,
-            ask_about_defaults = not force)
-        client.change_client_password()
-        client.set_bookworm_options()
-        client.write_out()
+def recommend_my_cnf(self, known_loc = None):
+    if known_loc is None:
+        for loc in ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf",
+                    "/etc/mysql/conf.d/mysql.cnf"]:
+            if os.path.exists(loc):
+                known_loc = loc
+    if known_loc is None:
+        raise FileNotFoundError("Could not find MySQL folder: pass one.")
+    cnf = Configfile(usertype = 'admin', possible_locations = [known_loc])
+    cnf.set_bookworm_options()
+    cnf.write_out()
+                    
+
         
-
-def reconfigure_passwords(names_to_parse,force=False):
-    """
-    Takes a list of roles to reset passwords for, and
-    then force indicates that it will go ahead and reset the admin role
-    while logged in as root, or other strange situations that arise
-    that seem like a bad idea.
-    """
-    names_to_parse = set(names_to_parse)
-    whoami = getpass.getuser()
-
-    # Some names need to be run as root. Here we disentangle, and launch
-    # a subprocess as root for those that do.
-    privileged_names = names_to_parse.intersection(['global','root'])
-    unprivileged_names = names_to_parse.intersection(['admin'])
-                         
-    for name in names_to_parse:
-        update_settings_for(name,force=force)

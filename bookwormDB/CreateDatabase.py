@@ -24,35 +24,20 @@ warnings.filterwarnings("ignore", "Data truncated for column .*")
 warnings.filterwarnings("ignore", "Incorrect integer value.*")
 
 class DB(object):
-    def __init__(self,dbname=None):
-        try:
-            configuration = Configfile("local")
-            logging.debug("Connecting from the local config file")
-        except IOError:
-            try:
-                configuration = Configfile("global")
-                logging.debug("No bookworm.cnf in local file: connecting from global defaults")
-            except IOError:
-                configuration = Configfile("admin")
-                logging.debug("No bookworm.cnf in local file: connecting from admin defaults")
-                
-        configuration.read_config_files()
-        config = configuration.config
-        if dbname==None:
+    def __init__(self, dbname = None):
+        if dbname == None:
             self.dbname = config.get("client","database")
         else:
             self.dbname = dbname
-        self.username=config.get("client","user")
-        self.password=config.get("client","password")
         self.conn = None
         
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         conf = Configfile("admin")
-        conf.read_config_files()
         connect_args = {
-            "user": conf.config.get("client","user"),
-            "passwd": conf.config.get("client","password"),
+            "user": conf.config.get("client", "user"),
+            "passwd": conf.config.get("client", "password"),
+            "host": conf.config.get("mysqld", "host"),
             "use_unicode": 'True',
             "charset": 'utf8',
             "db": '',
@@ -62,9 +47,12 @@ class DB(object):
         except MySQLdb.OperationalError:
             # Sometimes mysql wants to connect over this rather than a socket:
             # falling back to it for backward-compatibility.
-            connect_args["host"] = "127.0.0.1"
-            self.conn = MySQLdb.connect(**connect_args)
-            
+            logging.debug("Connection failed: attempting fallback over a different port")
+            if connect_args["host"] == "localhost":
+                connect_args["host"] = "127.0.0.1"
+                self.conn = MySQLdb.connect(**connect_args)
+            else:
+                raise
             
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s default character set utf8" % self.dbname)
@@ -128,51 +116,41 @@ class BookwormSQLDatabase(object):
     it fits chronologically in the bookworm-creation sequence.
     """
 
-    def __init__(self,dbname=None,
+    def __init__(self, dbname=None,
                  variableFile=".bookworm/metadata/jsoncatalog_derived.txt"):
         """
         You can initialize it with a database name;
         otherwise it defaults to finding a
         Bookworm configuration file.
-
-        It also may be initialized with a set of metadata.
-        This is a little wonky, and may
-        be deprecated in favor of a cleaner interface.
         """
-        try:
-            self.config_manager = Configfile("local")
-            logging.debug("Connecting from the local config file")
-        except IOError:
-            try:
-                self.config_manager = Configfile("global")
-                logging.debug("No bookworm.cnf in local file: connecting from global defaults")
-            except IOError:
-                self.config_manager = Configfile("admin")
-                logging.debug("No bookworm.cnf in local file: connecting from admin defaults")
-                
-        self.config_manager.read_config_files()
+        self.config_manager = Configfile("admin")
         config = self.config_manager.config
-        if dbname==None:
-            self.dbname = config.get("client","database")
-        else:
-            self.dbname = dbname
+        
+        self.dbname = dbname
+        
         self.conn = None
 
-        self.db = DB(dbname=self.dbname)
-        
+        if self.dbname is not None:
+            # Sometimes this may be called just to access the
+            # variables elements.
+            self.db = DB(dbname=self.dbname)
+
+        else:
+            self.db = None
+            
         if variableFile is not None:
             self.setVariables(originFile=variableFile)
 
     def grantPrivileges(self):
         """
         Grants select-only privileges to a non-admin mysql user for the API to
-        query with (safer).
+        query with without risking exposing write access to the Internet.
 
-        The Username for these privileges is pulled from the bookworm.cnf file.
+        The username for these privileges is usually just 'bookworm' without a password,
+        but if you place a file at '/etc/bookworm.cnf', it will be read from there.
         """
 
-        globalfile = Configfile("global")
-        globalfile.read_config_files()
+        globalfile = Configfile("read_only")
 
         username=globalfile.config.get("client","user")
         password=globalfile.config.get("client","password")
@@ -205,7 +183,9 @@ class BookwormSQLDatabase(object):
         dbname = self.dbname
         dbuser = self.dbuser
         dbpassword = self.dbpassword
+        
         db = self.db
+        
         #This must be run as a MySQL user with create_table privileges
         try:
             db.query("CREATE DATABASE " + dbname)
@@ -214,6 +194,7 @@ class BookwormSQLDatabase(object):
 
         "Setting up permissions for web user..."
         db.query("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'localhost' IDENTIFIED BY '" + dbpassword + "'")
+        db.query("GRANT SELECT ON {}.* TO 'bookworm'@'localhost'".format(dbname))        
         db.query("FLUSH PRIVILEGES")
         #a field to store stuff we might need later.
         db.query("CREATE TABLE IF NOT EXISTS bookworm_information (entry VARCHAR(255), PRIMARY KEY (entry), value VARCHAR(50000))")
