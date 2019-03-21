@@ -36,6 +36,6 @@ setup(
     ],
     install_requires=["numpy","regex","nltk","pandas","mysqlclient",
                       "python-dateutil","ujson", "psutil", "bounter",
-                      "gunicorn", "pyarrow"
+                      "gunicorn"
     ]
 )

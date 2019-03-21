@@ -418,7 +418,11 @@ class APIcall(object):
                 if fmt == "feather":
                     frame = self.data()
                     fout = io.BytesIO(b'')
-                    frame.to_feather(fout)
+                    try:
+                        frame.to_feather(fout)
+                    except:
+                        logging.warning("You need pyarrow installed to export as feather.")
+                        raise
                     fout.seek(0)
                     return fout.read()
                 
