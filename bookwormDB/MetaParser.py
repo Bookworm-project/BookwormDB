@@ -238,13 +238,20 @@ def parse_catalog_multicore():
     output = open(".bookworm/metadata/jsoncatalog_derived.txt", "w")
 
     bookids = KV(".bookworm/metadata/textids.sqlite")
+    import sqlite3
     
     while True:
         try:
             filename, n = encoded_queue.get_nowait()
             output.write(n + "\n")
-            bookids.register(filename)
-            
+            ids = set()
+            try:
+                bookids.register(filename)
+            except sqlite3.IntegrityError:
+                if filename in ids:
+                    logging.warning("Duplicate key insertion {}".format(filename))
+            ids.add(filename)
+                
         except Empty:
             if running_processes(workers):
                 # Give it a sec to fill back up to avoid this thread taking up

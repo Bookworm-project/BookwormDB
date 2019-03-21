@@ -1,5 +1,10 @@
 # Copyright © 2018 Sylvain PULICANI <picani@laposte.net>
-# Super heavily changed by Ben Schmidt.
+# Super heavily changed by Ben Schmidt; the old version was a true
+# kv store, this one just autoincrements a lookup table.
+
+# This should generally be thread safe for reads, but not for writes.
+# If multip
+
 # This work is free. You can redistribute it and/or modify it under the
 # terms of the Do What The Fuck You Want To Public License, Version 2,
 # as published by Sam Hocevar. See the COPYING file for more details.

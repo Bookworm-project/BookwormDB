@@ -2,17 +2,6 @@ import os
 from setuptools import setup
 
 
-def figure_out_cgi_directory():
-    """
-    Try to place the cgi-scripts in a cgi dir;
-    if that fails, bomb out to the current directory.
-    """
-    for dir in ["/usr/lib/cgi-bin","/Library/WebServer/CGI-Executables/","/var/www/cgi-bin","/tmp","."]:
-        if os.path.exists(dir):
-            if os.access(dir, os.R_OK):
-                return dir
-
-
 setup(
     name='bookwormDB',
     packages=["bookwormDB"],
@@ -22,7 +11,6 @@ setup(
             'bookworm = bookwormDB.manager:run_arguments'
         ],
     },
-    #      data_files = [(figure_out_cgi_directory(), ["bookwormDB/bin/dbbindings.py"])],
     description="Create, deploy, and serve a Bookworm instance.",
     long_description="\n".join(open("README.rst").readlines()),
     package_data={'bookwormDB':['etc/*','bin/*']},
@@ -47,5 +35,7 @@ setup(
         "Topic :: Text Processing :: Linguistic"
     ],
     install_requires=["numpy","regex","nltk","pandas","mysqlclient",
-                      "python-dateutil","ujson", "psutil", "bounter"]
+                      "python-dateutil","ujson", "psutil", "bounter",
+                      "gunicorn", "pyarrow"
+    ]
 )

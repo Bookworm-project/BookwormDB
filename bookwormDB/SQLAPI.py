@@ -68,6 +68,7 @@ def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
     for key in keys:
         if re.search(r"[^A-Za-z_$*0-9]", key):
+            logging.error("{} has nonword character".format(key))
             raise
 
 
@@ -826,33 +827,6 @@ class userquery(object):
             returnset=[]
         return returnset
 
-    def return_slug_data(self, force=False):
-        # Rather than understand this error, I'm just returning 0 if it fails.
-        # Probably that's the right thing to do, though it may cause trouble later.
-        # It's just a punishment for not later using a decent API call with "Raw_Counts" to extract these counts out, and relying on this ugly method.
-        # Please, citizens of the future, NEVER USE THIS METHOD.
-        try:
-            temp_words = self.return_n_words(force = True)
-            temp_counts = self.return_n_books(force = True)
-        except:
-            temp_words = 0
-            temp_counts = 0
-        return [temp_counts, temp_words]
-
-    def return_n_books(self, force=False): # deprecated
-        if (not hasattr(self, 'nbooks')) or force:
-            query = "SELECT count(*) from " + self.catalog + " WHERE " + self.catwhere
-            silent = self.cursor.execute(query)
-            self.counts = int(self.cursor.fetchall()[0][0])
-        return self.counts
-
-    def return_n_words(self, force=False): # deprecated
-        if (not hasattr(self, 'nwords')) or force:
-            query = "SELECT sum(nwords) from " + self.catalog + " WHERE " + self.catwhere
-            silent = self.cursor.execute(query)
-            self.nwords = int(self.cursor.fetchall()[0][0])
-        return self.nwords
-
     def bibliography_query(self, limit = "100"):
         # I'd like to redo this at some point so it could work as an API call more naturally.
         self.limit = limit
@@ -903,14 +877,17 @@ class userquery(object):
         for line in self.cursor.fetchall():
             returnarray.append(line[0])
         if not returnarray:
-            # why would someone request a search with no locations? Turns out (usually) because the smoothing tricked them.
-            returnarray.append("No results for this particular point: try again without smoothing")
+            # why would someone request a search with no locations?
+            # Turns out (usually) because the smoothing tricked them.
+            returnarray.append("<empty results>")
         newerarray = self.custom_SearchString_additions(returnarray)
         return json.dumps(newerarray)
 
     def search_results(self):
-        # This is an alias that is handled slightly differently in APIimplementation (no "RESULTS" bit in front). Once
+        # This is an alias that is handled slightly differently in
+        # APIimplementation (no "RESULTS" bit in front). Once
         # that legacy code is cleared out, they can be one and the same.
+        
         return json.loads(self.return_books())
 
     def getActualSearchedWords(self):
@@ -962,7 +939,8 @@ class userquery(object):
     def return_tsv(self, query = "ratio_query"):
         if self.outside_dictionary['counttype'] == "Raw_Counts" or self.outside_dictionary['counttype'] == ["Raw_Counts"]:
             query="counts_query"
-            # This allows much speedier access to counts data if you're willing not to know about all the zeroes.
+            # This allows much speedier access to counts data if you're
+            # willing not to know about all the zeroes.
             # Will not work as well once the id_fields are in use.
         querytext = getattr(self, query)()
         silent = self.cursor.execute(querytext)

@@ -3,14 +3,18 @@
 from pandas import merge
 from pandas import Series
 from pandas.io.sql import read_sql
+from pandas import merge
 from copy import deepcopy
 from collections import defaultdict
 from .SQLAPI import DbConnect
 from .SQLAPI import userquery
 from .bwExceptions import BookwormException
 import re
-import json
+import ujson as json
 import logging
+import numpy as np
+import csv
+import io
 import numpy as np
 
 """
@@ -27,8 +31,22 @@ The only existing example of this is "SQLAPICall."
 
 prefs = dict()
 
-def calculateAggregates(df, parameters):
+def PMI(df, location, groups):
+    copy = df.copy()
+    total = df[[location]].sum()
+    copy['expected'] = copy[location] * total[0]
+    for i in range(len(groups)):
+        new_name = groups[i] + "__r"
+        renamer = dict()
+        renamer[location] = new_name
+        etc = (df[[groups[i], location]].groupby(groups[i]).sum()/total).rename(renamer, axis="columns")
+        copy = merge(copy, etc, left_on = groups[i], right_index = True)
+        copy["expected"] = copy["expected"] * copy[new_name]
+    return np.log(copy[location]/copy["expected"])
 
+
+
+def calculateAggregates(df, parameters, groups = None):
     """
     We only collect "WordCount and "TextCount" for each query,
     but there are a lot of cool things you can do with those:
@@ -66,10 +84,18 @@ def calculateAggregates(df, parameters):
     if "TextLength" in parameters:
         df["TextLength"] = df["WordCount_y"]/df["TextCount_y"]
 
+
+    if "PMI_words" in parameters:
+        df["PMI_words"] = PMI(df, "WordCount_x", groups)
+
+    if "PMI_texts" in parameters:
+        df["PMI_texts"] = PMI(df, "TextCount_x", groups)        
+    
+        
     if "TFIDF" in parameters:
         from numpy import log as log
         df["TF"] = df["WordCount_x"]/df["WordCount_y"]
-        df["TFIDF"] = df["TF"] * df["TextCount_y"]/df['TextCount_x']
+        df["TFIDF"] = df["TF"] * np.log(df["TextCount_y"]/df['TextCount_x'])
 
     def DunningLog(df=df, a="WordCount_x", b="WordCount_y"):
         from numpy import log as log
@@ -138,10 +164,10 @@ def base_count_types(list_of_final_count_types):
 
     for count_name in list_of_final_count_types:
         if count_name in ["WordCount", "WordsPerMillion", "WordsRatio",
-                          "TotalWords", "SumWords", "Dunning"]:
+                          "TotalWords", "SumWords", "Dunning", "PMI_words"]:
             output.add("WordCount")
         if count_name in ["TextCount", "TextPercent", "TextRatio",
-                          "TotalTexts", "SumTexts", "DunningTexts"]:
+                          "TotalTexts", "SumTexts", "DunningTexts", "PMI_texts"]:
             output.add("TextCount")
         if count_name in ["TextLength", "HitsPerMatch", "TFIDF"]:
             output.add("TextCount")
@@ -333,7 +359,7 @@ class APIcall(object):
         merged = merged.fillna(int(0))
 
         calculations = self.query['counttype']
-        calcced = calculateAggregates(merged, calculations)
+        calcced = calculateAggregates(merged, calculations, self.query['groups'])
         
         calcced = calcced.fillna(int(0))
 
@@ -364,17 +390,10 @@ class APIcall(object):
             if method == "return_json" or method == "json":
                 return self.return_json(version=1)
 
-            elif method == "return_tsv" or method == "tsv":
-                import csv
+            elif method == "return_csv" or method == "csv":
                 frame = self.data()
-                return frame.to_csv(sep="\t", encoding="utf8", index=False,
+                return frame.to_csv(path = None, sep="\t", encoding="utf8", index=False,
                                     quoting=csv.QUOTE_NONE, escapechar="\\")
-
-            elif method == "return_pickle" or method == "DataFrame":
-                frame = self.data()
-                from pickle import dumps as pickleDumps
-                return pickleDumps(frame, protocol=-1)
-
         elif version == 2:
             try:
                 # What to do with multiple search_limits
@@ -387,9 +406,26 @@ class APIcall(object):
 
                 if fmt == "json":
                     return self.return_json(version=2)
+                
+                if fmt == "csv":
+                    frame = self.data()
+                    return frame.to_csv(encoding="utf8", index=False)
+                
+                if fmt == "tsv":
+                    frame = self.data()
+                    return frame.to_csv(sep="\t", encoding="utf8", index=False)
+
+                if fmt == "feather":
+                    frame = self.data()
+                    fout = io.BytesIO(b'')
+                    frame.to_feather(fout)
+                    fout.seek(0)
+                    return fout.read()
+                
                 else:
                     err = dict(status="error", code=200,
-                               message="Only format=json currently supported")
+                               message="Only formats in ['csv', 'tsv', 'json', 'feather']"
+                               " currently supported")
                     return json.dumps(err)
             except BookwormException as e:
                 # Error status codes are HTTP codes
@@ -397,8 +433,9 @@ class APIcall(object):
                 err = e.args[0]
                 err['status'] = "error"
                 return json.dumps(err)
-            except:
+            except Exception as ex:
                 # General Uncaught error.
+                logging.exception("{}".format(ex))
                 logging.exception("Database error")
                 return json.dumps({"status": "error", "message": "Database error. "
                                "Try checking field names."})
@@ -467,6 +504,11 @@ class APIcall(object):
                 key = row.pop(0)
                 if len(row) == len(query['counttype']):
                     # Assign the elements.
+                    row = [
+                        r if np.isfinite(row)
+                        else None
+                        for r in row
+                        ]
                     destination[key] = row
                     break
                 # This bit of the loop is where we descend the recursive
@@ -487,7 +529,7 @@ class APIcall(object):
                         data="Internal error: unknown response version")
 
         try:
-            return json.dumps(resp, allow_nan=False)
+            return json.dumps(resp)
         except ValueError:
             return json.dumps(resp)
 

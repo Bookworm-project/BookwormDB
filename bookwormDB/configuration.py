@@ -92,6 +92,7 @@ class Configfile(object):
         self.config = configparser.ConfigParser(allow_no_value=True)
 
         if usertype=="admin":
+            
             self.ensure_section("client")
             self.ensure_section("mysqld")
             
@@ -113,7 +114,7 @@ class Configfile(object):
         
 
     def read_config_files(self, used_files):
-
+        
         try:
             self.config.read(used_files)
         except configparser.MissingSectionHeaderError:

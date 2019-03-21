@@ -170,9 +170,9 @@ section'client'
         else:
             self.configuration(askk = not args.yes)
         
-    def query(self,args):
+    def query(self, args):
         """
-        Run a query against the API.
+        Run a query against the API from the command line.
         """
         
         from bookwormDB.general_API import SQLAPIcall
@@ -181,9 +181,16 @@ section'client'
         query = json.loads(args.APIcall)
         caller = SQLAPIcall(query)
         print(caller.execute())
-        
+
     def serve(self,args):
 
+        """
+        Serve the api.
+        """
+        
+        from bookwormDB.wsgi import run
+        run(args.bind, args.workers)
+        
         import http.server
         from http.server import HTTPServer
         import shutil
@@ -487,6 +494,7 @@ def run_arguments():
     subparsers = parser.add_subparsers(title="action",help='The commands to run with Bookworm',dest="action")
 
 
+
     ############# build #################
     build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm.\
     This is a wrapper around `Make`;\
@@ -597,9 +605,21 @@ def run_arguments():
 
 
     # Serve the current bookworm
-    serve_parser = subparsers.add_parser("serve",help="Launch a webserver on the current bookworm. This is much easier than configuring apache, but considerably less secure.")
-    serve_parser.add_argument("--port","-p",default="8005",help="The port over which to serve the bookworm",type=int)
+    
+    serve_parser = subparsers.add_parser("serve",
+                                         help="Serve the bookworm. Be default this is an API endpoint,"
+                                         "served over gunicorn, or (not yet supported) a full installation. You might want to wrap"
+"the gunicorn endpoint behind a more powerful webserver like apache or nginx.")
+
+    serve_parser.add_argument("--full-site", action = "store_true", help="Serve a webpage as well as a query endpoint? Not active.")
+    
+    serve_parser.add_argument("--bind", "-b", default="10012", help="The port over which to serve the bookworm",type=int)
+
+    serve_parser.add_argument("--workers", "-w", default="0", help="How many gunicorn worker threads to launch for the API. Reduce if you're seeing memory issues.",type=int)
+    
     serve_parser.add_argument("--dir","-d",default="http_server",help="A filepath for a directory to serve from. Will be created if it does not exist.")
+
+    
     
     # Configure the global server.
     configure_parser = subparsers.add_parser("config",help="Some helpers to configure a running bookworm, or to manage your server-wide configuration.")
@@ -614,8 +634,8 @@ def run_arguments():
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % args.log_level)
     # While we're at it, log with line numbers
-    FORMAT = "[%(filename)s:%(lineno)s-%(funcName)s()] %(message)s"
-    logging.basicConfig(format=FORMAT, level=numeric_level)
+    FORMAT = "[%(filename)s:%(lineno)s-%(funcName)s() %(asctime)s.%(msecs)03d] %(message)s"
+    logging.basicConfig(format=FORMAT, level=numeric_level, datefmt="%I:%M:%S")
     logging.info("Info logging enabled.")
     logging.info("Debug logging enabled.")
 

@@ -3,7 +3,6 @@ language: python
 python:
   - "3.6"
 
-sudo: required
 dist: trusty
 
 services:
@@ -21,3 +20,4 @@ install:
 
 script:
   - cd tests && python test_mysql.py && python test_API.py
+ 
