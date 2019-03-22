@@ -32,9 +32,16 @@ The only existing example of this is "SQLAPICall."
 prefs = dict()
 
 def PMI(df, location, groups):
+    """
+    A simple PMI calculation. Arguments:
+
+    'location': The field to calculate expected values for.
+    'groups': The metadata to sum up over.
+
+    """
     copy = df.copy()
     total = df[[location]].sum()
-    copy['expected'] = copy[location] * total[0]
+    copy['expected'] = total[0]
     for i in range(len(groups)):
         new_name = groups[i] + "__r"
         renamer = dict()

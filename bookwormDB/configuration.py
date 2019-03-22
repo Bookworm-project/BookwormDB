@@ -12,6 +12,24 @@ import subprocess
 import logging
 import uuid
 
+def update():
+    ## Assemble list of all bookworms on the system.
+    
+    bookworms = [] ### ...
+    
+    ## Create on-disk versions of memory tables if 'fastcat_' does not exists.
+
+    pass
+
+    ## Allow "'bookworm'@'localhost' IDENTIFIED BY ''" to have select access on each bookworm.
+
+    pass
+
+    ## Print a message about enabling access.
+
+    pass
+    
+    
 def create(ask_about_defaults=True, database=None):
     """
     Through interactive prompts at the command line, builds up a file at
@@ -80,7 +98,7 @@ class Configfile(object):
         
         self.ask_about_defaults = ask_about_defaults
         
-        logging.info("Creating user of type " + usertype)
+        logging.info("Creating configuration as " + usertype)
         
         self.usertype = usertype
 
@@ -100,6 +118,7 @@ class Configfile(object):
             self.config.set("client", "user", "root")
             self.config.set("client", "password", "")
             self.config.set("mysqld", "host", "localhost")
+            
         else:
             self.ensure_section("client")
             self.config.set("client", "host", "localhost")        
@@ -192,3 +211,38 @@ def recommend_my_cnf(self, known_loc = None):
                     
 
         
+def apache(self):
+    print("""
+    Instructions for Apache:
+
+
+    First: Serve the Bookworm API over port 10012. (`bookworm serve`).
+
+    Then: Install an Apache host on port 80.
+
+    Then: enable proxy servers and turn off any existing cgi.
+
+    # If you were previously using the CGI bookworm.
+    `sudo a2dismod cgi`
+    
+    `sudo a2enmod proxy proxy_ajp proxy_http rewrite deflate headers proxy_balancer proxy_connect proxy_html`
+
+    Then: Add the following to your '/etc/apache2/sites-available/000-default.conf'
+    (or whatever site from which you run your apache.
+
+    ~~~~~~~~~~~~~~~~
+
+    <Proxy *>
+      Order deny,allow
+      Allow from all
+    </Proxy>
+      ProxyPreserveHost On
+    <Location "/cgi-bin">
+      ProxyPass "http://127.0.0.1:10012/"
+      ProxyPassReverse "http://127.0.0.1:10012/"
+    </Location>
+
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+""")
