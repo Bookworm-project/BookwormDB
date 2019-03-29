@@ -1,16 +1,27 @@
-#!/usr/bin/env python
-
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import ujson as json
 from urllib.parse import unquote
 import logging
+import multiprocessing
+import gunicorn.app.base
+from gunicorn.six import iteritems
+
 
 def content_type(query):
-    method = query['format']
-    if method == "json":
+    try:
+        format = query['format']
+    except:
+        return 'text/plain'
+    
+    if format == "json":
         return "application/json"
-    if method == "feather":
+    
+    if format == "feather":
         return "application/octet-stream"
+    
+    if format == "html":
+        return "text/html"
+    
     return 'text/plain'
 
 def application(environ, start_response):
@@ -36,9 +47,12 @@ def application(environ, start_response):
     }
 
 
-    # Backward-compatability.
 
     logging.debug("Received query {}".format(query))
+
+    # Backward-compatability: we used to force query to be
+    # a named argument.
+
     query = query.strip("query=")
                           
     try:
@@ -47,7 +61,7 @@ def application(environ, start_response):
         response_body = "Unable to read JSON"
         status = '404'
         start_response(status, list(headers.items()))
-        return [b"This is a Bookworm JSON query endpoint. You must pass valid JSON."]
+        return [b'{"status":"error", "message": "You have passed invalid JSON to the Bookworm API"}']
 
     process = SQLAPIcall(query)
     response_body = process.execute()
@@ -65,15 +79,14 @@ def application(environ, start_response):
 
 # Copied from the gunicorn docs.
 
-import multiprocessing
-import gunicorn.app.base
-from gunicorn.six import iteritems
 
 def number_of_workers():
     return (multiprocessing.cpu_count() * 2) + 1
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):
-
+    """
+    Superclassed to allow bookworm to do the running.
+    """
     def __init__(self, app, options=None):
         self.options = options or {}
         self.application = app

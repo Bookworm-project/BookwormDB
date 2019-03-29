@@ -164,11 +164,13 @@ section'client'
                     loc = os.path.relpath(".", "..")
                     print("Configuring Bookworm named '{}'".format(loc))
                     print("Change the file at bookworm.cnf if this is undesirable".format(loc))
-                fout.write("[client]\ndatabase = {}".format(loc))
-                self.configuration(askk = not args.yes)
-                
+                fout.write("[client]\ndatabase = {}\n".format(loc))
         else:
-            self.configuration(askk = not args.yes)
+            fout = open("bookworm.cnf", "w")
+            loc = os.path.relpath(".", "..")
+            print("Configuring Bookworm named '{}'".format(loc))
+            print("Change the file at bookworm.cnf if this is undesirable".format(loc))
+            fout.write("[client]\ndatabase = {}\n".format(loc))
         
     def query(self, args):
         """
@@ -289,6 +291,9 @@ section'client'
         self.database_metadata(args)
         
     def preDatabaseMetadata(self, args=None, **kwargs):
+        import os
+        if not os.path.exists("field_descriptions.json"):
+            self.guessAtFieldDescriptions()
         self.derived_catalog(args)
         import bookwormDB.CreateDatabase
         # Doesn't need a created database yet, just needs access
@@ -328,7 +333,9 @@ section'client'
         import os
         if not os.path.exists("field_descriptions.json"):
             output = open("field_descriptions.json","w")
-            output.write(json.dumps(Bookworm.variableSet.guessAtFieldDescriptions()))
+            guess = json.dumps(Bookworm.variableSet.guessAtFieldDescriptions())
+            logging.warning("Creating guess for field descriptions at: {}".format(guess))
+            output.write(guess)
         else:
             logging.error("""
             You already have a file at field_descriptions.json

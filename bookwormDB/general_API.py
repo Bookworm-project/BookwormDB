@@ -4,13 +4,14 @@ from pandas import merge
 from pandas import Series
 from pandas.io.sql import read_sql
 from pandas import merge
+from pandas import set_option
 from copy import deepcopy
 from collections import defaultdict
 from .SQLAPI import DbConnect
 from .SQLAPI import userquery
 from .bwExceptions import BookwormException
 import re
-import ujson as json
+import json
 import logging
 import numpy as np
 import csv
@@ -51,6 +52,19 @@ def PMI(df, location, groups):
         copy["expected"] = copy["expected"] * copy[new_name]
     return np.log(copy[location]/copy["expected"])
 
+def rle(input):
+    """
+    Format a list as run-length encoding JSON.
+    """
+    output = [input[0]]
+    for item in input[1:]:
+        if isinstance(output[-1], list) and output[-1][1] == item:
+            output[-1][0] += 1
+        elif output[-1] == item:
+            output[-1] = [1, item]
+        else:
+            output.append(item)
+    return output
 
 
 def calculateAggregates(df, parameters, groups = None):
@@ -265,12 +279,15 @@ class APIcall(object):
             self.pandas_frame = self.get_data_from_source()
             return self.pandas_frame
 
-
     def validate_query(self):
         self.ensure_query_has_required_fields()
         
     def ensure_query_has_required_fields(self):
-        required_fields = ['counttype', 'groups']
+
+        required_fields = ['counttype', 'groups', 'database']
+        if self.query['method'] in ['schema', 'search']:
+            required_fields = ['database']
+        
         for field in required_fields:
             if field not in self.query:
                 logging.error("Missing field: %s" % field)
@@ -322,8 +339,12 @@ class APIcall(object):
         instance or something else, just by changing the bits in the middle
         where it handles storage_format.
         """
-
+        
         self.validate_query()
+
+        if self.query['method'] in ['schema', 'search']:
+            return self.generate_pandas_frame()
+        
         self.prepare_search_and_compare_queries()
         
         """
@@ -379,7 +400,13 @@ class APIcall(object):
 
         method = self.query['method']
         fmt = self.query['format'] if 'format' in self.query else False
-        version = 2 if method == 'data' else 1
+
+        if method == 'data' or method == 'schema' or method == 'search':
+            version = 2
+            if fmt in ['json_c', 'search', 'html', 'csv', 'tsv']:
+                version = 3
+        else:
+            version = 1
 
         if version == 1:
             # What to do with multiple search_limits
@@ -391,6 +418,7 @@ class APIcall(object):
                     self.query['search_limits'] = self.query['search_limits'][0]
 
             form = method[7:] if method[:6] == 'return' else method
+            
             logging.warning("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
 
@@ -401,37 +429,43 @@ class APIcall(object):
                 frame = self.data()
                 return frame.to_csv(path = None, sep="\t", encoding="utf8", index=False,
                                     quoting=csv.QUOTE_NONE, escapechar="\\")
-        elif version == 2:
+        elif version >= 2:
             try:
                 # What to do with multiple search_limits
+                
                 if isinstance(self.query['search_limits'], list):
-                    if fmt == "json":
-                        return self.multi_execute(version=version)
+                    if fmt == "json" or version >= 3:
+                        frame = self.multi_execute(version = version)
                     else:
                         # Only return first search limit if not return in json
                         self.query['search_limits'] = self.query['search_limits'][0]
-
+                else:
+                    frame = self.data()
+                    
                 if fmt == "json":
                     return self.return_json(version=2)
                 
                 if fmt == "csv":
-                    frame = self.data()
                     return frame.to_csv(encoding="utf8", index=False)
                 
                 if fmt == "tsv":
-                    frame = self.data()
                     return frame.to_csv(sep="\t", encoding="utf8", index=False)
 
                 if fmt == "feather":
-                    frame = self.data()
                     fout = io.BytesIO(b'')
                     try:
                         frame.to_feather(fout)
                     except:
-                        logging.warning("You need pyarrow installed to export as feather.")
+                        logging.warning("You need the pyarrow package installed to export as feather.")
                         raise
                     fout.seek(0)
                     return fout.read()
+
+                if fmt == 'json_c':
+                    return self.return_rle_json(frame)
+
+                if fmt == 'html':
+                    return self.html(data)
                 
                 else:
                     err = dict(status="error", code=200,
@@ -453,7 +487,7 @@ class APIcall(object):
 
         # Temporary catch-all pushes to the old methods:
         if method in ["returnPossibleFields", "search_results",
-                      "return_books"]:
+                      "return_books", "schema"]:
                 try:
                     query = userquery(self.query)
                     if method == "return_books":
@@ -466,31 +500,79 @@ class APIcall(object):
                     return "General error"
 
     def multi_execute(self, version=1):
+        
         """
         Queries may define several search limits in an array
         if they use the return_json method.
         """
-        returnable = []
-        for limits in self.query['search_limits']:
-            child = deepcopy(self.query)
-            child['search_limits'] = limits
-            q = self.__class__(child).return_json(raw_python_object=True,
+        
+        if version <= 2:
+            returnable = []
+            for limits in self.query['search_limits']:
+                child = deepcopy(self.query)
+                child['search_limits'] = limits
+                q = self.__class__(child).return_json(raw_python_object=True,
                                                   version=version)
-            returnable.append(q)
+                returnable.append(q)
+            return self._prepare_response(returnable, version)
+        
+        if version == 3:
+            for i, limits in enumerate(self.query['search_limits']):
+                child = deepcopy(self.query)
+                child['search_limits'] = limits
+                f = self.__class__(child).data()
+                f['Search'] = i
+                if i == 0:
+                    frame = f
+                else:
+                    frame = frame.append(f, ignore_index = True)
+            return frame
 
-        return self._prepare_response(returnable, version)
+    
+    def html(self):
+        """
+        Return data in column-oriented format with run-length encoding
+        on duplicate values.
+        """
 
+        if isinstance(data, Series) and 'status' in data:
+            # If data has a status, Bookworm is trying to send us an error
+            return data.to_json()
+        
+        set_option('display.max_colwidth', -1)
+        return data.to_html(escape = False, index = False)
+
+
+    def return_rle_json(self, data):
+        """
+        Return data in column-oriented format with run-length encoding
+        on duplicate values.
+        """
+        
+        if isinstance(data, Series) and 'status' in data:
+            # If data has a status, Bookworm is trying to send us an error
+            return data.to_json()
+    
+        output = {'status':'success', 'data':{}}
+        
+        for k in data:
+            series = data[k]
+            output['data'][k] = rle(data[k].tolist())
+            
+        return json.dumps(output)
+    
+        
     def return_json(self, raw_python_object=False, version=1):
         '''
         Get JSON data for a single search_limit.
 
-        version: 1 returns just the data, using method=return_json.
+        version: 1 returns just the data, using method = return_json.
                  2 formats the response according to the JSend spec.
         '''
         query = self.query
         data = self.data()
 
-        if 'status' in data:
+        if isinstance(data, Series) and 'status' in data:
             # If data has a status, Bookworm is trying to send us an error
             return data.to_json()
 
@@ -515,11 +597,15 @@ class APIcall(object):
                 key = row.pop(0)
                 if len(row) == len(query['counttype']):
                     # Assign the elements.
-                    row = [
-                        r if np.isfinite(row)
+                    try:
+                        row = [
+                            r if np.isfinite(row)
                         else None
                         for r in row
                         ]
+                    except:
+                        logging.warning(row)
+                        pass
                     destination[key] = row
                     break
                 # This bit of the loop is where we descend the recursive
@@ -578,3 +664,39 @@ class SQLAPIcall(APIcall):
         q = userquery(call).query()
         df = read_sql(q, con.db)
         return df
+
+class MariaAPIcall(APIcall):
+    """
+    To make a new backend for the API, you just need to extend the base API
+    call class like this.
+
+    This one is comically short because all the real work is done in the
+    userquery object.
+
+    But the point is, you need to define a function "generate_pandas_frame"
+    that accepts an API call and returns a pandas frame.
+
+    But that API call is more limited than the general API; you only need to
+    support "WordCount" and "TextCount" methods.
+    """
+
+    def generate_pandas_frame(self, call = None):
+        """
+
+        This is good example of the query that actually fetches the results.
+        It creates some SQL, runs it, and returns it as a pandas DataFrame.
+
+        The actual SQL production is handled by the userquery class, which uses
+        more legacy code.
+
+        """
+
+        from .mariaDB import Query
+        if call is None:
+            call = self.query
+
+        con = DbConnect(prefs, self.query['database'])
+        q = Query(call).query()
+        df = read_sql(q, con.db)
+        return df
+    
