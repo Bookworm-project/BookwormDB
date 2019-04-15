@@ -9,6 +9,7 @@ from copy import deepcopy
 from collections import defaultdict
 from .SQLAPI import DbConnect
 from .SQLAPI import userquery
+from .mariaDB import Query
 from .bwExceptions import BookwormException
 import re
 import json
@@ -61,7 +62,7 @@ def rle(input):
         if isinstance(output[-1], list) and output[-1][1] == item:
             output[-1][0] += 1
         elif output[-1] == item:
-            output[-1] = [1, item]
+            output[-1] = [2, item]
         else:
             output.append(item)
     return output
@@ -75,6 +76,9 @@ def calculateAggregates(df, parameters, groups = None):
     """
     parameters = list(map(str,parameters))
     parameters = set(parameters)
+
+    logging.debug("aggregating with ")
+    logging.debug(df.columns)    
     
     if "WordCount" in parameters:
         df["WordCount"] = df["WordCount_x"]
@@ -92,8 +96,10 @@ def calculateAggregates(df, parameters, groups = None):
         
     if "TextPercent" in parameters:
         df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
+        
     if "TextRatio" in parameters:
-        df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]       
+        df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]
+        
     if "TotalTexts" in parameters:
         df["TotalTexts"] = df["TextCount_y"]
     if "SumTexts" in parameters:
@@ -152,6 +158,14 @@ def calculateAggregates(df, parameters, groups = None):
 
     return df
 
+def rename(df, newkey):
+    
+    # Add "x" and "y" suffixed to the dataframes even when not explicitly needed.
+
+    renamer = {}
+    for k in ["WordCount", "TextCount"]:
+        renamer[k] = k + "_" + newkey
+    df.rename(index=str, columns=renamer, inplace = True)
 
 def intersectingNames(p1, p2, full=False):
     """
@@ -179,22 +193,26 @@ def base_count_types(list_of_final_count_types):
     """
     the final count types are calculated from some base types across both
     the local query and the superquery.
+
+    These are very not optimized--I should go through and cut out bad ones for more obscure count types.
+
     """
 
-    output = set()
-
+    subq = set()
+    superq = set()
+    
     for count_name in list_of_final_count_types:
         if count_name in ["WordCount", "WordsPerMillion", "WordsRatio",
-                          "TotalWords", "SumWords", "Dunning", "PMI_words"]:
-            output.add("WordCount")
+                          "TotalWords", "SumWords", "Dunning", "PMI_words", "TextLength", "HitsPerMatch", "TFIDF"]:
+            subq.add("WordCount")
+            superq.add("WordCount")
         if count_name in ["TextCount", "TextPercent", "TextRatio",
-                          "TotalTexts", "SumTexts", "DunningTexts", "PMI_texts"]:
-            output.add("TextCount")
-        if count_name in ["TextLength", "HitsPerMatch", "TFIDF"]:
-            output.add("TextCount")
-            output.add("WordCount")
+                          "TotalTexts", "SumTexts", "DunningTexts", "PMI_texts",
+                              "TextLength", "HitsPerMatch", "TFIDF"]:
+            subq.add("TextCount")
+            superq.add("TextCount")
 
-    return list(output)
+    return [list(subq), list(superq)]
 
 
 def is_a_wordcount_field(string):
@@ -297,15 +315,17 @@ class APIcall(object):
 
     def prepare_search_and_compare_queries(self):
 
-        call1 = deepcopy(self.query)
+        
 
+        call1 = deepcopy(self.query)
+        call2 = deepcopy(call1)
+        call2['search_limits'] = self.get_compare_limits()
+        
         # The individual calls need only the base counts: not "Percentage of
         # Words," but just "WordCount" twice, and so forth
-        call1['counttype'] = base_count_types(call1['counttype'])
-        call2 = deepcopy(call1)
 
-        call2['search_limits'] = self.get_compare_limits()
-
+        call1['counttype'], call2['counttype'] = base_count_types(self.query['counttype'])
+        
         # Drop out asterisks for that syntactic sugar.
         for limit in list(call1['search_limits'].keys()):
             if re.search(r'^\*', limit):
@@ -322,13 +342,6 @@ class APIcall(object):
 
         self.call1 = call1
         self.call2 = call2
-        # Special case: unigram groupings are dropped if they're not
-        # explicitly limited
-        # if "unigram" not in call2['search_limits']:
-        #    call2['groups'] = filter(lambda x: x not in ["unigram", "bigram",
-        #                                                 "word"],
-        #                             call2['groups'])
-
 
 
     def get_data_from_source(self):
@@ -353,12 +366,17 @@ class APIcall(object):
         """
 
         if not need_comparison_query(self.query['counttype']):
-            df1 = self.generate_pandas_frame(self.call1)            
+            df1 = self.generate_pandas_frame(self.call1)
+#            rename(df1, "x")
             return df1[self.query['groups'] + self.query['counttype']]
 
         try:
             df1 = self.generate_pandas_frame(self.call1)
+            rename(df1, "x")
+            logging.debug(self.call2)
             df2 = self.generate_pandas_frame(self.call2)
+            rename(df2, "y")
+            
         except Exception as error:
             logging.exception("Database error")
             # One common error is putting in an inappropriate column
@@ -379,6 +397,7 @@ class APIcall(object):
         """
         Would this merge be faster with indexes?
         """
+        
         if len(intersections) > 0:
             merged = merge(df1, df2, on=intersections, how='outer')
         else:
@@ -465,7 +484,7 @@ class APIcall(object):
                     return self.return_rle_json(frame)
 
                 if fmt == 'html':
-                    return self.html(data)
+                    return self.html(frame)
                 
                 else:
                     err = dict(status="error", code=200,
@@ -529,7 +548,7 @@ class APIcall(object):
             return frame
 
     
-    def html(self):
+    def html(self, data):
         """
         Return data in column-oriented format with run-length encoding
         on duplicate values.
@@ -631,7 +650,7 @@ class APIcall(object):
             return json.dumps(resp)
 
 
-class SQLAPIcall(APIcall):
+class old_SQLAPIcall(APIcall):
     """
     To make a new backend for the API, you just need to extend the base API
     call class like this.
@@ -665,7 +684,7 @@ class SQLAPIcall(APIcall):
         df = read_sql(q, con.db)
         return df
 
-class MariaAPIcall(APIcall):
+class SQLAPIcall(APIcall):
     """
     To make a new backend for the API, you just need to extend the base API
     call class like this.
@@ -691,12 +710,13 @@ class MariaAPIcall(APIcall):
 
         """
 
-        from .mariaDB import Query
         if call is None:
             call = self.query
 
         con = DbConnect(prefs, self.query['database'])
         q = Query(call).query()
+        logging.debug(q)
         df = read_sql(q, con.db)
+        logging.debug("Query retrieved")
         return df
     

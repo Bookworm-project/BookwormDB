@@ -3,7 +3,12 @@ import psutil
 import logging
 
 def mp_stats():
-    cpus = len(os.sched_getaffinity(0))
+    try:
+        cpus = len(os.sched_getaffinity(0))
+    except AttributeError:
+        # Should be better OS X support than this.
+        cpus = 6
+
     # Allocate half of available memory for the bounter
     memory = int(psutil.virtual_memory()[4])
 
