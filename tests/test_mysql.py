@@ -1,7 +1,7 @@
 from builtins import hex
 import unittest
 import bookwormDB
-import bookwormDB.configuration
+from bookwormDB.configuration import Configfile
 import bookwormDB.CreateDatabase
 import logging
 import MySQLdb
@@ -38,8 +38,8 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
             pw = conf.config.get("client","password")
             return (user,pw)
 
-        global_configuration_file = bookwormDB.configuration.Configfile("read_only")
-        admin_configuration_file = bookwormDB.configuration.Configfile("admin")
+        global_configuration_file = Configfile("read_only")
+        admin_configuration_file = Configfile("admin")
 
         (admin_user,admin_pw) = test_config_file(global_configuration_file)
         (client_user,client_pw) = test_config_file(admin_configuration_file)

@@ -36,10 +36,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "search_limits":{},
                 "counttype":"TextPercent",
                 "groups":["author"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
         
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertEqual(len(m),5)
 
 
@@ -51,11 +51,11 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "database":"federalist_bookworm",
                 "search_limits":{"word":["on","upon"]},
                 "counttype":"TextPercent",
-                "method":"return_json",
+                "method":"data", "format":"json",
                 "groups": []
         }
         
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(m[0] > 33)
 
     def test_ne_with_one_entry(self):
@@ -69,10 +69,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 },
                 "counttype":"TextPercent",
                 "groups":["author"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
         
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(len(m)==4)
 
     def test_ne_with_two_entries(self):
@@ -86,10 +86,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 },
                 "counttype":"TextPercent",
                 "groups":["author"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
 
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(len(m)==3)
 
 
@@ -104,10 +104,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 },
                 "counttype":"TextPercent",
                 "groups":["author"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
 
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(len(m)==3)
 
 
@@ -125,10 +125,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 },
                 "counttype":"TextCount",
                 "groups":["author"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
 
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertEqual(len(m),2)
 
     def test_lte_and_gte(self):
@@ -142,10 +142,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 },
                 "counttype":"TextCount",
                 "groups":["fedNumber"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
 
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(len(m)==6)
         
     def test_and_with_two_entries(self):
@@ -162,10 +162,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 },
                 "counttype":"TextCount",
                 "groups":["author"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
 
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(len(m)==0)
         
     def test_adding_metadata_to_bookworm(self):
@@ -214,11 +214,11 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "search_limits":{},
                 "counttype":"TextCount",
                 "groups":["oddness"],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
         
         SQLAPIcall(query)
-        m = json.loads(SQLAPIcall(query).execute())
+        m = json.loads(SQLAPIcall(query).execute())['data']
         # Even or odd is one of two things.
         self.assertTrue(len(m)==2)
         
@@ -234,17 +234,17 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "counttype":"WordCount",
                 "groups":[],
                 "words_collation":"Case_Sensitive",
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
 
         SQLAPIcall(query)
-        val1 = json.loads(SQLAPIcall(query).execute())
+        val1 = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(val1[0] > 0)
 
         query["words_collation"] = "Case_Insensitive"        
 
         SQLAPIcall(query)        
-        val2 = json.loads(SQLAPIcall(query).execute())
+        val2 = json.loads(SQLAPIcall(query).execute())['data']
         # The words ('The','the') appear more often than ('the') alone.
         self.assertTrue(val2[0] > val1[0])
 
@@ -256,10 +256,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "counttype":"WordCount",
                 "groups":[],
                 "words_collation":"Case_Insensitive",
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
         SQLAPIcall(query)
-        val1 = json.loads(SQLAPIcall(query).execute())
+        val1 = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(val1[0] > 0)
 
     def test_unicode_search_term(self):
@@ -269,10 +269,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "counttype":"WordCount",
                 "groups":[],
                 "words_collation":"Case_Insensitive",
-                "method":"return_json"
+                "method":"data", "format":"json"
         }
         SQLAPIcall(query)
-        val1 = json.loads(SQLAPIcall(query).execute())
+        val1 = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(val1[0] > 0)
 
     def test_various_unicode_cases(self):
@@ -286,10 +286,10 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "counttype":"WordCount",
                 "groups":[],
                 "words_collation":"Case_Insensitive",
-                "method":"return_json"
+                "method":"data", "format":"json"
                 }
             SQLAPIcall(query)
-            val1 = json.loads(SQLAPIcall(query).execute())
+            val1 = json.loads(SQLAPIcall(query).execute())['data']
             self.assertTrue(val1[0] > 0)
 
     def test_asterisks_in_search_limits(self):
@@ -302,18 +302,18 @@ class Bookworm_SQL_Creation(unittest.TestCase):
                 "compare_limits":{"word":["on"]},                
                 "counttype":"WordsPerMillion",
                 "groups":[],
-                "method":"return_json"
+                "method":"data", "format":"json"
         }        
-        val1 = json.loads(SQLAPIcall(query).execute())
+        val1 = json.loads(SQLAPIcall(query).execute())['data']
 
         query = {
             "database":"federalist_bookworm",
             "search_limits":{"word":["on"],"*author":["HAMILTON"]},
             "counttype":"WordsPerMillion",
             "groups":[],
-            "method":"return_json"
+            "method":"data", "format":"json"
             }
-        val2 = json.loads(SQLAPIcall(query).execute())
+        val2 = json.loads(SQLAPIcall(query).execute())['data']
         self.assertTrue(val1[0] == val2[0])        
 
         
@@ -329,7 +329,7 @@ class SQLConnections(unittest.TestCase):
             "compare_limits":{"author":"Madison"},
             "counttype":"Dunning",
             "groups":["unigram"],
-            "method":"return_json"
+            "method":"data", "format":"json"
         }
         
 
