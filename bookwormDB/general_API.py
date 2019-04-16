@@ -66,92 +66,102 @@ def rle(input):
             output.append(item)
     return output
 
+def DunningLog(df, a, b):
+    from numpy import log as log
+    destination = "Dunning"
+    df[a] = df[a].replace(0, 0.5)
+    df[b] = df[b].replace(0, 0.5)
+    if a == "WordCount_x":
+        # Dunning comparisons should be to the sums if counting:
+        c = sum(df[a])
+        d = sum(df[b])
+    if a == "TextCount_x":
+        # The max count isn't necessarily the total number of books,
+        # but it's a decent proxy.
+        c = max(df[a])
+        d = max(df[b])
+    expectedRate = (df[a] + df[b]).divide(c+d)
+    E1 = c*expectedRate
+    E2 = d*expectedRate
+    diff1 = log(df[a].divide(E1))
+    diff2 = log(df[b].divide(E2))
+    df[destination] = 2*(df[a].multiply(diff1) + df[b].multiply(diff2))
+    # A hack, but a useful one: encode the direction of the significance,
+    # in the sign, so negative
+    difference = diff1 < diff2
+    df.ix[difference, destination] = -1*df.ix[difference, destination]
+    return df[destination]
 
-def calculateAggregates(df, parameters, groups = None):
+class Aggregator(object):
     """
     We only collect "WordCount and "TextCount" for each query,
-    but there are a lot of cool things you can do with those:
+    but there are a multitude of things you can do with those:
     basic things like frequency, all the way up to TF-IDF.
-    """
-    parameters = list(map(str,parameters))
-    parameters = set(parameters)
-    
-    if "WordCount" in parameters:
-        df["WordCount"] = df["WordCount_x"]
-    if "TextCount" in parameters:
-        df["TextCount"] = df["TextCount_x"]
-    if "WordsPerMillion" in parameters:
-        df["WordsPerMillion"] = (df["WordCount_x"].multiply(1000000)/
-                                 df["WordCount_y"])
-    if "TotalWords" in parameters:
-        df["TotalWords"] = df["WordCount_y"]
-    if "SumWords" in parameters:
-        df["SumWords"] = df["WordCount_y"] + df["WordCount_x"]
-    if "WordsRatio" in parameters:
-        df["WordsRatio"] = df["WordCount_x"]/df["WordCount_y"]
+    """    
+    def __init__(self, df, groups = None):
+        self.df = df
+        self.groups = groups
+
+    def _aggregate(self, parameters):
+        "Run the aggregation. Prefixed with an underscore so it doesn't show up in the dict."
         
-    if "TextPercent" in parameters:
-        df["TextPercent"] = 100*df["TextCount_x"].divide(df["TextCount_y"])
-    if "TextRatio" in parameters:
-        df["TextRatio"] = df["TextCount_x"]/df["TextCount_y"]       
-    if "TotalTexts" in parameters:
-        df["TotalTexts"] = df["TextCount_y"]
-    if "SumTexts" in parameters:
-        df["SumTexts"] = df["TextCount_y"] + df["TextCount_x"]
+        parameters = set(map(str, parameters))
+        for parameter in parameters:
+            getattr(self, parameter)()
+        return self.df
+            
+    def WordCount(self):
+        self.df["WordCount"] = self.df["WordCount_x"]
         
-    if "HitsPerBook" in parameters:
-        df["HitsPerMatch"] = df["WordCount_x"]/df["TextCount_x"]
-
-    if "TextLength" in parameters:
-        df["TextLength"] = df["WordCount_y"]/df["TextCount_y"]
-
-
-    if "PMI_words" in parameters:
-        df["PMI_words"] = PMI(df, "WordCount_x", groups)
-
-    if "PMI_texts" in parameters:
-        df["PMI_texts"] = PMI(df, "TextCount_x", groups)        
-    
+    def TextCount(self):
+        self.df["TextCount"] = self.df["TextCount_x"]
         
-    if "TFIDF" in parameters:
+    def WordsPerMillion(self):
+        self.df["WordsPerMillion"] = (self.df["WordCount_x"].multiply(1000000)/
+                                 self.df["WordCount_y"])
+    def TotalWords(self):
+        self.df["TotalWords"] = self.df["WordCount_y"]
+        
+    def SumWords(self):
+        self.df["SumWords"] = self.df["WordCount_y"] + self.df["WordCount_x"]
+        
+    def WordsRatio(self):
+        self.df["WordsRatio"] = self.df["WordCount_x"]/self.df["WordCount_y"]
+        
+    def TextPercent(self):
+        self.df["TextPercent"] = 100*self.df["TextCount_x"].divide(self.df["TextCount_y"])
+        
+    def TextRatio(self):
+        self.df["TextRatio"] = self.df["TextCount_x"]/self.df["TextCount_y"]       
+
+    def TotalTexts(self):
+        self.df["TotalTexts"] = self.df["TextCount_y"]
+        
+    def SumTexts(self):
+        self.df["SumTexts"] = self.df["TextCount_y"] + self.df["TextCount_x"]
+        
+    def HitsPerText(self):
+        self.df["HitsPerText"] = self.df["WordCount_x"]/self.df["TextCount_x"]
+
+    def TextLength(self):
+        self.df["TextLength"] = self.df["WordCount_y"]/self.df["TextCount_y"]
+
+    def PMI_words(self):
+        self.df["PMI_words"] = PMI(self.df, "WordCount_x", self.groups)
+
+    def PMI_texts(self):
+        self.df["PMI_texts"] = PMI(self.df, "TextCount_x", self.groups)        
+        
+    def TFIDF(self):
         from numpy import log as log
-        df["TF"] = df["WordCount_x"]/df["WordCount_y"]
-        df["TFIDF"] = df["TF"] * np.log(df["TextCount_y"]/df['TextCount_x'])
+        self.df["TF"] = self.df["WordCount_x"]/self.df["WordCount_y"]
+        self.df["TFIDF"] = self.df["TF"] * np.log(self.df["TextCount_y"]/self.df['TextCount_x'])
+    
+    def Dunning(self):
+        self.df["Dunning"] = DunningLog(self.df, "WordCount_x", "WordCount_y")
 
-    def DunningLog(df=df, a="WordCount_x", b="WordCount_y"):
-        from numpy import log as log
-        destination = "Dunning"
-        df[a] = df[a].replace(0, 0.1)
-        df[b] = df[b].replace(0, 0.1)
-        if a == "WordCount_x":
-            # Dunning comparisons should be to the sums if counting:
-            c = sum(df[a])
-            d = sum(df[b])
-        if a == "TextCount_x":
-            # The max count isn't necessarily the total number of books,
-            # but it's a decent proxy.
-            c = max(df[a])
-            d = max(df[b])
-        expectedRate = (df[a] + df[b]).divide(c+d)
-        E1 = c*expectedRate
-        E2 = d*expectedRate
-        diff1 = log(df[a].divide(E1))
-        diff2 = log(df[b].divide(E2))
-        df[destination] = 2*(df[a].multiply(diff1) + df[b].multiply(diff2))
-        # A hack, but a useful one: encode the direction of the significance,
-        # in the sign, so negative
-        difference = diff1 < diff2
-        df.ix[difference, destination] = -1*df.ix[difference, destination]
-        return df[destination]
-
-    if "Dunning" in parameters:
-        df["Dunning"] = DunningLog(df, "WordCount_x", "WordCount_y")
-
-    if "DunningTexts" in parameters:
-        df["DunningTexts"] = DunningLog(df, "TextCount_x", "TextCount_y")
-
-    return df
-
+    def DunningTexts(self):
+        self.df["DunningTexts"] = DunningLog(self.df, "TextCount_x", "TextCount_y")
 
 def intersectingNames(p1, p2, full=False):
     """
@@ -211,9 +221,11 @@ class APIcall(object):
     Without a "return_pandas_frame" method, it won't run.
     """
     def __init__(self, APIcall):
+
         """
         Initialized with a dictionary unJSONed from the API defintion.
         """
+
         self.query = APIcall
         self.idiot_proof_arrays()
         self.set_defaults()
@@ -387,7 +399,9 @@ class APIcall(object):
         merged = merged.fillna(int(0))
 
         calculations = self.query['counttype']
-        calcced = calculateAggregates(merged, calculations, self.query['groups'])
+        gator = Aggregator(merged, self.query['groups'])
+        calcced = gator._aggregate(calculations)
+#        calcced = calculateAggregates(merged, calculations, self.query['groups'])
         
         calcced = calcced.fillna(int(0))
 
@@ -399,6 +413,7 @@ class APIcall(object):
     def execute(self):
 
         method = self.query['method']
+        logging.debug("Preparing to execute with method '{}'".format(method))
         fmt = self.query['format'] if 'format' in self.query else False
 
         if method == 'data' or method == 'schema' or method == 'search':
@@ -631,7 +646,7 @@ class APIcall(object):
             return json.dumps(resp)
 
 
-class SQLAPIcall(APIcall):
+class oldSQLAPIcall(APIcall):
     """
     To make a new backend for the API, you just need to extend the base API
     call class like this.
@@ -665,7 +680,7 @@ class SQLAPIcall(APIcall):
         df = read_sql(q, con.db)
         return df
 
-class MariaAPIcall(APIcall):
+class SQLAPIcall(APIcall):
     """
     To make a new backend for the API, you just need to extend the base API
     call class like this.
@@ -694,9 +709,9 @@ class MariaAPIcall(APIcall):
         from .mariaDB import Query
         if call is None:
             call = self.query
-
         con = DbConnect(prefs, self.query['database'])
         q = Query(call).query()
+        logging.debug("Preparing to execute {}".format(q)) 
         df = read_sql(q, con.db)
         return df
     
