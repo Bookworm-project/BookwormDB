@@ -43,6 +43,7 @@ class DB(object):
             "db": '',
             "local_infile": 1}
         try:
+            logging.info(connect_args)
             self.conn = MySQLdb.connect(**connect_args)
         except MySQLdb.OperationalError:
             # Sometimes mysql wants to connect over this rather than a socket:

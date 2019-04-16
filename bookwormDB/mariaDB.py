@@ -140,7 +140,8 @@ class Query(object):
         # Some tablenames.
         
         self.wordsheap = self.databaseScheme.fallback_table('wordsheap')
-        self.catalog = self.databaseScheme.fallback_table("fastcat")
+        self.fastcat = self.databaseScheme.fallback_table("fastcat")
+        logging.info("Catalog set to {}".format(self.fastcat))
         self.words = "words"
 
         self.defaults(query_object) # Take some defaults
@@ -179,7 +180,8 @@ class Query(object):
             
         if groups == [] or groups == ["unigram"]:
             # Set an arbitrary column name that will always be true if nothing else is set.
-            groups.insert(0, "1 as In_Library")
+            pass
+        #            groups.insert(0, "1 as In_Library")
 
         if groups is None:
             # A user query can't demand ungrouped results,
@@ -379,7 +381,10 @@ class Query(object):
     
     def make_group_query(self):
         aliases = [self.databaseScheme.aliases[g] for g in self.query_object["groups"]]
-        return "GROUP BY {}".format(", ".join(aliases))
+        if len(aliases) > 0:
+            return "GROUP BY {}".format(", ".join(aliases))
+        else:
+            return " "
 
 
     def main_table(self):
@@ -395,9 +400,11 @@ class Query(object):
         # But if there's a group, there may also need to be an associated where.
         
         if self.word_limits == False:
-            tables = []
+            tables = [self.fastcat]
         else:
             tables = [self.main_table()]
+
+
         cols = self.query_object['groups']
         ts = self.databaseScheme.tables_for_variables(cols)
 
@@ -410,21 +417,26 @@ class Query(object):
     def make_join_query(self):
         tables = self.full_query_tables()
         return " NATURAL JOIN ".join(tables)
-        return string
 
 
     def base_query(self):
         dicto = {}
         dicto['finalGroups'] = ', '.join(self.query_object['groups'])
+        if dicto['finalGroups'] != '':
+            dicto['finalGroups'] = ", " + dicto['finalGroups']
+        
         dicto['group_query'] = self.make_group_query()
         dicto['op'] = ', '.join(self.set_operations())
         dicto['bookid_where'] = self.bookid_query()
         dicto['wordid_where'] = self.wordid_query()
         dicto['tables'] = self.make_join_query()
+        logging.info("FRRR")
+        logging.info("'{}'".format(dicto['tables']))
+        
         dicto['catwhere'] = self.make_catwhere("main")
         
         basic_query = """
-        SELECT {op}, {finalGroups}
+        SELECT {op} {finalGroups}
         FROM {tables}
         WHERE
           {bookid_where}
@@ -464,12 +476,12 @@ class Query(object):
         
         self.catalog = " NATURAL JOIN ".join(self.relevantTables)
         return self.catalog
-        for table in self.relevantTables:
-            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams" and table != "fastcat_" and table != "wordsheap_":
-                self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
+#        for table in self.relevantTables:
+#            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams" and table != "fastcat_" and table != "wordsheap_":
+#                self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "#
+#
+#        return self.catalog
 
-        return self.catalog
-                
         
     def make_catwhere(self, query = "sub"):
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
@@ -742,7 +754,7 @@ class Query(object):
         SELECT searchstring
         FROM catalog RIGHT JOIN (
         SELECT
-        """+ self.catalog + """.bookid, %(ordertype)s as ordering
+        """+ self.fastcat + """.bookid, %(ordertype)s as ordering
             FROM
                 %(catalog)s
                 %(main)s
@@ -854,7 +866,7 @@ class databaseSchema(object):
         # that end in the suffix "__id" later.
 
         # The aliases starts with a dummy alias for fully grouped queries.
-        self.aliases = {'1 as In_Library': 'In_Library'}
+        self.aliases = {}
         self.newStyle(db)
 
 
