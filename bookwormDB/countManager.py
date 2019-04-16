@@ -4,6 +4,7 @@ import bounter
 from collections import Counter
 from .tokenizer import tokenizer, tokenBatches
 from multiprocessing import Process, Queue, Pool
+from .multiprocessingHelp import mp_stats, running_processes
 import multiprocessing as mp
 import psutil
 import queue
@@ -11,20 +12,19 @@ import logging
 import fileinput
 import time
 
-cpus = len(os.sched_getaffinity(0))
+cpus, memory = mp_stats()
 
-# Allocate half of available memory for the bounter
-memory = int(psutil.virtual_memory()[4]/1024/1024/2)
 
-if memory < 1024:
-    logging.warning("Not much memory to work with--vocab may be exact")
+# Allocate half of available memory for the bounter, in megabytes.
+memory = int(memory/1024/1024/2)
 
 # Use another third of the memory for storing worker counts; divided
 # by number of CPUS.
 # Assume 200 bytes per entry in python dict.
 
 QUEUE_POST_THRESH = int(memory / 3 * 1024 * 1024 / 200 / cpus)
-QUEUE_POST_THRESH = min([250000, QUEUE_POST_THRESH])
+logging.debug("Ideal queue size is {}".format(QUEUE_POST_THRESH))
+QUEUE_POST_THRESH = max([100000, QUEUE_POST_THRESH])
 
 logging.info("Filling dicts to size {}".format(QUEUE_POST_THRESH))
 
@@ -67,9 +67,16 @@ def counter(qout, i, fin, mode = "count"):
             continue
         text = tokenizer(text)
         for q in text.tokenize():
-            counter[q] += 1
+            if q is not None:
+                counter[q] += 1
             # When the counter is long, post it to the master and clear it.
         if len(counter) > QUEUE_POST_THRESH:
+            for k in ['', '\x00']:
+                try:
+                    del counter[k]
+                except KeyError:
+                    continue
+                
             qout.put(counter)
             counter = Counter()
 
@@ -82,12 +89,6 @@ def counter(qout, i, fin, mode = "count"):
         encoder.close()
         
         
-def running_processes(workerlist):
-    for worker in workerlist:
-        if worker.is_alive():
-            return True
-    return False
-
 def create_counts(input):
     qout = Queue(cpus * 2)
     workers = []
@@ -101,13 +102,20 @@ def create_counts(input):
     
     while True:
         try:
-            wordcounter.update(qout.get_nowait())
+            input_dict = qout.get_nowait()
+            logging.debug("inputting queue of length {} from worker".format(len(input_dict)))
+
+            wordcounter.update(input_dict)
         except queue.Empty:
             if running_processes(workers):
                 time.sleep(1/100)
             else:
                 break
-            
+        except ValueError:
+            for k, v in input_dict.items():
+                print("'{}'\t'{}'".format(k, v))                
+                wordcounter.update({k: v})
+            raise
     return wordcounter
 
 def create_wordlist(n, input, output):

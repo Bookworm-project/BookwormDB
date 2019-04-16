@@ -1,13 +1,17 @@
 #!/usr/local/bin/python
 
 from .variableSet import to_unicode
+from .search_limits import Search_limits
+from .bwExceptions import BookwormException
+
 import json
 import re
 import copy
 import MySQLdb
 import hashlib
 import logging
-from .bwExceptions import BookwormException
+
+
 
 # If you have bookworms stored on a different host, you can create more lines
 # like this.
@@ -168,8 +172,11 @@ class Query(object):
         self.outerGroups = []
         self.finalMergeTables = set()
 
-        groups = query_object['groups']
-
+        try:
+            groups = query_object['groups']
+        except:
+            groups = None
+            
         if groups == [] or groups == ["unigram"]:
             # Set an arbitrary column name that will always be true if nothing else is set.
             groups.insert(0, "1 as In_Library")
@@ -237,21 +244,6 @@ class Query(object):
         if isinstance(self.counttype, (str, bytes)):
             self.counttype = [self.counttype]
 
-        # index is deprecated, but the old version uses it.
-        self.index = query_object.setdefault('index', 0)
-        """
-        # Ordinarily, the input should be an an array of groups that will both select and group by.
-        # The joins may be screwed up by certain names that exist in multiple tables, so there's an option to do something like
-        # SELECT catalog.bookid as myid, because WHERE clauses on myid will work but GROUP BY clauses on catalog.bookid may not
-        # after a sufficiently large number of subqueries.
-        # This smoothing code really ought to go somewhere else, since it doesn't quite fit into the whole API mentality and is
-        # more about the webpage. It is only included here as a stopgap: NO FURTHER APPLICATIONS USING IT SHOULD BE BUILT.
-        """
-
-        self.smoothingType = query_object.setdefault('smoothingType', "triangle")
-        self.smoothingSpan = query_object.setdefault('smoothingSpan', 3)
-        self.method = query_object.setdefault('method', "Nothing")
-
     def determineOutsideDictionary(self):
         """
         deprecated--tagged for deletion.
@@ -289,18 +281,20 @@ class Query(object):
         The grouping behavior here is not desirable, but I'm not quite sure how yet.
         Aha--one way is that it accidentally drops out a bunch of options. I'm just disabling it: let's see what goes wrong now.
         """
-        try:
-            pass# self.compare_dictionary['groups'] = [group for group in self.compare_dictionary['groups'] if not re.match('word', group) and not re.match("[u]?[bn]igram", group)]# topicfix? and not re.match("topic", group)]
-        except:
-            self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
 
     def derive_variables(self):
         # These are locally useful, and depend on the search limits put in.
         self.limits = self.search_limits
-        # Treat empty constraints as nothing at all, not as full restrictions.
+        
+        # Treat empty constraints as nothing at all, not as restricting to the set of nothing.
         for key in list(self.limits.keys()):
             if self.limits[key] == []:
                 del self.limits[key]
+
+        if 'word' in self.limits:
+            self.word_limits = True
+        else:
+            self.word_limits = False
                 
         self.set_operations()
         
@@ -318,7 +312,10 @@ class Query(object):
         neededTables = set()
         tablenames = dict()
         tableDepends = dict()
-        db.cursor.execute("SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);")
+        
+        q = "SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);"
+        logging.debug(q)
+        db.cursor.execute(q)
         for row in db.cursor.fetchall():
             tablenames[row[0]] = row[2]
             tableDepends[row[2]] = row[3]
@@ -371,47 +368,68 @@ class Query(object):
         return pull_keys(self.limits)
 
     def wordid_query(self):
-        f = "SELECT wordid FROM {words} as words1 WHERE {wordswhere}".format(**self.__dict__)
-        
-        return f
+        return self.wordswhere
+
+        if self.wordswhere != " TRUE ":
+            f = "SELECT wordid FROM {words} as words1 WHERE {wordswhere}".format(**self.__dict__)
+            logging.debug("`" + self.wordswhere + "`")            
+            return " wordid IN ({})".format(f)
+        else:
+            return " TRUE "
     
     def make_group_query(self):
-        cols = self.groups
         aliases = [self.databaseScheme.aliases[g] for g in self.query_object["groups"]]
         return "GROUP BY {}".format(", ".join(aliases))
 
-    def make_join_query(self):
-        cols = self.query_object['groups']
-        tables = self.databaseScheme.tables_for_variables(cols)
-        logging.warning(tables)
-        string = " NATURAL JOIN ".join(tables)
-        if string:
-            # If there *are* any tables, precede them all with a master_join.
-            string = " NATURAL JOIN " + string
-        return string
+
+    def main_table(self):
+        if self.gram_size() == 1:
+            return 'master_bookcounts as main'
+        if self.gram_size() == 2:
+            return 'master_bigrams as main'
+        
+    def full_query_tables(self):
         # Joins are needed to provide groups, but *not* to provide
         # provide evidence for wheres.
+
+        # But if there's a group, there may also need to be an associated where.
         
+        if self.word_limits == False:
+            tables = []
+        else:
+            tables = [self.main_table()]
+        cols = self.query_object['groups']
+        ts = self.databaseScheme.tables_for_variables(cols)
+
+        for t in ts:
+            if not t in tables:
+                tables.append(t)
+
+        return tables
         
+    def make_join_query(self):
+        tables = self.full_query_tables()
+        return " NATURAL JOIN ".join(tables)
+        return string
+
+
     def base_query(self):
         dicto = {}
         dicto['finalGroups'] = ', '.join(self.query_object['groups'])
         dicto['group_query'] = self.make_group_query()
         dicto['op'] = ', '.join(self.set_operations())
-        dicto['master'] = 'master_bookcounts as main'
-        dicto['bookid_where'] = self.bookid_query()        
-        dicto['word_query'] = self.wordid_query()
-        dicto['join_query'] = self.make_join_query()
-        dicto['catwhere'] = self.catwhere
+        dicto['bookid_where'] = self.bookid_query()
+        dicto['wordid_where'] = self.wordid_query()
+        dicto['tables'] = self.make_join_query()
+        dicto['catwhere'] = self.make_catwhere("main")
         
         basic_query = """
         SELECT {op}, {finalGroups}
-        FROM {master}
-        {join_query}
+        FROM {tables}
         WHERE
           {bookid_where}
           AND 
-          wordid IN ({word_query})
+          {wordid_where}
           AND {catwhere} 
         {group_query}
         """.format(**dicto)
@@ -453,7 +471,7 @@ class Query(object):
         return self.catalog
                 
         
-    def make_catwhere(self):
+    def make_catwhere(self, query = "sub"):
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
         
@@ -463,31 +481,42 @@ class Query(object):
             if key not in ('word', 'word1', 'word2', 'hasword') and not re.search("words\d", key):
                 catlimits[key] = self.limits[key]
 
+        if query == "main":
+            ts = set(self.full_query_tables())                
+            for key in list(catlimits.keys()):
+                    logging.debug(key)
+                    logging.debug(ts)
+                    if not (key in ts or key + "__id" in ts):
+                        logging.info("removing {}".format(key))
+                        del catlimits[key]
+                
         if len(list(catlimits.keys())) > 0:
-            self.catwhere = where_from_hash(catlimits)
+            catwhere = where_from_hash(catlimits)
         else:
-            self.catwhere = "TRUE"
+            catwhere = "TRUE"
+        if query == "sub":
+            self.catwhere = catwhere
+        return catwhere
+    
+    def gram_size(self):
+        try:
+            ls = [phrase.split() for phrase in self.limits['word']]
+        except:
+            return 0
+        lengths = list(set(map(len, ls)))
+        if len(lengths) > 1:
+            raise BookwormException('400', 'Must pass all unigrams or all bigrams')
+        else:
+            return lengths[0]
             
-
+        
+        
     def make_wordwheres(self):
         self.wordswhere = " TRUE "
         
-        self.max_word_length = 0
-        
         limits = []
         
-        """
-        "unigram" or "bigram" can be used as an alias for "word" in the search_limits field.
-        """
-
-        
-
-        for gramterm in ['unigram', 'bigram']:
-            if gramterm in list(self.limits.keys()) and "word" not in list(self.limits.keys()):
-                self.limits['word'] = self.limits[gramterm]
-                del self.limits[gramterm]
-
-        if 'word' in list(self.limits.keys()):
+        if self.word_limits:
             """
 
             This doesn't currently allow mixing of one and two word searches
@@ -498,6 +527,9 @@ class Query(object):
             case.
 
             """
+
+
+            
             for phrase in self.limits['word']:
                 locallimits = dict()
                 array = phrase.split()
@@ -513,19 +545,24 @@ class Query(object):
 
                     
                     selectString = "SELECT wordid FROM %s WHERE %s = %%s" % (self.wordsheap, self.word_field)
-
                     logging.debug(selectString)
                     cursor = self.db.cursor
                     cursor.execute(selectString,(searchingFor,))
+
+                    # Set the search key being used.
+                    search_key = "wordid"
+                    if self.gram_size() > 1:
+                        # 1-indexed entries in the bigram tables.
+                        search_key = "word{}".format(n + 1)
+                    
                     for row in cursor.fetchall():
                         wordid = row[0]
                         try:
-                            locallimits['words'+str(n+1) + ".wordid"] += [wordid]
+                            locallimits[search_key] += [wordid]
                         except KeyError:
-                            locallimits['words'+str(n+1) + ".wordid"] = [wordid]
-                    self.max_word_length = max(self.max_word_length, n)
+                            locallimits[search_key] = [wordid]
 
-                if len(list(locallimits.keys())) > 0:
+                if len(locallimits) > 0:
                     limits.append(where_from_hash(locallimits, comp = " = ", escapeStrings=False))
                     
 
@@ -533,7 +570,7 @@ class Query(object):
             if limits == []:
                 # In the case that nothing has been found, tell it explicitly to search for
                 # a condition when nothing will be found.
-                self.wordswhere = "words1.wordid=-1"
+                self.wordswhere = "bookid = -1"
 
         wordlimits = dict()
 
@@ -612,11 +649,13 @@ class Query(object):
             self.wordswhere = " TRUE "
             # Just a dummy thing to make the SQL writing easier. Shouldn't take any time. Will usually be extended with actual conditions.
 
-    def set_operations(self, with_words = True):
+    def set_operations(self):
 
+        with_words = self.word_limits
         
         output = []
 
+        # experimental
         if self.query_object['counttype'] == 'bookid':
             return ['bookid']
         
@@ -630,9 +669,9 @@ class Query(object):
             if "WordCount" in self.query_object['counttype']:
                 output.append("sum(main.count) as WordCount")
         else:
-            if "TextCount" in self.query_object['counttype']:
-                output.append("sum(nwords) as WordCount")
             if "WordCount" in self.query_object['counttype']:
+                output.append("sum(nwords) as WordCount")
+            if "TextCount" in self.query_object['counttype']:
                 output.append("count(nwords) as TextCount")
 
         return output
@@ -647,50 +686,19 @@ class Query(object):
             self.bookid_where = " TRUE "
             
         else:
-            self.bookid_where = " main.bookid IN ({}) ".format(q)
+            self.bookid_where = " bookid IN ({}) ".format(q)
 
         
         return self.bookid_where
     
+    def query(self):
         
-    def counts_query(self):
-
-        self.operation = ', '.join(self.set_operations())
-
-        countsQuery = """
-            SELECT
-                %(selections)s,
-                %(operation)s
-            FROM
-                %(main)s
-                %(cat_tables)s
-                %(word_tables)s
-            WHERE
-                 %(catwhere)s  %(wordswhere)s
-            GROUP BY
-                %(groupings)s
-        """ % self.__dict__
-        return countsQuery
-
-    def debug_query(self):
-        query = self.ratio_query(materialize = False)
-        return json.dumps(self.denominator.groupings.split(",")) + query
-
-    def query(self, materialize=False):
         """
-        We launch a whole new userquery instance here to build the denominator, based on the 'compare_dictionary' option (which in most
-        cases is the search_limits without the keys, see above; it can also be specially defined using asterisks as a shorthand to identify other fields to drop.
-        We then get the counts_query results out of that result.
-        """
+        Return the SQL query that fills the API request.
 
+        There must be a search method filled out.
         """
-        self.denominator = userquery(query_object = self.compare_dictionary,db=self.db,databaseScheme=self.databaseScheme)
-        self.supersetquery = self.denominator.counts_query()
-        supersetIndices = self.denominator.groupings.split(",")
-        if materialize:
-            self.supersetquery = derived_table(self.supersetquery,self.db,indices=supersetIndices).materialize()
-        """
-
+        
         if (self.query_object['method'] == 'schema'):
             return "SELECT name,type,description,tablename,dbname,anchor FROM masterVariableTable WHERE status='public'"
         elif (self.query_object['method'] == 'search'):
@@ -759,7 +767,9 @@ class Query(object):
             words = self.query_object['search_limits']['word']
             # Break bigrams into single words.
             words = ' '.join(words).split(' ')
-            self.cursor.execute("SELECT word FROM {} WHERE {}".format(self.wordsheap, where_from_hash({self.word_field:words})))
+            q = "SELECT word FROM {} WHERE {}".format(self.wordsheap, where_from_hash({self.word_field:words}))
+            logging.debug(q)
+            self.cursor.execute(q)
             self.actualWords = [item[0] for item in self.cursor.fetchall()]
         else:
             raise TypeError("Suspiciously low word count")
@@ -828,10 +838,12 @@ class databaseSchema(object):
         self.cursor=db.cursor
         # has of what table each variable is in
         self.tableToLookIn = {}
+        
         # hash of what the root variable for each search term is (eg,
         # 'author_birth' might be crosswalked to 'authorid' in the
         # main catalog.)
         self.anchorFields = {}
+
         # aliases: a hash showing internal identifications codes that
         # dramatically speed up query time, but which shouldn't be
         # exposed.  So you can run a search for "state," say, and the
@@ -841,11 +853,8 @@ class databaseSchema(object):
         # hard-coded in, but most are derived by looking for fields
         # that end in the suffix "__id" later.
 
-        if self.db.dbname == "presidio":
-            self.aliases = {"classification":"lc1", "lat":"pointid", "lng":"pointid"}
-        else:
-            self.aliases = dict()
-
+        # The aliases starts with a dummy alias for fully grouped queries.
+        self.aliases = {'1 as In_Library': 'In_Library'}
         self.newStyle(db)
 
 
@@ -865,8 +874,9 @@ class databaseSchema(object):
 
         tablenames = dict()
         tableDepends = dict()
-        
-        db.cursor.execute("SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);")
+        q = "SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);"
+        logging.debug(q)
+        db.cursor.execute(q)
         
         for row in db.cursor.fetchall():
             (dbname, alias, tablename, dependsOn) = row
@@ -897,6 +907,7 @@ class databaseSchema(object):
             return self.fallbacks_cache[tabname]
         
         q = "SELECT COUNT(*) FROM {}".format(tab)
+        logging.debug(q)
         try:
             self.db.cursor.execute(q)
             length = self.db.cursor.fetchall()[0][0]
@@ -926,7 +937,9 @@ class databaseSchema(object):
                 lookup_table = anchor
                 
         return tables
-            
+
+    
+
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
     whereterm = []
     # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).

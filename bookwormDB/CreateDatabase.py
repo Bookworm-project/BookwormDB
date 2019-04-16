@@ -427,11 +427,11 @@ class BookwormSQLDatabase(object):
         """
         
         q = "SELECT tablename,memoryCode FROM masterTableTable"
-        existingCreateCodes = self.db.query().fetchall()
+        existingCreateCodes = self.db.query(q).fetchall()
 
         if names is not None:
             existingCreateCodes = [e for e in existingCreateCodes if e[0] in names]
-        
+
         for row in existingCreateCodes:
             """
             For each table, it checks to see if the table is currently populated; if not,
@@ -462,7 +462,9 @@ class BookwormSQLDatabase(object):
             
         fastFieldsCreateList = [
             "bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)",
-            "nwords MEDIUMINT UNSIGNED NOT NULL"] 
+            "nwords MEDIUMINT UNSIGNED NOT NULL"
+            ]
+            
         fastFieldsCreateList += [variable.fastSQL() for variable in self.variableSet.uniques("fast")]
         
         create_command = """DROP TABLE IF EXISTS tmp;"""
@@ -473,7 +475,8 @@ class BookwormSQLDatabase(object):
             fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.uniques("fast")]
             load_command = "INSERT INTO tmp SELECT "
             load_command += ",".join(fastFields) + " FROM catalog USE INDEX () "
-            load_command += " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.uniques("categorical")]) + ";"
+            # LEFT JOIN fixes a bug where fields were being dropped
+            load_command += " ".join(["LEFT JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.uniques("categorical")]) + ";"
         elif engine == "MEMORY":
             load_command = "INSERT INTO tmp SELECT * FROM fastcat_;"
 
