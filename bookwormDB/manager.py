@@ -91,58 +91,11 @@ section'client'
             else:
                 bookwormDB.tokenizer.encode_text_stream()
             
-        if args.process=="text_stream":
-            if args.feature_counts:
-                logging.error("Can't print the raw text from feature counts.")
-                raise
-            textfile_locations = ["input.txt",".bookworm/texts/input.txt","../input.txt",".bookworm/texts/raw","input.sh"]
-            if args.file is None:
-                for file in textfile_locations:
-                    if os.path.exists(file):
-                        args.file = file
-                        break
-                if args.file is None:
-                    # One of those should have worked.
-                    import json
-                    raise IOError("Unable to find an input.txt or input.sh file in a default location: those are " + json.dumps(textfile_locations))
-            if os.path.isdir(args.file):
-                for (root,dirs,files) in os.walk(args.file): 
-                    for name in files:
-                        path = os.path.join(root,name)
-                        content = open(path).read().replace("\n"," ").replace("\t"," ").replace("\r"," ")
-                        identity = path.replace(args.file,"").replace(".txt","").strip("/")
-                        print(identity + "\t" + content)
-            elif os.path.exists(args.file) and (args.file.endswith(".sh")):
-                logging.debug("Attempting to print text stream by executing the script at" + args.file)
-                Popen(["./" + args.file])
-            elif os.path.exists(args.file):
-                # I really don't care about useless use of cat here; processor overhead is being lost elsewhere.
-                Popen(["cat", args.file])
-            else:
-                raise IOError("No input file found.")
-        if args.process=="token_stream":
-            """
-            It is currently not possible to tokenize a bookworm-formatted file directly,
-            *and* have the ids removed from the start.
-            """
-            require_id = False
-            if args.file is None:
-                args.file = sys.stdin
-                require_id = True
-            else:
-                args.file = open(args.file)
-            bookwormDB.tokenizer.print_token_stream(args.file,require_ids = require_id)
-
+        if args.process=="text_stream" or args.process=="token_stream":
+            raise NotImplementError("This feature has been removed")
+        
         if args.process=="word_db":
-            import bookwormDB.wordcounter
-            """
-            Read an endless string of space-delimited characters, and build it into
-            a words table.
-            """
-            if args.feature_counts:
-                bookwormDB.wordcounter.write_word_ids_from_feature_counts(sys.stdin)
-            else:
-                bookwormDB.wordcounter.WordsTableCreate()
+            self.wordlist(args)
             
     def init(self, args):
         """
