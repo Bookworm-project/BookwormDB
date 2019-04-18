@@ -117,7 +117,6 @@ class Configfile(object):
             self.config.set("client", "host", "localhost")        
             self.config.set("client", "user", "root")
             self.config.set("client", "password", "")
-            self.config.set("mysqld", "host", "localhost")
             
         else:
             self.ensure_section("client")
@@ -178,7 +177,7 @@ class Configfile(object):
         """
         self.ensure_section("mysqld")
         
-        mysqldoptions = {"max_allowed_packet":"512M","sort_buffer_size":"8M","read_buffer_size":"4M","read_rnd_buffer_size":"8M","bulk_insert_buffer_size":"512M","myisam_sort_buffer_size":"512M","myisam_max_sort_file_size":"2500G","key_buffer_size":"2500M","query_cache_size":"32M","tmp_table_size":"1024M","max_heap_table_size":"2048M","character_set_server":"utf8","query_cache_type":"1","query_cache_limit":"2M"}
+        mysqldoptions = {"### = =": "THIS FILE SHOULD GENERALLY BE PLACED AT /etc/mysql/my.cnf = = = ###", "max_allowed_packet":"512M","sort_buffer_size":"8M","read_buffer_size":"8M","read_rnd_buffer_size":"8M","bulk_insert_buffer_size":"512M","myisam_sort_buffer_size":"5512M","myisam_max_sort_file_size":"5500G","key_buffer_size":"2500M","query_cache_size":"32M","tmp_table_size":"1024M","max_heap_table_size":"2048M","character_set_server":"utf8","query_cache_type":"1","query_cache_limit":"8M"}
 
         for option in list(mysqldoptions.keys()):
             if not self.config.has_option("mysqld",option):
@@ -197,10 +196,9 @@ class Configfile(object):
         """
         self.config.write(sys.stdout)
         
-def recommend_my_cnf(self, known_loc = None):
+def recommend_my_cnf(known_loc = None):
     if known_loc is None:
-        for loc in ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf",
-                    "/etc/mysql/conf.d/mysql.cnf"]:
+        for loc in ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf"]:
             if os.path.exists(loc):
                 known_loc = loc
     if known_loc is None:

@@ -70,7 +70,7 @@ section'client'
         """
         if args.target=="mysql":
             import bookwormDB.configuration
-            bookwormDB.configuration.reconfigure_passwords(args.users, args.force)
+            bookwormDB.configuration.recommend_my_cnf()
             
     def tokenize(self,args):
         
