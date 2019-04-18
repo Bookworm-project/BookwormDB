@@ -8,6 +8,7 @@ import os
 from .variableSet import variableSet
 from .variableSet import splitMySQLcode
 from bookwormDB.configuration import Configfile
+from configparser import NoOptionError
 import logging
 import warnings
 from .sqliteKV import KV
@@ -34,10 +35,14 @@ class DB(object):
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         conf = Configfile("admin")
+        try:
+            host = conf.config.get("mysqld", "host")
+        except NoOptionError:
+            host = "localhost"
         connect_args = {
             "user": conf.config.get("client", "user"),
             "passwd": conf.config.get("client", "password"),
-            "host": conf.config.get("mysqld", "host"),
+            "host": host,
             "use_unicode": 'True',
             "charset": 'utf8',
             "db": '',
