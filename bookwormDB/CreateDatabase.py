@@ -30,6 +30,8 @@ class DB(object):
             self.dbname = config.get("client","database")
         else:
             self.dbname = dbname
+        if not re.match("^[A-Za-z0-9_]+$", self.dbname):
+            raise NameError("Database names must not include any spaces or special characters")
         self.conn = None
         
     def connect(self, setengine=True):

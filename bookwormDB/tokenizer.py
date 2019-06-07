@@ -7,6 +7,9 @@ import os
 from .sqliteKV import KV
 import time
 import logging
+import numpy as np
+from pandas import read_csv
+from io import StringIO
 
 """
 This section does a lot of work on tokenizing and aggregating wordcounts.
@@ -73,15 +76,22 @@ class tokenBatches(object):
     with 3-byte integer encoding for wordid and bookid.
     """
     
-    def __init__(self,levels=["unigrams","bigrams"]):
+    def __init__(self, levels=["unigrams","bigrams"]):
+        """
+        
+        mode: 'encode' (write files out)
+        """
         self.id = '%030x' % random.randrange(16**30)
         self.levels=levels
 
+        # placeholder to alert that createOutputFiles must be run.
+        self.completedFile = None
+        
+    def createOutputFiles(self):
         self.completedFile = open(".bookworm/texts/encoded/completed/" + self.id,"w")
         self.outputFiles = dict()
-        for level in levels:
+        for level in self.levels:
             self.outputFiles[level] = open(".bookworm/texts/encoded/{}/{}.txt".format(level, self.id),"w")
-        self.attachDictionaryAndID()
         
     def attachDictionaryAndID(self):
         self.dictionary = readDictionaryFile()
@@ -89,28 +99,44 @@ class tokenBatches(object):
 
 
     def close(self):
-        self.completedFile.close()
-        for v in self.outputFiles.values():
-            v.close()
+        """
+        This test allows the creation of bookworms with fewer document than requested 
+        threads, which happens to be the case in the tests.
+        """
+        if self.completedFile is not None:
+            self.completedFile.close()
+            for v in self.outputFiles.values():
+                v.close()
         
     def encodeRow(self,
-                  row,
-                  source="raw_text", # Can also be "countfile", in which case each row is a tab separated list of [filename,ngram,count], where ngrams can contain spaces.
+                  filename,
+                  tokenizer,
                   write_completed=True
     ):
+        """
+        'id': the filename
+        'tokenizer': a tokenizer object
 
+        """
+        if self.completedFile is None:
+            self.createOutputFiles()
+            self.attachDictionaryAndID()
+            
         #The dictionary and ID lookup tables should be pre-attached.
         dictionary = self.dictionary
         IDfile = self.IDfile
-            
+
+        levels = None
+        """
         if source=="raw_text":
-            parts = row.split("\t",1)
+            parts = row.split("\t", 1)
             filename = parts[0]
             try:
                 tokens = tokenizer(parts[1])
             except IndexError:
                 logging.warn("\nFound no tab in the input for '" + filename + "'...skipping row\n")
-            
+            levels = self.levels
+
         if source == "countfile":
             try:
                 (filename, token, count) = row.split("\t")
@@ -118,26 +144,22 @@ class tokenBatches(object):
                 logging.error("Can't find tab\n***************")
                 logging.error(row)
                 raise
-            tokens = preTokenized(token,count,self.levels[0])
-
+            tokens = preTokenized(token, count, self.levels[0])
+        """
+        
         try:
             textid = IDfile[filename]
         except KeyError:
-            if source=="raw_text":
-                logging.warn("Warning: file " + filename + " not found in jsoncatalog.txt, not encoding")
-            elif source == "countfile":
-                # Silent error currently, so that we don't warn for each term
-                # of each missing file
-                pass
+            logging.warn("Warning: file " + filename + " not found in jsoncatalog.txt, not encoding")
             return
 
         for level in self.levels:
             outputFile = self.outputFiles[level]
             output = []
 
-            counts = tokens.counts(level)
+            counts = tokenizer.counts(level)
 
-            for wordset,count in counts.items():
+            for wordset, count in counts.items():
                 skip = False
                 wordList = []
                 for word in wordset:
@@ -164,7 +186,7 @@ class tokenBatches(object):
         if write_completed:
             self.completedFile.write(filename + "\n")
 
-class tokenizer(object):
+class Tokenizer(object):
     """
     A tokenizer is initialized with a single text string.
 
@@ -183,40 +205,41 @@ class tokenizer(object):
         global haveWarnedUnicode
         self.string = string
         self.tokenization_regex = tokenization_regex
-
+        self.tokens = None
     def tokenize(self):
         """
         This tries to return the pre-made tokenization:
         if that doesn't exist, it creates it.
         """
-        try:
+        if self.tokens is not None:
             return self.tokens
-        except:
-            """
-            For speed, don't import until here.
-            """
-            tokenization_regex=self.tokenization_regex
-            global re
-            if re is None:
-                import regex as re
-            if tokenization_regex is None:
-                # by default, use the big regex.
-                global bigregex
-                if bigregex==None:
-                    bigregex = wordRegex()
-                tokenization_regex = bigregex
-            #return bigregex
-            self.tokens = re.findall(tokenization_regex,self.string)
-            return self.tokens
+        """
+        For speed, don't import until here.
+        """
+        tokenization_regex=self.tokenization_regex
+        global re
+        if re is None:
+            import regex as re
+        if tokenization_regex is None:
+            # by default, use the big regex.
+            global bigregex
+            if bigregex==None:
+                bigregex = wordRegex()
+            tokenization_regex = bigregex
+        self.tokens = re.findall(tokenization_regex, self.string)
+        return self.tokens
 
-    def ngrams(self,n):
+    def ngrams(self, n, collapse = False):
         """
         All the ngrams in the text can be created as a tuple by zipping an arbitrary number of
         copies of the text to itself.
         """
         
         self.tokenize()
-        return list(zip(*[self.tokens[i:] for i in range(n)]))
+        l = list(zip(*[self.tokens[i:] for i in range(n)]))
+        if collapse:
+            l = [" ".join(tupled) for tupled in l]
+        return l
 
     def unigrams(self):
         return self.ngrams(1)
@@ -227,7 +250,21 @@ class tokenizer(object):
     def trigrams(self):
         return self.ngrams(3)
 
-    def counts(self,whichType):
+    def allgrams(self, max = 6):
+        output = []
+        for i in range(1, max + 1):
+            output.extend(self.ngrams(i, collapse = True))
+        return output
+
+    def words(self):
+        """
+        1-grams have tuple keys, but words have index keys.
+        """
+        self.tokenize()
+        return self.tokens
+    
+    def counts(self, whichType):
+        
         count = dict()
         for gram in getattr(self,whichType)():
             try:
@@ -237,19 +274,28 @@ class tokenizer(object):
         return count
 
 
-class preTokenized(object):
+class PreTokenized(object):
     """
     This class is a little goofy: it mimics the behavior of a tokenizer
     one data that's already been tokenized by something like
     Google Ngrams or JStor Data for Research.
     """
 
-    def __init__(self,token,count,level):
+    def __init__(self, csv_string, level):
+        f = read_csv(StringIO(csv_string),
+                     lineterminator = "\f",
+                     # Ugh--want 'NA' to be a word.
+                     dtype= {'word': str, 'counts': np.int},
+                     keep_default_na=False,
+                     names = ["word", "counts"])
         self.level = level
-        self.output = {tuple(token.split(" ")):count}
-        
+        if level == 'words':
+            self.output = dict(zip(f.word, f.counts))
+        else:
+            self.output = dict(zip([tuple(w.split(" ")) for w in f.word], f.counts))
+            
     def counts(self,level):
-        if level!= self.level:
+        if level != self.level:
             raise
         return self.output
 
@@ -260,7 +306,7 @@ def getAlreadySeenList(folder):
     files = os.listdir(folder)
     seen = set([])
     for file in files:
-        for line in open(folder+"/" + file):
+        for line in open(folder + "/" + file):
             seen.add(line.rstrip("\n"))
     return seen
 
@@ -274,24 +320,7 @@ def encode_text_stream():
         if filename not in seen:
             tokenBatch.encodeRow(line)
             
-    #And printout again at the end
-
-def encodePreTokenizedStream(infile,levels=["unigrams"]):
-    """
-    Note: since unigrams and bigrams are done separately, we have to just redo the whole
-    thing every time. The prebuilt list don't work.
-
-    Infile can be an open stream or a file.
-    """
-    start = time.time()
-    tokenBatch = tokenBatches(levels=levels)
-    tokenBatch.attachDictionaryAndID()
-    logging.debug("Token batch attached (%d s)" % int(time.time() - start))
-    for line in infile:
-        filename = line.split("\t",1)[0]
-        line = line.rstrip("\n")
-        tokenBatch.encodeRow(line,source="countfile", write_completed=False)
-
+    # And printout again at the end
 
 if __name__=="__main__":
     encode_text_stream()

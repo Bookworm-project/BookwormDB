@@ -430,7 +430,6 @@ class Query(object):
         dicto['bookid_where'] = self.bookid_query()
         dicto['wordid_where'] = self.wordid_query()
         dicto['tables'] = self.make_join_query()
-        logging.info("FRRR")
         logging.info("'{}'".format(dicto['tables']))
         
         dicto['catwhere'] = self.make_catwhere("main")
@@ -745,25 +744,33 @@ class Query(object):
         # If IDF searching is enabled, we could add a term like '*IDF' here to overweight better selecting words
         # in the event of a multiple search.
         self.idfterm = ""
-        prep = self.counts_query()
+        prep = self.base_query()
 
-        if self.main == " ":
-            self.ordertype="RAND()"
+#        if self.main == " ":
+#            self.ordertype = "RAND()"
 
+        dicto = {
+            'fastcat': self.fastcat,
+            'tables': self.make_join_query(),
+            'ordertype': self.ordertype,
+            'catwhere': self.make_catwhere("main"),
+            'limit': limit
+        }
+        
+        dicto['bookid_where'] = self.bookid_query()
+        dicto['wordid_where'] = self.wordid_query()
+            
         bibQuery = """
         SELECT searchstring
         FROM catalog RIGHT JOIN (
-        SELECT
-        """+ self.fastcat + """.bookid, %(ordertype)s as ordering
+        SELECT {fastcat}.bookid, {ordertype} as ordering
             FROM
-                %(catalog)s
-                %(main)s
-                %(wordstables)s
+               {tables}
             WHERE
-                 %(catwhere)s AND %(wordswhere)s
-        GROUP BY bookid ORDER BY %(ordertype)s DESC LIMIT %(limit)s
-        ) as tmp USING(bookid) ORDER BY ordering DESC;
-        """ % self.__dict__
+               {bookid_where} AND {wordid_where} and {catwhere}
+        GROUP BY bookid ORDER BY {ordertype} DESC LIMIT {limit}
+        ) as tmp USING (bookid) ORDER BY ordering DESC;
+        """.format(**dicto)
         return bibQuery
 
     def search_results(self):

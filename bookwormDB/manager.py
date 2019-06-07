@@ -72,7 +72,7 @@ section'client'
             import bookwormDB.configuration
             bookwormDB.configuration.recommend_my_cnf()
             
-    def tokenize(self,args):
+    def ftokenize(self, args):
         
         import bookwormDB.tokenizer
         
@@ -83,18 +83,13 @@ section'client'
         and already-tokenized documents.
         """
         
-        if args.process=="encode":
-            if args.feature_counts:
-                # Ideally the infile would be described by a specific file location here.
-                bookwormDB.tokenizer.encodePreTokenizedStream(infile=sys.stdin,levels=["unigrams"])
-                #bookwormDB.tokenizer.encodePreTokenizedStream(sys.stdin,levels=["bigrams"])
-            else:
-                bookwormDB.tokenizer.encode_text_stream()
+        if args.process == "encode":
+            self.encoded(args)
             
-        if args.process=="text_stream" or args.process=="token_stream":
-            raise NotImplementError("This feature has been removed")
+        if args.process == "text_stream" or args.process == "token_stream":
+            raise NotImplementedError("This feature has been removed")
         
-        if args.process=="word_db":
+        if args.process == "word_db":
             self.wordlist(args)
             
     def init(self, args):
@@ -201,7 +196,6 @@ section'client'
         self.prep(args)
         
     def prep(self, args):
-        
         """
         This is a wrapper to all the functions define here: the purpose
         is to continue to allow access to internal methods in, for instance,
@@ -210,9 +204,13 @@ section'client'
         That's a little groaty, I know.
         """
         logging.debug(args)
+        
         getattr(self, args.goal)(args)
 
     def wordlist(self, args):
+        """
+        Create a wordlist of the top 1.5 million words.
+        """
         from .countManager import create_wordlist        
         if os.path.exists(".bookworm/texts/wordlist/wordlist.txt"):
             return
@@ -220,22 +218,34 @@ section'client'
             os.makedirs(".bookworm/texts/wordlist")
         except FileExistsError:
             pass
+
+        input = "input.txt"
+        if args.feature_counts:
+            logging.info(args.feature_counts)
+            input = [a for a in args.feature_counts if 'unigrams' in a][0]
         create_wordlist(n = 1.5e06,
-                          input= "input.txt",
-                          output= ".bookworm/texts/wordlist/wordlist.txt")
+                        input = input,
+                        output = ".bookworm/texts/wordlist/wordlist.txt")
 
     def encoded(self, args):
+        """
+        Using the wordlist and catalog, create encoded files.
+        """
         self.wordlist(args)
         self.derived_catalog(args)
         
-        for k in ['unigrams', 'bigrams', 'trigrams', 'completed']:
+        for k in ['unigrams', 'bigrams', 'trigrams', 'quadgrams', 'completed']:
             try:
                 os.makedirs(".bookworm/texts/encoded/{}".format(k))
             except FileExistsError:
                 pass
         from .countManager import encode_words
-        
-        encode_words(".bookworm/texts/wordlist/wordlist.txt")
+
+        if args.feature_counts:
+            for feature in args.feature_counts:
+                encode_words(".bookworm/texts/wordlist/wordlist.txt", feature)
+        else:
+            encode_words(".bookworm/texts/wordlist/wordlist.txt", "input.txt")
 
     def all(self, args):
         self.preDatabaseMetadata(args)        
@@ -345,9 +355,9 @@ section'client'
     def add_metadata(self, args):
         import bookwormDB.CreateDatabase
         import bookwormDB.convertTSVtoJSONarray
-        bookworm=bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
+        bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
         anchorField = args.key
-        if args.format=="tsv":
+        if args.format == "tsv":
             # TSV is just converted into JSON in a file at tmp.txt, and slurped in that way.
             if args.key is None:
                 args.key = open(args.file).readline().split("\t")[0]
@@ -444,30 +454,30 @@ def run_arguments():
     parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
 
 
-    parser.add_argument("--feature-counts",action="store_true",default=False,
-                                 help="Use pre-calculated feature counts rather than tokenizing complete text on the fly. Off by default")
+    parser.add_argument("--feature-counts", action='append',
+                                 help="Use pre-calculated feature counts rather than tokenizing complete text on the fly. Supply any number of single files per count level like 'input.unigrams', 'input.bigrams', etc.")
 
     parser.add_argument("--ngrams",nargs="+",default=["unigrams","bigrams"],help="What levels to parse with. Multiple arguments should be unquoted in spaces. This option currently does nothing.")
 
     
     # Use subparsers to have an action syntax, like git.
-    subparsers = parser.add_subparsers(title="action",help='The commands to run with Bookworm',dest="action")
+    subparsers = parser.add_subparsers(title="action", help='The commands to run with Bookworm', dest="action")
 
 
 
     ############# build #################
     build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm.\
-    This is a wrapper around `Make`;\
+    
     if you specify something far along the line (for instance, the linechart GUI), it will\
     build all prior files as well.""")
     
-    build_parser.add_argument("target",help="The make that you want to build. To build a full bookworm, type 'build all'. To destroy your bookworm, type 'build pristine'")
+    build_parser.add_argument("target", help="The make that you want to build. To build a full bookworm, type 'build all'. To destroy your bookworm, type 'build pristine'")
 
     # Grep out all possible targets from the Makefile
 
     ############# supplement #################
     supplement_parser = subparsers.add_parser("add_metadata",help="""Supplement the\
-    metadata with new items. They can be keyed to any field already in the database.""")
+    metadata for an already-created Bookworm with new items. They can be keyed to any field already in the database.""")
     supplement_parser.add_argument("-f","--file",help="""The location of a file with additional metadata to incorporate into your bookworm.""",required=True)
         
     supplement_parser.add_argument(
@@ -512,26 +522,6 @@ def run_arguments():
     extensions_parser = subparsers.add_parser("query", help="Run a query using the Bookworm API")
     extensions_parser.add_argument("APIcall",help="The json-formatted query to be run.")
 
-    
-    ### Handle tokenization and wordcounts and encode
-    tokenization_parser = subparsers.add_parser("tokenize", help="tokenize (and optionally, encode) text. Currently requires a stream to stdin as input.")
-    
-    tokenization_subparsers = tokenization_parser.add_subparsers(title="process",help='The part of the subparser to run: see help for more details.',dest="process")
-    encode_parser = tokenization_subparsers.add_parser("encode",
-                                     help="Encode according to the stored numeric IDs.")
-    text_stream_parser = tokenization_subparsers.add_parser("text_stream",
-                                                            help="Print text from various sources to stdout in a standard form.")
-    text_stream_parser.add_argument("--file","-f",help="location of a formatted input file: leave blank for sensible defaults as described in the documentation.",default=None)
-    
-    token_stream_parser = tokenization_subparsers.add_parser("token_stream",
-        help="Turn text into space-delimited tokens using a regular expression.  use options ")
-    token_stream_parser.add_argument("--token-regex",
-        help="Regular expression defining tokens. Not currently implemented")
-    token_stream_parser.add_argument("--file","-f",
-        help="A file to tokenize. By default, reads the output of text_stream from stdin.",
-        default=None)
-
-    word_db_parser = tokenization_subparsers.add_parser("word_db",help="Turn a list of tokens into a sorted set of number IDs, even if there are more distinct types than can fit in memory, by writing to disk.")
     
     ########## Build components
     extensions_parser = subparsers.add_parser("prep", help="Build individual components.", aliases = ['build'])
