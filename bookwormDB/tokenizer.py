@@ -285,7 +285,7 @@ class PreTokenized(object):
         f = read_csv(StringIO(csv_string),
                      lineterminator = "\f",
                      # Ugh--want 'NA' to be a word.
-                     dtype= {'word': str, 'counts': np.int},
+                     dtype = {'word': str, 'counts': np.int},
                      keep_default_na=False,
                      names = ["word", "counts"])
         self.level = level

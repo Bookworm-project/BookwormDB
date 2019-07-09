@@ -227,6 +227,14 @@ section'client'
                         input = input,
                         output = ".bookworm/texts/wordlist/wordlist.txt")
 
+    def pristine(self, args):
+
+        import bookwormDB.CreateDatabase
+        bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname, variableFile=None)
+        if self.dbname == "mysql":
+            raise NameError("Don't try to delete the mysql database")
+        bookworm.db.query("DROP DATABASE IF EXISTS {}".format(self.dbname))
+        
     def encoded(self, args):
         """
         Using the wordlist and catalog, create encoded files.
@@ -471,7 +479,7 @@ def run_arguments():
     if you specify something far along the line (for instance, the linechart GUI), it will\
     build all prior files as well.""")
     
-    build_parser.add_argument("target", help="The make that you want to build. To build a full bookworm, type 'build all'. To destroy your bookworm, type 'build pristine'")
+    build_parser.add_argument("target", help="The make that you want to build. To build a full bookworm, type 'build all'.")
 
     # Grep out all possible targets from the Makefile
 

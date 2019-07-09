@@ -2,7 +2,7 @@ from __future__ import division
 from datetime import date
 import datetime
 import dateutil.parser
-import ujson as json
+import json
 import sys
 import os
 import logging
@@ -219,9 +219,13 @@ def parse_json_catalog(line_queue, processes, modulo):
                         logging.warning('*'*50)
                 line.pop(field["field"])
         try:
-            line_queue.put((line["filename"], json.dumps(line)))
+            el = json.dumps(line)
+            line_queue.put((line["filename"], el))
         except KeyError:
             logging.warning("No filename key in {}".format(line))
+        except:
+            logging.warning("Error on {}".format(line))
+            raise
     logging.debug("Metadata thread done after {} lines".format(i))
 
 

@@ -32,6 +32,14 @@ logging.info("Filling dicts to size {}".format(QUEUE_POST_THRESH))
 import random
 import gzip
 
+def flush_counter(counter, qout):
+    for k in ['', '\x00']:
+        try:
+            del counter[k]
+        except KeyError:
+            continue
+        qout.put(counter)
+        
 def counter(qout, i, fin, mode = "count"):
     """
     # Counts words exactly in a separate process.
@@ -75,7 +83,6 @@ def counter(qout, i, fin, mode = "count"):
         except ValueError:
             errors += 1
             continue
-
         
         if datatype == "raw":
             tokenizer = Tokenizer(text)
@@ -92,25 +99,18 @@ def counter(qout, i, fin, mode = "count"):
             
         # When the counter is long, post it to the master and clear it.
         if len(counter) > QUEUE_POST_THRESH:
-            for k in ['', '\x00']:
-                try:
-                    del counter[k]
-                except KeyError:
-                    continue
-            logging.debug(counter.most_common(20))
-            qout.put(counter)
+            flush_counter(counter=counter, qout = qout)
             counter = Counter()
 
     # Cleanup.
     if mode == "count":
-        logging.debug("Flushing leftover counts from thread {}".format(i))        
-        qout.put(counter)
+        logging.debug("Flushing leftover counts from thread {}".format(i))
+        flush_counter(counter=counter, qout = qout)
         if totals > 0 and errors/totals > 0.01:
             logging.warning("Skipped {} rows without tabs".format(errors))
     if mode == "encode":
         encoder.close()
-        
-        
+
 def create_counts(input):
     qout = Queue(cpus * 2)
     workers = []
