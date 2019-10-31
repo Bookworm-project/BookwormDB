@@ -445,20 +445,26 @@ class APIcall(object):
             # What to do with multiple search_limits
             if isinstance(self.query['search_limits'], list):
                 if method in ["json", "return_json"]:
+                    self.query['method'] = 'data'
+                    self.query['format'] = 'json'
                     return self.multi_execute(version=version)
                 else:
                     # Only return first search limit if not return in json
                     self.query['search_limits'] = self.query['search_limits'][0]
-
+                    
             form = method[7:] if method[:6] == 'return' else method
             
             logging.warning("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
 
             if method == "return_json" or method == "json":
-                return self.return_json(version=1)
+                    self.query['method'] = 'data'
+                    self.query['format'] = 'json'
+                    return self.return_json(version=1)
 
             elif method == "return_csv" or method == "csv":
+                self.query['method'] = 'data'
+                self.query['format'] = 'json'                
                 frame = self.data()
                 return frame.to_csv(path = None, sep="\t", encoding="utf8", index=False,
                                     quoting=csv.QUOTE_NONE, escapechar="\\")

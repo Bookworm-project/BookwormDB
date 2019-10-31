@@ -5,7 +5,7 @@ import logging
 import multiprocessing
 import gunicorn.app.base
 from gunicorn.six import iteritems
-
+from datetime import datetime
 
 def content_type(query):
     try:
@@ -24,7 +24,7 @@ def content_type(query):
     
     return 'text/plain'
 
-def application(environ, start_response):
+def application(environ, start_response, logfile = "bookworm_queries.log"):
     # Starting with code from http://wsgi.tutorial.codepoint.net/parsing-the-request-post
     try:
         request_body_size = int(environ.get('QUERY_STRING', 0))
@@ -36,6 +36,13 @@ def application(environ, start_response):
     # in the file like wsgi.input environment variable.
 
     q = environ.get('QUERY_STRING')
+    try:
+        ip = environ.get('HTTP_X_FORWARDED_FOR')
+ #       logging.debug("Request from {}".format(ip))
+    except:
+        ip = environ.get('REMOTE_ADDR')
+    if ip is None:
+        ip = environ.get('REMOTE_ADDR')
     query = unquote(q)
     
     headers = {
@@ -47,16 +54,18 @@ def application(environ, start_response):
     }
 
 
-
+        
     logging.debug("Received query {}".format(query))
+    start = datetime.now()
 
     # Backward-compatability: we used to force query to be
     # a named argument.
-
     query = query.strip("query=")
+    query = query.strip("queryTerms=")
                           
     try:
         query = json.loads(query)
+        query['ip'] = ip
     except:
         response_body = "Unable to read JSON"
         status = '404'
@@ -75,6 +84,14 @@ def application(environ, start_response):
     headers['Content-Length'] = str(len(response_body))
     status = '200 OK'
     start_response(status, list(headers.items()))
+
+    query['time'] = start.timestamp()
+    query['duration'] = datetime.now().timestamp() - start.timestamp()
+    # This writing isn't thread-safe; but generally we're not getting more than a couple queries a second.
+    with open(logfile, 'a') as fout:
+        json.dump(query, fout)
+        fout.write("\n")
+    logging.debug("Writing to log: \n{}\n".format(json.dumps(query)))
     return [response_body]
 
 # Copied from the gunicorn docs.

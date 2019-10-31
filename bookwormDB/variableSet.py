@@ -23,8 +23,10 @@ def splitMySQLcode(string):
     MySQL code can only be executed one command at a time, and fails if it has any empty slots
     So as a convenience wrapper, I'm just splitting it and returning an array.
     """
+    logging.debug(f"Splitting: '{string}'")
     try:
         output = ['%s;\n' % query for query in string.split(';') if re.search(r"\w", query)]
+        output = [o.strip("\\n") for o in output if o != "\\n"]
     except AttributeError:
         # Occurs when the field is completely empty
         output = []

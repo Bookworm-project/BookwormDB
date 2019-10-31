@@ -691,7 +691,7 @@ class Query(object):
         
         q = "SELECT bookid FROM {catalog} WHERE {catwhere}""".format(**self.__dict__)
 
-        logging.warning("'{}'".format(self.catwhere))
+        logging.debug("'{}'".format(self.catwhere))
         
         if self.catwhere == "TRUE":
             self.bookid_where = " TRUE "
