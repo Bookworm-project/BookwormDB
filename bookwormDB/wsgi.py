@@ -4,7 +4,6 @@ from urllib.parse import unquote
 import logging
 import multiprocessing
 import gunicorn.app.base
-from gunicorn.six import iteritems
 from datetime import datetime
 
 def content_type(query):
@@ -110,9 +109,9 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
         super(StandaloneApplication, self).__init__()
 
     def load_config(self):
-        config = dict([(key, value) for key, value in iteritems(self.options)
+        config = dict([(key, value) for key, value in self.options.items()
                        if key in self.cfg.settings and value is not None])
-        for key, value in iteritems(config):
+        for key, value in config.items():
             self.cfg.set(key.lower(), value)
 
     def load(self):
