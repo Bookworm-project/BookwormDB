@@ -142,13 +142,14 @@ class BookwormSQLDatabase(object):
             # Sometimes this may be called just to access the
             # variables elements.
             self.db = DB(dbname=self.dbname)
-
         else:
             self.db = None
             
         if variableFile is not None:
-            self.setVariables(originFile=variableFile)
-
+            try:
+                self.setVariables(originFile=variableFile)
+            except FileNotFoundError:
+                pass
     def grantPrivileges(self):
         """
         Grants select-only privileges to a non-admin mysql user for the API to
@@ -162,9 +163,12 @@ class BookwormSQLDatabase(object):
 
         username=globalfile.config.get("client","user")
         password=globalfile.config.get("client","password")
-
-        self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
-    
+        try:
+            self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
+        except MySQLdb._exceptions.OperationalError:
+            self.db.query("CREATE USER '%s'@'localhost' IDENTIFIED BY '%s'" % (username,password))
+            self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
+            
     def setVariables(self, originFile, anchorField="bookid",
                      jsonDefinition=".bookworm/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
@@ -607,4 +611,3 @@ class BookwormSQLDatabase(object):
             if re.match("^[A-Za-z]+$",word):
                 query = """UPDATE words SET stem='""" + stemmer.stem(''.join(local)) + """' WHERE word='""" + ''.join(local) + """';"""
                 z = cursor.execute(query)
-
