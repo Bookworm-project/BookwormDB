@@ -183,5 +183,48 @@ Then you can access query results over http. Try visiting this page in a web bro
 `http://localhost:10012/?q={%22database%22:%22txtlab450%22,%22method%22:%22data%22,%22format%22:%22csv%22,%22groups%22:[%22date%22,%20%22language%22],%22counttype%22:[%22TextCount%22,%22WordCount%22]}`
 
 
-Once this works, you can set up an HTML query to visit this. See 
+Once this works, you can use various libraries to query the endpoint,
+or create an HTML page that builds off the endpoint. See 
 the (currently underdeveloped) Bookworm-Vega repository for some examples.
+
+
+## Production servers
+
+Serving from localhost:10012 won't work especially well in production contexts.
+Heavy-duty web servers do rate limiting and other things that the gunicorn process
+bookworm uses don't handle.
+
+One strategy is to serve the web site (using bookworm-vega or something else)
+over port 80, while passing all cgi-requests through to port 10012 where the
+bookworm server handles them. (Note that this may disable *other* cgi services
+on that particular server.)
+
+This means it's possible to run the bookworm server anywhere, and then just
+forward the connection to your server using ssh tunnels. (Note that doing so 
+may be inefficient, because it adds an extra layer of packet encoding. I'm open
+to better solutions here).
+
+### Apache
+
+The steps for Apache are:
+
+1. Serve the Bookworm API over port 10012. (`bookworm serve`).
+2. Install an Apache host on port 80.
+3. Enable proxy servers and turn off any existing cgi.
+  **If you were previously using the CGI bookworm.**
+  `sudo a2dismod cgi`
+  `sudo a2enmod proxy proxy_ajp proxy_http rewrite deflate headers proxy_balancer proxy_connect proxy_html`
+4. Add the following to your '/etc/apache2/sites-available/000-default.conf'
+  (or whatever site from which you run your apache) to pass cgi-bin queries 
+  to the bookworm ser ver.
+  ```
+  <Proxy *>
+    Order deny,allow
+    Allow from all
+  </Proxy>
+    ProxyPreserveHost On
+  <Location "/cgi-bin">
+    ProxyPass "http://127.0.0.1:10012/"
+    ProxyPassReverse "http://127.0.0.1:10012/"
+  </Location>
+  ```
