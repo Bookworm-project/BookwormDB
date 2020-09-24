@@ -1,5 +1,5 @@
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
-import ujson as json
+import json
 from urllib.parse import unquote
 import logging
 import multiprocessing
