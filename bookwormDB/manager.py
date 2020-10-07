@@ -11,7 +11,7 @@ import argparse
 """
 This is the code that actually gets run from the command-line executable.
 
-The BookwormManager class defines some methods for controlling bookworm SQL instances 
+The BookwormManager class defines some methods for controlling bookworm SQL instances
 and running upkeep operations;
 the run_arguments function pulls commands from the command line. Any useful new bookworm methods
 should be passed through run_arguments to work.
@@ -31,9 +31,9 @@ class BookwormManager(object):
 section'client'
     This is what calls the various other bookworm scripts, whether Python or not.
     """
-    
+
     def __init__(self, cnf_file=None, database=None):
-        
+
         # This will likely be changed if it isn't None.
         import configparser
 
@@ -58,7 +58,7 @@ section'client'
                     self.dbname = config.get("client", "database")
                 except configParser.NoOptionError:
                     pass
-                
+
         # More specific options override the config file
         if database is not None:
             # Passed in dbname takes precedence over config file.
@@ -71,27 +71,35 @@ section'client'
         if args.target=="mysql":
             import bookwormDB.configuration
             bookwormDB.configuration.recommend_my_cnf()
-            
+        if args.target=="mysql-info":
+            from bookwormDB.configuration import Configfile
+            config = Configfile("admin")
+            print("The admin configuration login currently being used should be the following.\n")
+            config.write_out()
+        if args.target=="apache":
+            from bookwormDB.configuration import apache
+            apache()
+
     def ftokenize(self, args):
-        
+
         import bookwormDB.tokenizer
-        
+
         """
         Handle functions related to tokenization and encoding.
-        
+
         Should eventually be able to accept arguments like "token-regex"
         and already-tokenized documents.
         """
-        
+
         if args.process == "encode":
             self.encoded(args)
-            
+
         if args.process == "text_stream" or args.process == "token_stream":
             raise NotImplementedError("This feature has been removed")
-        
+
         if args.process == "word_db":
             self.wordlist(args)
-            
+
     def init(self, args):
         """
         Initialize the current directory as a bookworm directory.
@@ -119,15 +127,15 @@ section'client'
             print("Configuring Bookworm named '{}'".format(loc))
             print("Change the file at bookworm.cnf if this is undesirable".format(loc))
             fout.write("[client]\ndatabase = {}\n".format(loc))
-        
+
     def query(self, args):
         """
         Run a query against the API from the command line.
         """
-        
+
         from bookwormDB.general_API import SQLAPIcall
         import json
-        
+
         query = json.loads(args.APIcall)
         caller = SQLAPIcall(query)
         print(caller.execute())
@@ -137,10 +145,10 @@ section'client'
         """
         Serve the api.
         """
-        
+
         from bookwormDB.wsgi import run
         run(args.bind, args.workers)
-        
+
         import http.server
         from http.server import HTTPServer
         import shutil
@@ -151,11 +159,11 @@ section'client'
         for dir in [base_dir,base_cgi_dir]:
             if not os.path.exists(dir):
                 os.makedirs(dir)
-                
+
         API = os.path.normpath(os.path.dirname(bookwormDB.__file__) + "/bin/dbbindings.py")
         if not os.path.exists(base_cgi_dir + "/" + API):
             shutil.copy(API, base_cgi_dir)
-        
+
         if not os.path.exists(d3_dir):
             call(["git","clone","http://github.com/bmschmidt/BookwormD3",d3_dir])
 
@@ -164,7 +172,7 @@ section'client'
 
         raise TypeError("The line below this is nonsense")
         self.prep(args)
-        
+
         os.chdir(base_dir)
         # Actually serve it.
         PORT = args.port
@@ -179,22 +187,22 @@ section'client'
         print("on the open web, consider using apache.")
         httpd.serve_forever()
 
-        
+
     def extension(self,args):
         """
         Creates (or updates) an extension
         """
-        
+
         if not os.path.exists(self.basedir + ".bookworm/extensions"):
             os.makedirs(self.basedir + ".bookworm/extensions")
-            
+
         my_extension = Extension(args,basedir = self.basedir)
         my_extension.clone_or_pull()
         my_extension.make()
 
     def build(self, args):
         self.prep(args)
-        
+
     def prep(self, args):
         """
         This is a wrapper to all the functions define here: the purpose
@@ -204,14 +212,14 @@ section'client'
         That's a little groaty, I know.
         """
         logging.debug(args)
-        
+
         getattr(self, args.goal)(args)
 
     def wordlist(self, args):
         """
         Create a wordlist of the top 1.5 million words.
         """
-        from .countManager import create_wordlist        
+        from .countManager import create_wordlist
         if os.path.exists(".bookworm/texts/wordlist/wordlist.txt"):
             return
         try:
@@ -234,14 +242,14 @@ section'client'
         if self.dbname == "mysql":
             raise NameError("Don't try to delete the mysql database")
         bookworm.db.query("DROP DATABASE IF EXISTS {}".format(self.dbname))
-        
+
     def encoded(self, args):
         """
         Using the wordlist and catalog, create encoded files.
         """
         self.wordlist(args)
         self.derived_catalog(args)
-        
+
         for k in ['unigrams', 'bigrams', 'trigrams', 'quadgrams', 'completed']:
             try:
                 os.makedirs(".bookworm/texts/encoded/{}".format(k))
@@ -256,11 +264,11 @@ section'client'
             encode_words(".bookworm/texts/wordlist/wordlist.txt", "input.txt")
 
     def all(self, args):
-        self.preDatabaseMetadata(args)        
+        self.preDatabaseMetadata(args)
         self.encoded(args)
         self.database_wordcounts(args)
         self.database_metadata(args)
-        
+
     def preDatabaseMetadata(self, args=None, **kwargs):
         import os
         if not os.path.exists("field_descriptions.json"):
@@ -276,27 +284,27 @@ section'client'
         # This creates helper files in the /metadata/ folder.
 
     def derived_catalog(self, args):
-        
+
         if not os.path.exists(".bookworm/metadata"):
             os.makedirs(".bookworm/metadata")
         if os.path.exists(".bookworm/metadata/jsoncatalog_derived.txt"):
             return
-        
+
         from bookwormDB.MetaParser import parse_catalog_multicore, ParseFieldDescs
 
         logging.debug("Preparing to write field descriptions")
         ParseFieldDescs(write = True)
-        logging.debug("Preparing to write catalog")        
-        parse_catalog_multicore()        
+        logging.debug("Preparing to write catalog")
+        parse_catalog_multicore()
 
     def guessAtFieldDescriptions(self, args = None, **kwargs):
-        
+
         """
         Use a number of rules of thumb to automatically generate a field_descriptions.json file.
         This may bin some categories incorrectly (depending on names, for example it may treat dates
         as either categorical or time variables).
         """
-        
+
         import bookwormDB.CreateDatabase
         import json
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname, variableFile=None)
@@ -313,7 +321,7 @@ section'client'
             Dying rather than overwrite it.
             """)
             sys.exit()
-            
+
     def reload_memory(self,args):
         import bookwormDB.CreateDatabase
         dbnames = [self.dbname]
@@ -339,10 +347,10 @@ section'client'
         Bookworm.variableSet.loadMetadata()
 
         logging.debug("creating metadata variable tables")
-        
+
         # This creates a table in the database that makes the results of
         # field_descriptions accessible through the API, and updates the
-        
+
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
 
@@ -372,8 +380,8 @@ section'client'
             f = "tmp.txt"
             bookwormDB.convertTSVtoJSONarray.convertToJSON(args.file, f)
             args.file = f
-            
-        bookworm.importNewFile(args.file, 
+
+        bookworm.importNewFile(args.file,
                                anchorField=args.key,
                                jsonDefinition=args.field_descriptions)
 
@@ -385,12 +393,12 @@ section'client'
         """
         cmd_args = args
         import bookwormDB.CreateDatabase
-        
+
         index = True
         reverse_index = True
         ingest = True
         newtable = True
-        
+
         if cmd_args and hasattr(cmd_args, "index_only"):
             if cmd_args.index_only:
                 ingest = False
@@ -399,7 +407,7 @@ section'client'
                 index = not cmd_args.no_index
                 newtable = not cmd_args.no_delete
             reverse_index = not cmd_args.no_reverse_index
-            if not (newtable and ingest and index): 
+            if not (newtable and ingest and index):
                 logging.warn("database_wordcounts args not supported for bigrams yet.")
 
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
@@ -428,12 +436,12 @@ class Extension(object):
         else:
             logging.info("updating pre-existing git repo at " + self.dir)
             Popen(["git","pull"],cwd=self.dir)
- 
+
     def make(self):
         logging.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         logging.debug("Running make in " + self.dir)
         Popen(["make"], cwd=self.dir)
- 
+
 # Initiate MySQL connection.
 
 
@@ -447,7 +455,7 @@ def run_arguments():
     which calls all bookworm-related arguments; that, in turn, calls some specific
     methods to make things happen (the most important of which is the `BookwormDB`
     class, which is in charge of MySQL calls).
-    
+
     I apologize for how ugly and linear this code is: it's not clear to me
     how to write pretty modular code with the argparse module.
     You just end up with a bunch of individual add argument lines that are full of random text.
@@ -456,7 +464,7 @@ def run_arguments():
 
     parser = argparse.ArgumentParser(description='Build and maintain a Bookworm database.',prog="bookworm")
     parser.add_argument("--configuration","-c",help="The name of the configuration file to read options from: by default, 'bookworm.cnf' in the current directory.", default="bookworm.cnf")
-    
+
     parser.add_argument("--database","-d",help="The name of the bookworm database in MySQL to connect to: by default, read from the active configuration file.", default=None)
 
     parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
@@ -467,7 +475,7 @@ def run_arguments():
 
     parser.add_argument("--ngrams",nargs="+",default=["unigrams","bigrams"],help="What levels to parse with. Multiple arguments should be unquoted in spaces. This option currently does nothing.")
 
-    
+
     # Use subparsers to have an action syntax, like git.
     subparsers = parser.add_subparsers(title="action", help='The commands to run with Bookworm', dest="action")
 
@@ -475,10 +483,10 @@ def run_arguments():
 
     ############# build #################
     build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm.\
-    
+
     if you specify something far along the line (for instance, the linechart GUI), it will\
     build all prior files as well.""")
-    
+
     build_parser.add_argument("target", help="The make that you want to build. To build a full bookworm, type 'build all'.")
 
     # Grep out all possible targets from the Makefile
@@ -487,7 +495,7 @@ def run_arguments():
     supplement_parser = subparsers.add_parser("add_metadata",help="""Supplement the\
     metadata for an already-created Bookworm with new items. They can be keyed to any field already in the database.""")
     supplement_parser.add_argument("-f","--file",help="""The location of a file with additional metadata to incorporate into your bookworm.""",required=True)
-        
+
     supplement_parser.add_argument(
         "--format",
         help="""The file format of the new metadata.\
@@ -501,7 +509,7 @@ def run_arguments():
 
     supplement_parser.add_argument("--key",help="""The name of the key. If not specified and input type is TSV, the first column is used.""",default=None)
     supplement_parser.add_argument("--field_descriptions","-d",help="""A description of the new metadata in the format of "field_descriptions.json"; if empty, we'll just guess at some suitable values.""",default=None)
-    
+
     ######### Reload Memory #############
     memory_tables_parser = subparsers.add_parser("reload_memory",help="Reload the memory\
     tables for the designated Bookworm; this must be done after every MySQL restart")
@@ -530,25 +538,25 @@ def run_arguments():
     extensions_parser = subparsers.add_parser("query", help="Run a query using the Bookworm API")
     extensions_parser.add_argument("APIcall",help="The json-formatted query to be run.")
 
-    
+
     ########## Build components
     extensions_parser = subparsers.add_parser("prep", help="Build individual components.", aliases = ['build'])
     extensions_subparsers = extensions_parser.add_subparsers(title="goal", help="The name of the target.", dest="goal")
-    
+
     # Bookworm prep targets that allow additional args
     catalog_prep_parser = extensions_subparsers.add_parser("preDatabaseMetadata",
                                                            help=getattr(BookwormManager, "preDatabaseMetadata").__doc__)
-    
+
     word_ingest_parser = extensions_subparsers.add_parser("database_wordcounts",
                                                            help=getattr(BookwormManager, "database_wordcounts").__doc__)
     word_ingest_parser.add_argument("--no-delete", action="store_true", help="Do not delete and rebuild the token tables. Useful for a partially finished ingest.")
-    
+
     word_ingest_parser.add_argument("--no-reverse-index", action="store_true", help="When creating the table, choose not to index bookid/wordid/counts. This is useful for really large builds. Because this is specified at table creation time, it does nothing with --no-delete or --index-only.")
-    
+
     word_ingest_parser.add_argument("--no-index", action="store_true", help="Do not re-enable keys after ingesting tokens. Only do this if you intent to manually enable keys or will run this command again.")
-    
+
     word_ingest_parser.add_argument("--index-only", action="store_true", help="Only re-enable keys. Supercedes other flags.")
-    
+
     # Bookworm prep targets that don't allow additional args
     for prep_arg in BookwormManager.__dict__.keys():
         extensions_subparsers.add_parser(prep_arg, help=getattr(BookwormManager, prep_arg).__doc__)
@@ -556,32 +564,32 @@ def run_arguments():
     """
     Some special functions
     """
-    
+
     init_parser = subparsers.add_parser("init",help="Initialize the current directory as a bookworm directory")
     init_parser.add_argument("--force","-f",help="Overwrite some existing files.",default=False,action="store_true")
-    init_parser.add_argument("--yes","-y",help="Automatically use default values with no prompts",default=False,action="store_true")    
+    init_parser.add_argument("--yes","-y",help="Automatically use default values with no prompts",default=False,action="store_true")
 
 
     # Serve the current bookworm
-    
+
     serve_parser = subparsers.add_parser("serve",
                                          help="Serve the bookworm. Be default this is an API endpoint,"
                                          "served over gunicorn, or (not yet supported) a full installation. You might want to wrap"
 "the gunicorn endpoint behind a more powerful webserver like apache or nginx.")
 
     serve_parser.add_argument("--full-site", action = "store_true", help="Serve a webpage as well as a query endpoint? Not active.")
-    
+
     serve_parser.add_argument("--bind", "-b", default="10012", help="The port over which to serve the bookworm",type=int)
 
     serve_parser.add_argument("--workers", "-w", default="0", help="How many gunicorn worker threads to launch for the API. Reduce if you're seeing memory issues.",type=int)
-    
+
     serve_parser.add_argument("--dir","-d",default="http_server",help="A filepath for a directory to serve from. Will be created if it does not exist.")
 
-    
-    
+
+
     # Configure the global server.
     configure_parser = subparsers.add_parser("config",help="Some helpers to configure a running bookworm, or to manage your server-wide configuration.")
-    configure_parser.add_argument("target",help="The thing you want help configuring.",choices=["mysql"])
+    configure_parser.add_argument("target",help="The thing you want help configuring.",choices=["mysql", "mysql-info", "apache"])
     configure_parser.add_argument("--users",nargs="+",choices=["admin","global","root"],help="The user levels you want to act on.",default=["admin","global"])
     configure_parser.add_argument("--force","-f",help="Overwrite existing configurations in potentially bad ways.",action="store_true",default=False)
 
@@ -597,9 +605,8 @@ def run_arguments():
     logging.info("Info logging enabled.")
     logging.info("Debug logging enabled.")
 
-    # Create the bookworm 
+    # Create the bookworm
     my_bookworm = BookwormManager(args.configuration, args.database)
 
     # Call the current action with the arguments passed in.
     getattr(my_bookworm,args.action)(args)
-    
