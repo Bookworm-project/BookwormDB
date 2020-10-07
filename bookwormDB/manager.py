@@ -289,7 +289,7 @@ section'client'
         logging.debug("Preparing to write catalog")        
         parse_catalog_multicore()        
 
-    def guessAtFieldDescriptions(self, **kwargs):
+    def guessAtFieldDescriptions(self, args = None, **kwargs):
         
         """
         Use a number of rules of thumb to automatically generate a field_descriptions.json file.
@@ -304,7 +304,7 @@ section'client'
         import os
         if not os.path.exists("field_descriptions.json"):
             output = open("field_descriptions.json","w")
-            guess = json.dumps(Bookworm.variableSet.guessAtFieldDescriptions())
+            guess = json.dumps(Bookworm.variableSet.guessAtFieldDescriptions(), indent = 2)
             logging.warning("Creating guess for field descriptions at: {}".format(guess))
             output.write(guess)
         else:

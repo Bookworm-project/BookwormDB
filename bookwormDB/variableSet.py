@@ -498,7 +498,7 @@ class variableSet(object):
             
         if jsonDefinition==None:
             logging.warning("No field_descriptions.json file provided, so guessing based "
-                            "on variable names. Unintended consequences are possible")
+                            "on variable names.")
             self.jsonDefinition=self.guessAtFieldDescriptions()
         else:
             with open(jsonDefinition,"r") as fin:
@@ -546,22 +546,14 @@ class variableSet(object):
     def guessAtFieldDescriptions(self,stopAfter=30000):
         allMyKeys = dict()
         unique = True
-
+        
         for i, line in enumerate(open(self.originFile)):
             try:
                 entry = json.loads(line.rstrip("\n"))
             except:
-                logging.debug(line)
-                end = line[360:]
-                replacement = "1919}"
-                l2 = (line[:360] + replacement)
-                logging.debug(json.loads(l2))
-                logging.debug(end)
-                logging.debug(replacement)
-                logging.debug(end == replacement)
-                logging.debug(len(replacement))
-                logging.debug(list(zip(end, replacement * 4)))
-                raise
+                logging.warning("Error in line {} of {}".format(i, self.originFile))
+                logging.warning(line)
+                
             for key in entry:
                 if type(entry[key])==list:
                     unique=False
