@@ -5,7 +5,7 @@ from __future__ import print_function
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import cgi
 import cgitb
-import ujson as json
+import json
 
 cgitb.enable()
 

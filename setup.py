@@ -34,8 +34,8 @@ setup(
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"
     ],
-    install_requires=["numpy","regex","nltk","pandas","mysqlclient",
-                      "python-dateutil","ujson", "psutil", "bounter",
+    install_requires=["numpy","pandas","mysqlclient",
+                      "python-dateutil", "psutil", "bounter",
                       "gunicorn"
     ]
 )
