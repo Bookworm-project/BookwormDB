@@ -188,6 +188,8 @@ class Configfile(object):
                     if choice=="y":
                         self.config.set("mysqld",option,mysqldoptions[option])
 
+        self.write_out()
+
     def write_out(self):
         """
         Write out a new version of the configfile to stdout.

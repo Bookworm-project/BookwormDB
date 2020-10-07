@@ -23,7 +23,7 @@ The `master` branch is regularly tested on Travis; you are generally best off in
 
 This builds a database and implements the Bookworm API on particular set of texts.
 
-Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/bookworm-project/BookwormGUI "Bookworm web app"), which runs on top of the API. 
+Some basic, widely appealing visualizations of the data are possible with the Bookworm [web app](https://github.com/bookworm-project/BookwormGUI "Bookworm web app"), which runs on top of the API.
 
 A more wide-ranging set of visualizations is available built on top of D3 in the [Bookworm D3 package](http://github.com/bmschmidt/BookwormD3).
 If you're looking to develop on top of Bookworm, that presents a much more flexible set of tools.
@@ -41,29 +41,79 @@ Here are a couple of Bookworms built using [BookwormDB](https://github.com/bookw
 
 ## Getting Started ##
 
+### Docker
+
+We're working on docker containerization. Help appreciated. Contact `bs 145 at nyu dot edu`,
+no spaces involved.
+
 ### Required MySQL Database ###
 
 You must have a MySQL database set up that you can log into with admin access,
-probably with a `my.cnf` file at ~/.my.cnf.
+probably with a `my.cnf` file at ~/.my.cnf. Depending on your platform, this
+can be a little tricky to set up.
 
 Bookworm will automatically create a select-only user that handles web queries,
-preventing any malicious actions through the API. 
+preventing any malicious actions through the API.
+
+There is a command `bookworm config mysql` that will interactively update
+certain files in your global my.cnf. It may need to be run with admin privileges.
+
+
+Bookworm by default tries to log on with admin privileges with the following preferences:
+
+```
+[client]
+host = 127.0.0.1
+user = root
+password = ''
+
+```
+
+ But it also looks in several locations--`~/etc/my.cnf`, `~/etc/.my.cnf`, and `/etc/bookworm/admin.cnf`--for other passwords.
+ (I don't have an empty root password on my local MySQL server!).
+It updates the host, user, and password with values from each of those files
+if they exist in that order.
+
+The command `bookworm config mysql-info` shows you what password and host it's
+ trying to use.
+
+In addition to the username and password, the host matters as well.
+Depending on setup, 'localhost' and '127.0.0.1' mean different things to mysql
+(the former is a socket, the latter a port). Depending on exactly how you're
+invoking mysql, you may need to use one or the other to communicate.
+For instance, your root account might not have login privileges through
+127.0.0.1, just at localhost--depends exactly how the server is invoked.
+
+To debug mysql permissions issues type `mysql -u $USER -h 127.0.0.1  -p` at the prompt,
+use your password. Once you have confirmed that brings up a mysql prompt that
+can grant privileges, copy those files into something at `~/.my.cnf` (or if
+  you're able, `/etc/bookworm/admin.cnf`)
+in the format given by `bookworm config mysql-info` (or the above block.)
+
 
 
 ## The query API
 
-This distribution also includes two files, general_api.py and SQLapi.py, which together constitute an implementation of the API for Bookworm, written in Python. It primarily implements the API on a MySQL database now, but includes classes for more easily implementing it on top of other platforms (such as Solr).
+This distribution also includes two files, general_api.py and SQLapi.py,
+which together constitute an implementation of the API for Bookworm, written in Python.
+It primarily implements the API on a MySQL database now,
+but includes classes for more easily implementing it on top of other platforms (such as Solr).
 
-It is used with the [Bookworm GUI](https://github.com/Bookworm-project/BookwormGUI) and can also be used as a standalone tool to query data from your database. To run the API in its most basic form, type `bookworm query $string`, where $string is a json-formatted query.
+It is used with the [Bookworm GUI](https://github.com/Bookworm-project/BookwormGUI)
+ and can also be used as a standalone tool to query data from your database.
+ To run the API in its most basic form, type `bookworm query $string`,
+  where $string is a json-formatted query. In general, query performance will be
+  faster over bookworm's API process, which you can start by typing `bookworm serve`
+  and querying over port 10012.
 
-
-While the point of the command-line tool `bookworm` is generally to *create* a Bookworm, the point of the query API is to retrieve results from it.
+While the point of the command-line tool `bookworm` is generally to *create* a Bookworm, the API is to retrieves results from it.
 
 For a more interactive explanation of how the GUI works, see the [Vega-Bookworm project sandbox].
+
 Walkthrough
 ===========
 
-These are some instructions on how to build a bookworm. 
+These are some instructions on how to build a bookworm.
 
 We'll use a collection of 450 novels in 3 languages:
 
@@ -79,8 +129,8 @@ unzip 3686778
 ```
 ### Create catalog and text files.
 
-For this set, a simple python script suffices to build the 
-two needed files, using the textlab's files. Paste this into parse.py
+For this set, a simple python script suffices to build the
+two needed files, using the textlab's files. Paste this into parse.py.
 
 ```python
 import pandas as pd
@@ -106,7 +156,7 @@ for book in pd.read_csv("3686805").to_dict(orient="records"):
 python parse.py
 ```
 
-Then Create a bookworm.cnf file in the file. (This isn't always necessary; usually
+Create a bookworm.cnf file in the file. (This isn't always necessary; usually
 it can just infer the database name from your current directory.)
 ```
 echo "[client]\ndatabase=txtlab450" > bookworm.cnf
@@ -118,6 +168,7 @@ echo "[client]\ndatabase=txtlab450" > bookworm.cnf
 bookworm init
 bookworm build all
 ```
+
 ### Required files
 
 #### Required files 1: full text of each file with an identifier.
@@ -130,13 +181,14 @@ By changing the makefile, you can also do some more complex substitutions. (See 
 
 #### Required files 2: Metadata about each file.
 
-*  `jsoncatalog.txt` with one JSON object per line. The keys represent shared metadata for each file: the values represent the entry for that particular document. There should be no new line or tab characters in this file.
+*  `jsoncatalog.txt` with one JSON object per line. ("newline-delimited json" format.)
+    The keys represent shared metadata for each file: the values represent the entry for that particular document. There should be no new line or tab characters in this file.
 
 In addition to the metadata you choose, two fields are required:
 
 1. A `searchstring` field that contains valid HTML which will be served to the user to identify the text.
    * This can be a link, or simply a description of the field. If you have a URL where the text can be read, it's best to include it inside an <a> tag: otherwise, you can just put in any text field you want in the process of creating the jsoncatalog.txt file: something like author and title is good.
-  
+
 2. A `filename` field that includes a unique identifier for the document (linked to the filename or the identifier, depending on your input format).
 
 **Note that the python script above does both of these at once.**
@@ -146,7 +198,6 @@ In addition to the metadata you choose, two fields are required:
 Now create a file in the `field_descriptions.json` which is used to define the type of variable for each variable in `jsoncatalog.txt`.
 
 Currently, you **do** have to include a `searchstring` definition in this, but **should not** include a filename definition.
-
 
 ## Running ##
 
@@ -169,7 +220,7 @@ this could take a while. Sit back and relax.
 
 Finally, you want to implement the API and see some results.
 
-Type 
+Type
 
 ```
 bookworm serve
@@ -184,7 +235,7 @@ Then you can access query results over http. Try visiting this page in a web bro
 
 
 Once this works, you can use various libraries to query the endpoint,
-or create an HTML page that builds off the endpoint. See 
+or create an HTML page that builds off the endpoint. See
 the (currently underdeveloped) Bookworm-Vega repository for some examples.
 
 
@@ -200,7 +251,7 @@ bookworm server handles them. (Note that this may disable *other* cgi services
 on that particular server.)
 
 This means it's possible to run the bookworm server anywhere, and then just
-forward the connection to your server using ssh tunnels. (Note that doing so 
+forward the connection to your server using ssh tunnels. (Note that doing so
 may be inefficient, because it adds an extra layer of packet encoding. I'm open
 to better solutions here).
 
@@ -215,7 +266,7 @@ The steps for Apache are:
   `sudo a2dismod cgi`
   `sudo a2enmod proxy proxy_ajp proxy_http rewrite deflate headers proxy_balancer proxy_connect proxy_html`
 4. Add the following to your '/etc/apache2/sites-available/000-default.conf'
-  (or whatever site from which you run your apache) to pass cgi-bin queries 
+  (or whatever site from which you run your apache) to pass cgi-bin queries
   to the bookworm ser ver.
   ```
   <Proxy *>

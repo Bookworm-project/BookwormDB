@@ -5,7 +5,7 @@ from setuptools import setup
 setup(
     name='bookwormDB',
     packages=["bookwormDB"],
-    version='0.5',
+    version='1.0',
     entry_points={
         'console_scripts': [
             'bookworm = bookwormDB.manager:run_arguments'
