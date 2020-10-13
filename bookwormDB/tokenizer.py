@@ -10,15 +10,11 @@ import logging
 import numpy as np
 from pandas import read_csv
 from io import StringIO
+import re
 
 """
 This section does a lot of work on tokenizing and aggregating wordcounts.
 """
-
-# import regex as re --now done only when the function is actually called.
-# Set at a global to avoid multiple imports.
-
-re = None
 
 # Likewise, store a thread-wise count on whether we've thrown a unicode encoding error.
 haveWarnedUnicode = False
@@ -33,8 +29,6 @@ def wordRegex():
     a unicode-decoded string: and that we have to use the "regex" module instead of the "re" module. Python3 will make this, perhaps, easier.
     """
     global re
-    if re is None:
-        import regex as re
     MasterExpression = r"\w+"
     possessive = MasterExpression + r"'s"
     numbers = r"(?:[\$])?\d+"
