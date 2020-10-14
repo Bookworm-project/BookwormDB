@@ -7,7 +7,7 @@ from pandas import merge
 from pandas import set_option
 from copy import deepcopy
 from collections import defaultdict
-from .SQLAPI import DbConnect
+from .mariaDB import DbConnect
 from .SQLAPI import userquery
 from .mariaDB import Query
 from .bwExceptions import BookwormException
@@ -23,7 +23,7 @@ import numpy as np
 The general API is some functions for working with pandas to calculate
 bag-of-words summary statistics according to the API description.
 
-It is not bound to any particular backend: instead, a subset of 
+It is not bound to any particular backend: instead, a subset of
 methods in the API must be supported by subclassing APICall().
 
 The only existing example of this is "SQLAPICall."
@@ -99,49 +99,49 @@ class Aggregator(object):
     but there are a multitude of things you can do with those:
     basic things like frequency, all the way up to TF-IDF.
 
-    """    
+    """
     def __init__(self, df, groups = None):
         self.df = df
         self.groups = groups
 
     def _aggregate(self, parameters):
         "Run the aggregation. Prefixed with an underscore so it doesn't show up in the dict."
-        
+
         parameters = set(map(str, parameters))
         for parameter in parameters:
             getattr(self, parameter)()
         return self.df
-            
+
     def WordCount(self):
         self.df["WordCount"] = self.df["WordCount_x"]
-        
+
     def TextCount(self):
         self.df["TextCount"] = self.df["TextCount_x"]
-        
+
     def WordsPerMillion(self):
         self.df["WordsPerMillion"] = (self.df["WordCount_x"].multiply(1000000)/
                                  self.df["WordCount_y"])
     def TotalWords(self):
         self.df["TotalWords"] = self.df["WordCount_y"]
-        
+
     def SumWords(self):
         self.df["SumWords"] = self.df["WordCount_y"] + self.df["WordCount_x"]
-        
+
     def WordsRatio(self):
         self.df["WordsRatio"] = self.df["WordCount_x"]/self.df["WordCount_y"]
-        
+
     def TextPercent(self):
         self.df["TextPercent"] = 100*self.df["TextCount_x"].divide(self.df["TextCount_y"])
-        
+
     def TextRatio(self):
-        self.df["TextRatio"] = self.df["TextCount_x"]/self.df["TextCount_y"]       
+        self.df["TextRatio"] = self.df["TextCount_x"]/self.df["TextCount_y"]
 
     def TotalTexts(self):
         self.df["TotalTexts"] = self.df["TextCount_y"]
-        
+
     def SumTexts(self):
         self.df["SumTexts"] = self.df["TextCount_y"] + self.df["TextCount_x"]
-        
+
     def HitsPerText(self):
         self.df["HitsPerText"] = self.df["WordCount_x"]/self.df["TextCount_x"]
 
@@ -152,13 +152,13 @@ class Aggregator(object):
         self.df["PMI_words"] = PMI(self.df, "WordCount_x", self.groups)
 
     def PMI_texts(self):
-        self.df["PMI_texts"] = PMI(self.df, "TextCount_x", self.groups)        
-        
+        self.df["PMI_texts"] = PMI(self.df, "TextCount_x", self.groups)
+
     def TFIDF(self):
         from numpy import log as log
         self.df["TF"] = self.df["WordCount_x"]/self.df["WordCount_y"]
         self.df["TFIDF"] = self.df["TF"] * np.log(self.df["TextCount_y"]/self.df['TextCount_x'])
-    
+
     def Dunning(self):
         self.df["Dunning"] = DunningLog(self.df, "WordCount_x", "WordCount_y")
 
@@ -167,7 +167,7 @@ class Aggregator(object):
         self.df["DunningTexts"] = DunningLog(self.df, "TextCount_x", "TextCount_y")
 
 def rename(df, newkey):
-    
+
     # Add "x" and "y" suffixed to the dataframes even when not explicitly needed.
 
     renamer = {}
@@ -209,7 +209,7 @@ def base_count_types(list_of_final_count_types):
 
     subq = set()
     superq = set()
-    
+
     for count_name in list_of_final_count_types:
         if count_name in ["WordCount", "WordsPerMillion", "WordsRatio",
                           "TotalWords", "SumWords", "Dunning", "PMI_words", "TextLength", "HitsPerMatch", "TFIDF"]:
@@ -246,6 +246,7 @@ class APIcall(object):
         self.query = APIcall
         self.idiot_proof_arrays()
         self.set_defaults()
+
 
     def set_defaults(self):
         query = self.query
@@ -310,13 +311,13 @@ class APIcall(object):
 
     def validate_query(self):
         self.ensure_query_has_required_fields()
-        
+
     def ensure_query_has_required_fields(self):
 
         required_fields = ['counttype', 'groups', 'database']
         if self.query['method'] in ['schema', 'search']:
             required_fields = ['database']
-        
+
         for field in required_fields:
             if field not in self.query:
                 logging.error("Missing field: %s" % field)
@@ -326,17 +327,17 @@ class APIcall(object):
 
     def prepare_search_and_compare_queries(self):
 
-        
+
 
         call1 = deepcopy(self.query)
         call2 = deepcopy(call1)
         call2['search_limits'] = self.get_compare_limits()
-        
+
         # The individual calls need only the base counts: not "Percentage of
         # Words," but just "WordCount" twice, and so forth
 
         call1['counttype'], call2['counttype'] = base_count_types(self.query['counttype'])
-        
+
         # Drop out asterisks for that syntactic sugar.
         for limit in list(call1['search_limits'].keys()):
             if re.search(r'^\*', limit):
@@ -363,14 +364,14 @@ class APIcall(object):
         instance or something else, just by changing the bits in the middle
         where it handles storage_format.
         """
-        
+
         self.validate_query()
 
         if self.query['method'] in ['schema', 'search']:
             return self.generate_pandas_frame()
-        
+
         self.prepare_search_and_compare_queries()
-        
+
         """
         This could use any method other than pandas_SQL:
         You'd just need to redefine "generate_pandas_frame"
@@ -387,7 +388,7 @@ class APIcall(object):
             logging.debug(self.call2)
             df2 = self.generate_pandas_frame(self.call2)
             rename(df2, "y")
-            
+
         except Exception as error:
             logging.exception("Database error")
             # One common error is putting in an inappropriate column
@@ -401,14 +402,14 @@ class APIcall(object):
 
             except:
                     return Series({"status": "error", "message": "Unknown error. ",
-                                   "code":str(error)})                
-        
+                                   "code":str(error)})
+
         intersections = intersectingNames(df1, df2)
 
         """
         Would this merge be faster with indexes?
         """
-        
+
         if len(intersections) > 0:
             merged = merge(df1, df2, on=intersections, how='outer')
         else:
@@ -420,7 +421,7 @@ class APIcall(object):
         gator = Aggregator(merged, self.query['groups'])
         calcced = gator._aggregate(calculations)
 #        calcced = calculateAggregates(merged, calculations, self.query['groups'])
-        
+
         calcced = calcced.fillna(int(0))
 
         final_DataFrame = (calcced[self.query['groups'] +
@@ -451,9 +452,9 @@ class APIcall(object):
                 else:
                     # Only return first search limit if not return in json
                     self.query['search_limits'] = self.query['search_limits'][0]
-                    
+
             form = method[7:] if method[:6] == 'return' else method
-            
+
             logging.warning("method == \"%s\" is deprecated. Use method=\"data\" "
                          "with format=\"%s\" instead." % (method, form))
 
@@ -464,14 +465,14 @@ class APIcall(object):
 
             elif method == "return_csv" or method == "csv":
                 self.query['method'] = 'data'
-                self.query['format'] = 'json'                
+                self.query['format'] = 'json'
                 frame = self.data()
                 return frame.to_csv(path = None, sep="\t", encoding="utf8", index=False,
                                     quoting=csv.QUOTE_NONE, escapechar="\\")
         elif version >= 2:
             try:
                 # What to do with multiple search_limits
-                
+
                 if isinstance(self.query['search_limits'], list):
                     if fmt == "json" or version >= 3:
                         frame = self.multi_execute(version = version)
@@ -480,13 +481,13 @@ class APIcall(object):
                         self.query['search_limits'] = self.query['search_limits'][0]
                 else:
                     frame = self.data()
-                    
+
                 if fmt == "json":
                     return self.return_json(version=2)
-                
+
                 if fmt == "csv":
                     return frame.to_csv(encoding="utf8", index=False)
-                
+
                 if fmt == "tsv":
                     return frame.to_csv(sep="\t", encoding="utf8", index=False)
 
@@ -505,7 +506,7 @@ class APIcall(object):
 
                 if fmt == 'html':
                     return self.html(frame)
-                
+
                 else:
                     err = dict(status="error", code=200,
                                message="Only formats in ['csv', 'tsv', 'json', 'feather']"
@@ -528,6 +529,8 @@ class APIcall(object):
         if method in ["returnPossibleFields", "search_results",
                       "return_books", "schema"]:
                 try:
+                    logging.warn("Using deprecated API call.")
+
                     query = userquery(self.query)
                     if method == "return_books":
                         return query.execute()
@@ -539,12 +542,12 @@ class APIcall(object):
                     return "General error"
 
     def multi_execute(self, version=1):
-        
+
         """
         Queries may define several search limits in an array
         if they use the return_json method.
         """
-        
+
         if version <= 2:
             returnable = []
             for limits in self.query['search_limits']:
@@ -554,7 +557,7 @@ class APIcall(object):
                                                   version=version)
                 returnable.append(q)
             return self._prepare_response(returnable, version)
-        
+
         if version == 3:
             for i, limits in enumerate(self.query['search_limits']):
                 child = deepcopy(self.query)
@@ -567,7 +570,7 @@ class APIcall(object):
                     frame = frame.append(f, ignore_index = True)
             return frame
 
-    
+
     def html(self, data):
         """
         Return data in column-oriented format with run-length encoding
@@ -577,7 +580,7 @@ class APIcall(object):
         if isinstance(data, Series) and 'status' in data:
             # If data has a status, Bookworm is trying to send us an error
             return data.to_json()
-        
+
         set_option('display.max_colwidth', -1)
         return data.to_html(escape = False, index = False)
 
@@ -587,20 +590,20 @@ class APIcall(object):
         Return data in column-oriented format with run-length encoding
         on duplicate values.
         """
-        
+
         if isinstance(data, Series) and 'status' in data:
             # If data has a status, Bookworm is trying to send us an error
             return data.to_json()
-    
+
         output = {'status':'success', 'data':{}}
-        
+
         for k in data:
             series = data[k]
             output['data'][k] = rle(data[k].tolist())
-            
+
         return json.dumps(output)
-    
-        
+
+
     def return_json(self, raw_python_object=False, version=1):
         '''
         Get JSON data for a single search_limit.
@@ -734,8 +737,7 @@ class SQLAPIcall(APIcall):
             call = self.query
         con = DbConnect(prefs, self.query['database'])
         q = Query(call).query()
-        logging.debug("Preparing to execute {}".format(q)) 
+        logging.debug("Preparing to execute {}".format(q))
         df = read_sql(q, con.db)
         logging.debug("Query retrieved")
         return df
-    

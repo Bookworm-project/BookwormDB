@@ -40,7 +40,7 @@ class DB(object):
         try:
             host = conf.config.get("mysqld", "host")
         except NoOptionError:
-            host = "localhost"
+            host = conf.config.get("client", "host")
         connect_args = {
             "user": conf.config.get("client", "user"),
             "passwd": conf.config.get("client", "password"),
@@ -164,7 +164,8 @@ class BookwormSQLDatabase(object):
         username=globalfile.config.get("client","user")
         password=globalfile.config.get("client","password")
         clienthostname=globalfile.config.get("client","clienthostname")
-
+        if clienthostname == '':
+            clienthostname = "%"
         try:
             self.db.query("GRANT SELECT ON %s.* TO '%s'@'%s' IDENTIFIED BY '%s'" % (self.dbname,username,clienthostname, password))
         except MySQLdb._exceptions.OperationalError:

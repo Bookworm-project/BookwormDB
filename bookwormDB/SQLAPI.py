@@ -9,27 +9,27 @@ import MySQLdb
 import hashlib
 import logging
 from .bwExceptions import BookwormException
+import bookwormDB.configuration
 
 # If you have bookworms stored on a different host, you can create more lines
 # like this.
 # A different host and read_default_file will let you import things onto a
 # different server.
 general_prefs = dict()
-general_prefs["default"] = {"fastcat": "fastcat",
-                            "fastword": "wordsheap",
-                            "fullcat": "catalog",
-                            "fullword": "words",
-                            "read_default_file": "/etc/mysql/my.cnf"
+general_prefs["default"] = {
+    "fastcat": "fastcat",
+    "fastword": "wordsheap",
+    "fullcat": "catalog",
+    "fullword": "words",
+    "read_default_file": "/etc/mysql/my.cnf"
 }
 
 class DbConnect(object):
     # This is a read-only account
-    def __init__(self, prefs=general_prefs['default'], database=None,
-                 host=None):
-        
+    def __init__(self, prefs=general_prefs['default'], database=None):
+
         self.dbname = database
-        
-        import bookwormDB.configuration
+
         conf = bookwormDB.configuration.Configfile("read_only").config
 
         if database is None:
@@ -40,28 +40,12 @@ class DbConnect(object):
             "use_unicode": 'True',
             "charset": 'utf8',
             "user": conf.get("client", "user"),
-            "password": conf.get("client", "password")
+            "password": conf.get("client", "password"),
+            "host": conf.get("client", "host")
         }
 
-        if host:
-            connargs['host'] = host
-        # For back-compatibility:
-        elif "HOST" in prefs:
-            connargs['host'] = prefs['HOST']
-        else:
-            host = "localhost"
-            
-        try:
-            self.db = MySQLdb.connect(**connargs)
-        except:
-            try:
-                # Sometimes mysql wants to connect over this rather than a socket:
-                # falling back to it for backward-compatibility.                
-                connargs["host"] = "127.0.0.1"
-                self.db = MySQLdb.connect(**connargs)
-            except:
-                raise
-            
+        logging.info("Preparing to connect with args", connargs)
+        self.db = MySQLdb.connect(**connargs)
         self.cursor = self.db.cursor()
 
 def fail_if_nonword_characters_in_columns(input):
@@ -114,7 +98,7 @@ class userquery(object):
             self.prefs = general_prefs['default']
             self.prefs['database'] = outside_dictionary['database']
         self.outside_dictionary = outside_dictionary
-        # self.prefs = general_prefs[outside_dictionary.setdefault('database', 'presidio')]
+
         self.db = db
         if db is None:
             self.db = DbConnect(self.prefs)
@@ -124,7 +108,7 @@ class userquery(object):
 
         self.cursor = self.db.cursor
         self.wordsheap = self.fallback_table(self.prefs['fastword'])
-        
+
         self.words = self.prefs['fullword']
         """
         I'm now allowing 'search_limits' to either be a dictionary or an array of dictionaries:
@@ -356,10 +340,10 @@ class userquery(object):
             else:
                 return []
             return [re.sub(" .*","",key) for key in val]
-        
+
         return pull_keys(self.limits) + [re.sub(" .*","",g) for g in self.groups]
-        
-        
+
+
     def create_catalog_table(self):
         self.catalog = self.prefs['fastcat'] # 'catalog' # Can be replaced with a more complicated query in the event of longer joins.
 
@@ -403,7 +387,7 @@ class userquery(object):
         self.catalog = self.fallback_table("fastcat")
         if self.catalog == "fastcat_":
             self.prefs['fastcat'] = "fastcat_"
-            
+
         for table in self.relevantTables:
             if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams" and table != "fastcat_" and table != "wordsheap_":
                 self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "
@@ -422,29 +406,29 @@ class userquery(object):
 
         if not hasattr(self,"fallbacks_cache"):
             self.fallbacks_cache = {}
-            
+
         if tabname in self.fallbacks_cache:
             return self.fallbacks_cache[tabname]
-        
+
         q = "SELECT COUNT(*) FROM {}".format(tab)
         try:
             self.db.cursor.execute(q)
             length = self.db.cursor.fetchall()[0][0]
             if length==0:
-                tab += "_"        
+                tab += "_"
         except MySQLdb.ProgrammingError:
             tab += "_"
-            
+
         self.fallbacks_cache[tabname] = tab
-        
+
         return tab
-        
+
     def make_catwhere(self):
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
         for key in list(self.limits.keys()):
             # !!Warning--none of these phrases can be used in a bookworm as a custom table names.
-            
+
             if key not in ('word', 'word1', 'word2', 'hasword') and not re.search("words\d", key):
                 catlimits[key] = self.limits[key]
         if len(list(catlimits.keys())) > 0:
@@ -887,7 +871,7 @@ class userquery(object):
         # This is an alias that is handled slightly differently in
         # APIimplementation (no "RESULTS" bit in front). Once
         # that legacy code is cleared out, they can be one and the same.
-        
+
         return json.loads(self.return_books())
 
     def getActualSearchedWords(self):
@@ -1119,7 +1103,7 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
             whereterm.append(" ( " + " OR ".join(local_set) + " )")
         elif key == '$and' or key == "$AND":
             for comparison in values:
-                whereterm.append(where_from_hash(comparison, joiner=" AND ", comp=comp))                
+                whereterm.append(where_from_hash(comparison, joiner=" AND ", comp=comp))
         elif isinstance(values, dict):
             if joiner is None:
                 joiner = " AND "
@@ -1128,7 +1112,7 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
             operations = {"$gt":">", "$ne":"!=", "$lt":"<",
                           "$grep":" REGEXP ", "$gte":">=",
                           "$lte":"<=", "$eq":"="}
-            
+
             for operation in list(values.keys()):
                 if operation == "$ne":
                     # If you pass a lot of ne values, they must *all* be false.
@@ -1156,7 +1140,7 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
                         quotesep = ""
 
                     def escape(value):
-                        # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.                        
+                        # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.
                         return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
                 else:
                     def escape(value):

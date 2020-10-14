@@ -18,7 +18,7 @@ This section does a lot of work on tokenizing and aggregating wordcounts.
 # import regex as re --now done only when the function is actually called.
 # Set at a global to avoid multiple imports.
 
-import re
+import regex as re
 
 # Likewise, store a thread-wise count on whether we've thrown a unicode encoding error.
 haveWarnedUnicode = False
