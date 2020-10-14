@@ -735,7 +735,7 @@ class SQLAPIcall(APIcall):
 
         if call is None:
             call = self.query
-        con = DbConnect(prefs, self.query['database'])
+        con = DbConnect(self.query['database'])
         q = Query(call).query()
         logging.debug("Preparing to execute {}".format(q))
         df = read_sql(q, con.db)

@@ -20,8 +20,7 @@ import logging
 
 class DbConnect(object):
     # This is a read-only account
-    def __init__(self, database=None,
-                 host=None):
+    def __init__(self, database=None, host=None):
 
         self.dbname = database
 
@@ -40,7 +39,8 @@ class DbConnect(object):
             "host": conf.get("client", "host")
         }
 
-        logging.info("Preparing to connect with args", connargs)
+        logging.warning("Preparing to connect with args")
+        logging.warning(connargs)
         self.db = MySQLdb.connect(**connargs)
         self.cursor = self.db.cursor()
 

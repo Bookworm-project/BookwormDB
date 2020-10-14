@@ -44,7 +44,9 @@ class DbConnect(object):
             "host": conf.get("client", "host")
         }
 
-        logging.info("Preparing to connect with args", connargs)
+        logging.info("Preparing to connect with args")
+        logging.info(connargs)
+
         self.db = MySQLdb.connect(**connargs)
         self.cursor = self.db.cursor()
 
