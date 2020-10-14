@@ -11,16 +11,16 @@ def content_type(query):
         format = query['format']
     except:
         return 'text/plain'
-    
+
     if format == "json":
         return "application/json"
-    
+
     if format == "feather":
         return "application/octet-stream"
-    
+
     if format == "html":
         return "text/html"
-    
+
     return 'text/plain'
 
 def application(environ, start_response, logfile = "bookworm_queries.log"):
@@ -43,7 +43,7 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
     if ip is None:
         ip = environ.get('REMOTE_ADDR')
     query = unquote(q)
-    
+
     headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
@@ -53,7 +53,7 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
     }
 
 
-        
+
     logging.debug("Received query {}".format(query))
     start = datetime.now()
 
@@ -61,7 +61,7 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
     # a named argument.
     query = query.strip("query=")
     query = query.strip("queryTerms=")
-                          
+
     try:
         query = json.loads(query)
         query['ip'] = ip
@@ -76,10 +76,10 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
 
     # It might be binary already.
     headers['Content-type'] = content_type(query)
-    
+
     if headers['Content-type'] != 'application/octet-stream':
         response_body = bytes(response_body, 'utf-8')
-                    
+
     headers['Content-Length'] = str(len(response_body))
     status = '200 OK'
     start_response(status, list(headers.items()))
@@ -100,9 +100,11 @@ def number_of_workers():
     return (multiprocessing.cpu_count() * 2) + 1
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):
+
     """
     Superclassed to allow bookworm to do the running.
     """
+
     def __init__(self, app, options=None):
         self.options = options or {}
         self.application = app
@@ -117,14 +119,17 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
     def load(self):
         return self.application
 
-def run(port = 10012, workers = number_of_workers()):
+def run(port = 10012, bind="0.0.0.0", workers = number_of_workers()):
+    """
+    port: the service port
+    bind: the host to bind to.
+    """
     if workers==0:
         workers = number_of_workers()
-        
+
     options = {
-        'bind': '{}:{}'.format('127.0.0.1', port),
+        'bind': f'{bind}:{port}',
         'workers': workers,
     }
-    
+
     StandaloneApplication(application, options).run()
-    

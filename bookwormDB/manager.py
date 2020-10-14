@@ -140,14 +140,14 @@ section'client'
         caller = SQLAPIcall(query)
         print(caller.execute())
 
-    def serve(self,args):
+    def serve(self, args):
 
         """
         Serve the api.
         """
 
         from bookwormDB.wsgi import run
-        run(args.bind, args.workers)
+        run(args.port, args.bind, args.workers)
 
         import http.server
         from http.server import HTTPServer
@@ -579,7 +579,9 @@ def run_arguments():
 
     serve_parser.add_argument("--full-site", action = "store_true", help="Serve a webpage as well as a query endpoint? Not active.")
 
-    serve_parser.add_argument("--bind", "-b", default="10012", help="The port over which to serve the bookworm",type=int)
+    serve_parser.add_argument("--port", "-p", default="10012", help="The port over which to serve the bookworm", type=int)
+
+    serve_parser.add_argument("--bind", "-b", default="127.0.0.1", help="The IP address to bind the server to.", type=str)
 
     serve_parser.add_argument("--workers", "-w", default="0", help="How many gunicorn worker threads to launch for the API. Reduce if you're seeing memory issues.",type=int)
 
