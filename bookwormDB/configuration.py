@@ -117,12 +117,16 @@ class Configfile(object):
             self.config.set("client", "host", "localhost")
             self.config.set("client", "user", "root")
             self.config.set("client", "password", "")
+            self.config.set("clienthostname", "localhost", "")
 
         else:
             self.ensure_section("client")
             self.config.set("client", "host", "localhost")
             self.config.set("client", "user", "bookworm")
             self.config.set("client", "password", "")
+            # A different section here can change the name of the host
+            # allowed to log in for select queries.
+            self.config.set("client", "clienthostname", "localhost")
 
         self.read_config_files(possible_locations)
 
@@ -146,7 +150,6 @@ class Configfile(object):
                 except configparser.MissingSectionHeaderError:
                     used_files.remove(file)
             successes = self.config.read(used_files)
-
 
 
     def default_locations_from_type(self,usertype):

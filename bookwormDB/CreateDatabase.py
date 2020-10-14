@@ -33,7 +33,7 @@ class DB(object):
         if not re.match("^[A-Za-z0-9_]+$", self.dbname):
             raise NameError("Database names must not include any spaces or special characters")
         self.conn = None
-        
+
     def connect(self, setengine=True):
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         conf = Configfile("admin")
@@ -61,7 +61,7 @@ class DB(object):
                 self.conn = MySQLdb.connect(**connect_args)
             else:
                 raise
-            
+
         cursor = self.conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS %s default character set utf8" % self.dbname)
         # Don't use native query attribute here to avoid infinite loops
@@ -87,14 +87,14 @@ class DB(object):
                         provided.
         """
         logging.debug(" -- Preparing to execute SQL code -- " + sql)
-        logging.debug(" -- with params {}".format(params))        
-        
+        logging.debug(" -- with params {}".format(params))
+
         try:
             cursor = self.conn.cursor()
             if many_params is not None:
                 cursor.executemany(sql, many_params)
             else:
-                
+
                 cursor.execute(sql)
         except:
             try:
@@ -133,9 +133,9 @@ class BookwormSQLDatabase(object):
         """
         self.config_manager = Configfile("admin")
         config = self.config_manager.config
-        
+
         self.dbname = dbname
-        
+
         self.conn = None
 
         if self.dbname is not None:
@@ -144,7 +144,7 @@ class BookwormSQLDatabase(object):
             self.db = DB(dbname=self.dbname)
         else:
             self.db = None
-            
+
         if variableFile is not None:
             try:
                 self.setVariables(originFile=variableFile)
@@ -163,12 +163,14 @@ class BookwormSQLDatabase(object):
 
         username=globalfile.config.get("client","user")
         password=globalfile.config.get("client","password")
+        clienthostname=globalfile.config.get("client","clienthostname")
+
         try:
-            self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
+            self.db.query("GRANT SELECT ON %s.* TO '%s'@'%s' IDENTIFIED BY '%s'" % (self.dbname,username,clienthostname, password))
         except MySQLdb._exceptions.OperationalError:
-            self.db.query("CREATE USER '%s'@'localhost' IDENTIFIED BY '%s'" % (username,password))
-            self.db.query("GRANT SELECT ON %s.* TO '%s'@'localhost' IDENTIFIED BY '%s'" % (self.dbname,username,password))
-            
+            self.db.query("CREATE USER '%s'@'%s' IDENTIFIED BY '%s'" % (username,clienthostname,password))
+            self.db.query("GRANT SELECT ON %s.* TO '%s'@'%s' IDENTIFIED BY '%s'" % (self.dbname,username,clienthostname,password))
+
     def setVariables(self, originFile, anchorField="bookid",
                      jsonDefinition=".bookworm/metadata/field_descriptions_derived.json"):
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
@@ -185,7 +187,7 @@ class BookwormSQLDatabase(object):
         """
         self.setVariables(originFile,anchorField=anchorField,jsonDefinition=jsonDefinition)
         self.variableSet.writeMetadata()
-        self.variableSet.loadMetadata()        
+        self.variableSet.loadMetadata()
         self.variableSet.updateMasterVariableTable()
         for variable in self.variableSet.variables:
             variable.clear_associated_memory_tables()
@@ -195,9 +197,9 @@ class BookwormSQLDatabase(object):
         dbname = self.dbname
         dbuser = self.dbuser
         dbpassword = self.dbpassword
-        
+
         db = self.db
-        
+
         #This must be run as a MySQL user with create_table privileges
         try:
             db.query("CREATE DATABASE " + dbname)
@@ -206,7 +208,7 @@ class BookwormSQLDatabase(object):
 
         "Setting up permissions for web user..."
         db.query("GRANT SELECT ON " + dbname + ".*" + " TO '" + dbuser + "'@'localhost' IDENTIFIED BY '" + dbpassword + "'")
-        db.query("GRANT SELECT ON {}.* TO 'bookworm'@'localhost'".format(dbname))        
+        db.query("GRANT SELECT ON {}.* TO 'bookworm'@'localhost'".format(dbname))
         db.query("FLUSH PRIVILEGES")
         #a field to store stuff we might need later.
         db.query("CREATE TABLE IF NOT EXISTS bookworm_information (entry VARCHAR(255), PRIMARY KEY (entry), value VARCHAR(50000))")
@@ -235,7 +237,7 @@ class BookwormSQLDatabase(object):
 
     def load_book_list(self):
         """
-        Slated for deletion. 
+        Slated for deletion.
 
         Loads in the tables that have already been created by a previous
         call to `Bookworm.variableSet.writeMetadata()`
@@ -250,7 +252,7 @@ class BookwormSQLDatabase(object):
         ngramname = "unigrams"
         tablenameroot = "master_bookcounts"
         # If you are splitting the input into multiple tables
-        # to be joined as a merge table, come up with multiple 
+        # to be joined as a merge table, come up with multiple
         # table names and we'll cycle through.
         if table_count == 1:
             tablenames = [tablenameroot]
@@ -266,12 +268,12 @@ class BookwormSQLDatabase(object):
         if (len(grampath) == 0) or (grampath == "/"):
             logging.error("Woah! Don't set the ngram path to your system root!")
             raise
-        
+
         if newtable:
             if os.path.exists(tmpdir):
                 import shutil
                 shutil.rmtree(tmpdir)
-        
+
             logging.info("Dropping older %s table, if it exists" % ngramname)
             for tablename in tablenames:
                 db.query("DROP TABLE IF EXISTS " + tablename)
@@ -290,7 +292,7 @@ class BookwormSQLDatabase(object):
             db.query("set NAMES utf8;")
             db.query("set CHARACTER SET utf8;")
             logging.info("loading data using LOAD DATA LOCAL INFILE")
-            
+
             files = os.listdir(grampath)
             for i, filename in enumerate(files):
                 if filename.endswith('.txt'):
@@ -429,15 +431,15 @@ class BookwormSQLDatabase(object):
         self.variableSet.updateMasterVariableTable()
 
     def reloadMemoryTables(self, force=False, names = None):
-        
+
         """
         Checks to see if memory tables need to be repopulated (by seeing if they are empty)
         and then does so if necessary.
 
-        If an array is passed to 'names', only the specified tables will be 
+        If an array is passed to 'names', only the specified tables will be
         loaded into memory; otherwise, all will.
         """
-        
+
         q = "SELECT tablename,memoryCode FROM masterTableTable"
         existingCreateCodes = self.db.query(q).fetchall()
 
@@ -471,14 +473,14 @@ class BookwormSQLDatabase(object):
         tbname = "fastcat"
         if engine=="MYISAM":
             tbname = "fastcat_"
-            
+
         fastFieldsCreateList = [
             "bookid MEDIUMINT UNSIGNED NOT NULL, PRIMARY KEY (bookid)",
             "nwords MEDIUMINT UNSIGNED NOT NULL"
             ]
-            
+
         fastFieldsCreateList += [variable.fastSQL() for variable in self.variableSet.uniques("fast")]
-        
+
         create_command = """DROP TABLE IF EXISTS tmp;"""
         create_command += "CREATE TABLE tmp ({}) ENGINE={};""".format(
             ", ".join(fastFieldsCreateList), engine)
@@ -535,7 +537,7 @@ class BookwormSQLDatabase(object):
         query += "VALUES ('wordsheap','wordsheap','{}'); ".format(wordCommand)
         logging.info("Creating wordsheap")
         self.db.query(query)
-        
+
     def jsonify_data(self):
         variables = self.variableSet.variables
         dbname = self.dbname
@@ -573,7 +575,7 @@ class BookwormSQLDatabase(object):
         except:
             logging.warning("No default search created because of insufficient data.")
         output['ui_components'] = ui_components
-        
+
         with open('.bookworm/%s.json' % dbname, 'w') as outfile:
             outfile.write(json.dumps(output))
 
