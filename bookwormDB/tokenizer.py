@@ -18,7 +18,7 @@ This section does a lot of work on tokenizing and aggregating wordcounts.
 # import regex as re --now done only when the function is actually called.
 # Set at a global to avoid multiple imports.
 
-re = None
+import re
 
 # Likewise, store a thread-wise count on whether we've thrown a unicode encoding error.
 haveWarnedUnicode = False
@@ -32,9 +32,6 @@ def wordRegex():
     Note that this uses *unicode*: among other things, that means that it needs to be passed
     a unicode-decoded string: and that we have to use the "regex" module instead of the "re" module. Python3 will make this, perhaps, easier.
     """
-    global re
-    if re is None:
-        import regex as re
     MasterExpression = r"\w+"
     possessive = MasterExpression + r"'s"
     numbers = r"(?:[\$])?\d+"
@@ -43,7 +40,7 @@ def wordRegex():
     sharps = r"[a-gjxA-GJX]#"
     punctuators = r"[^\w\p{Z}]"
     """
-    Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms 
+    Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms
     """
     bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
     return bigregex
@@ -64,21 +61,21 @@ def readIDfile(prefix=""):
 
 class tokenBatches(object):
     """
-    A tokenBatches is a manager for tokenizers. Each one corresponds to 
+    A tokenBatches is a manager for tokenizers. Each one corresponds to
     a reasonable number of texts to read in to memory on a single processor:
     during the initial loads, there will probably be one per core.
     It doesn't store the original text, just the unigram and bigram tokenizations in its attached self.counts arrays.
-    
-    It writes out its dat to a single file: 
+
+    It writes out its dat to a single file:
        in this way, a batch of up to several hundred thousand individual files is grouped into a single file.
 
     It also has a method that encodes and writes its wordcounts into a tsv file appropriate for reading with mysql,
     with 3-byte integer encoding for wordid and bookid.
     """
-    
+
     def __init__(self, levels=["unigrams","bigrams"]):
         """
-        
+
         mode: 'encode' (write files out)
         """
         self.id = '%030x' % random.randrange(16**30)
@@ -86,13 +83,13 @@ class tokenBatches(object):
 
         # placeholder to alert that createOutputFiles must be run.
         self.completedFile = None
-        
+
     def createOutputFiles(self):
         self.completedFile = open(".bookworm/texts/encoded/completed/" + self.id,"w")
         self.outputFiles = dict()
         for level in self.levels:
             self.outputFiles[level] = open(".bookworm/texts/encoded/{}/{}.txt".format(level, self.id),"w")
-        
+
     def attachDictionaryAndID(self):
         self.dictionary = readDictionaryFile()
         self.IDfile = readIDfile()
@@ -100,14 +97,14 @@ class tokenBatches(object):
 
     def close(self):
         """
-        This test allows the creation of bookworms with fewer document than requested 
+        This test allows the creation of bookworms with fewer document than requested
         threads, which happens to be the case in the tests.
         """
         if self.completedFile is not None:
             self.completedFile.close()
             for v in self.outputFiles.values():
                 v.close()
-        
+
     def encodeRow(self,
                   filename,
                   tokenizer,
@@ -121,7 +118,7 @@ class tokenBatches(object):
         if self.completedFile is None:
             self.createOutputFiles()
             self.attachDictionaryAndID()
-            
+
         #The dictionary and ID lookup tables should be pre-attached.
         dictionary = self.dictionary
         IDfile = self.IDfile
@@ -146,7 +143,7 @@ class tokenBatches(object):
                 raise
             tokens = preTokenized(token, count, self.levels[0])
         """
-        
+
         try:
             textid = IDfile[filename]
         except KeyError:
@@ -170,7 +167,7 @@ class tokenBatches(object):
                         if any of the words to be included is not in the dictionary,
                         we don't include the whole n-gram in the counts.
                         """
-                        skip = True                        
+                        skip = True
                 if not skip:
                     wordids = "\t".join(wordList)
                     output.append("{}\t{}\t{}".format(int(textid), wordids, count))
@@ -179,7 +176,7 @@ class tokenBatches(object):
                 if len(output) > 0:
                     # The test is necessary because otherwise this prints a blank line.
                     outputFile.write("\n".join(output) + "\n")
-                
+
             except IOError as e:
                 logging.exception(e)
 
@@ -198,9 +195,9 @@ class Tokenizer(object):
     the general way to call it is to initialize, and then for each desired set of counts call "tokenizer.counts("bigrams")" (or whatever).
 
     That returns a dictionary, whose keys are tuples of length 1 for unigrams, 2 for bigrams, etc., and whose values are counts for that ngram. The tuple form should allow faster parsing down the road.
-    
+
     """
-    
+
     def __init__(self, string, tokenization_regex=None):
         global haveWarnedUnicode
         self.string = string
@@ -234,7 +231,7 @@ class Tokenizer(object):
         All the ngrams in the text can be created as a tuple by zipping an arbitrary number of
         copies of the text to itself.
         """
-        
+
         self.tokenize()
         l = list(zip(*[self.tokens[i:] for i in range(n)]))
         if collapse:
@@ -262,9 +259,9 @@ class Tokenizer(object):
         """
         self.tokenize()
         return self.tokens
-    
+
     def counts(self, whichType):
-        
+
         count = dict()
         for gram in getattr(self,whichType)():
             try:
@@ -293,13 +290,13 @@ class PreTokenized(object):
             self.output = dict(zip(f.word, f.counts))
         else:
             self.output = dict(zip([tuple(w.split(" ")) for w in f.word], f.counts))
-            
+
     def counts(self,level):
         if level != self.level:
             raise
         return self.output
 
-    
+
 def getAlreadySeenList(folder):
     #Load in a list of what's already been translated for that level.
     #Returns a set.
@@ -319,9 +316,8 @@ def encode_text_stream():
         line = line.rstrip("\n")
         if filename not in seen:
             tokenBatch.encodeRow(line)
-            
+
     # And printout again at the end
 
 if __name__=="__main__":
     encode_text_stream()
-
