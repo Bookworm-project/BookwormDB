@@ -117,7 +117,7 @@ class Configfile(object):
             self.config.set("client", "host", "localhost")
             self.config.set("client", "user", "root")
             self.config.set("client", "password", "")
-            self.config.set("clienthostname", "localhost", "")
+            self.config.set("client", "clienthostname", "localhost")
 
         else:
             self.ensure_section("client")
