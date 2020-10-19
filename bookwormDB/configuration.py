@@ -136,20 +136,25 @@ class Configfile(object):
 
 
     def read_config_files(self, used_files):
-
-        try:
-            self.config.read(used_files)
-        except configparser.MissingSectionHeaderError:
-            """
-            Some files throw this error if you have an empty
-            my.cnf. This throws those out of the list, and tries again.
-            """
-            for file in used_files:
+        for file in used_files:
+            try:
+                self.config.read(file)
                 try:
-                    self.config.read(file)
-                except configparser.MissingSectionHeaderError:
-                    used_files.remove(file)
-            successes = self.config.read(used_files)
+                    password_file = self.config.get("client", "password_file")
+                except configparser.NoOptionError:
+                    password_file = None
+                if password_file:
+                    try:
+                        with open(password_file) as fin:
+                            password = fin.read().rstrip("\n").rstrip("\r")
+                            self.config.set("client", "password", password)
+                    except:
+                        logging.error(f"Error reading passworm from {password_file}")
+                        raise
+                    self.config.remove_option("client", "password_file")
+            except configparser.MissingSectionHeaderError:
+                # Not every file needs every section.
+                pass
 
 
     def default_locations_from_type(self,usertype):
