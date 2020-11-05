@@ -7,6 +7,12 @@ import gunicorn.app.base
 from datetime import datetime
 
 def content_type(query):
+    """
+    Returns the content - type header.
+
+    Args:
+        query: (str): write your description
+    """
     try:
         format = query['format']
     except:
@@ -24,6 +30,14 @@ def content_type(query):
     return 'text/plain'
 
 def application(environ, start_response, logfile = "bookworm_queries.log"):
+    """
+    Make a wsgi application.
+
+    Args:
+        environ: (dict): write your description
+        start_response: (callable): write your description
+        logfile: (str): write your description
+    """
     # Starting with code from http://wsgi.tutorial.codepoint.net/parsing-the-request-post
     try:
         request_body_size = int(environ.get('QUERY_STRING', 0))
@@ -97,6 +111,11 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
 
 
 def number_of_workers():
+    """
+    Return number of number of workers.
+
+    Args:
+    """
     return (multiprocessing.cpu_count() * 2) + 1
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):
@@ -104,20 +123,48 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
     Superclassed to allow bookworm to do the running.
     """
     def __init__(self, app, options=None):
+        """
+        Initialize the application.
+
+        Args:
+            self: (todo): write your description
+            app: (todo): write your description
+            options: (dict): write your description
+        """
         self.options = options or {}
         self.application = app
         super(StandaloneApplication, self).__init__()
 
     def load_config(self):
+        """
+        Load config file.
+
+        Args:
+            self: (todo): write your description
+        """
         config = dict([(key, value) for key, value in self.options.items()
                        if key in self.cfg.settings and value is not None])
         for key, value in config.items():
             self.cfg.set(key.lower(), value)
 
     def load(self):
+        """
+        Loads the application.
+
+        Args:
+            self: (todo): write your description
+        """
         return self.application
 
 def run(port = 10012, workers = number_of_workers()):
+    """
+    Run the workers.
+
+    Args:
+        port: (int): write your description
+        workers: (int): write your description
+        number_of_workers: (int): write your description
+    """
     if workers==0:
         workers = number_of_workers()
         

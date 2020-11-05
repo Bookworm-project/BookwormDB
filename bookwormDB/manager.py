@@ -201,6 +201,12 @@ section'client'
         my_extension.make()
 
     def build(self, args):
+        """
+        Builds the command line.
+
+        Args:
+            self: (todo): write your description
+        """
         self.prep(args)
 
     def prep(self, args):
@@ -236,6 +242,12 @@ section'client'
                         output = ".bookworm/texts/wordlist/wordlist.txt")
 
     def pristine(self, args):
+        """
+        Writes a database.
+
+        Args:
+            self: (todo): write your description
+        """
 
         import bookwormDB.CreateDatabase
         bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname, variableFile=None)
@@ -264,12 +276,24 @@ section'client'
             encode_words(".bookworm/texts/wordlist/wordlist.txt", "input.txt")
 
     def all(self, args):
+        """
+        Runs all the database.
+
+        Args:
+            self: (todo): write your description
+        """
         self.preDatabaseMetadata(args)
         self.encoded(args)
         self.database_wordcounts(args)
         self.database_metadata(args)
 
     def preDatabaseMetadata(self, args=None, **kwargs):
+        """
+        Initialize the content to the database
+
+        Args:
+            self: (todo): write your description
+        """
         import os
         if not os.path.exists("field_descriptions.json"):
             self.guessAtFieldDescriptions()
@@ -284,6 +308,12 @@ section'client'
         # This creates helper files in the /metadata/ folder.
 
     def derived_catalog(self, args):
+        """
+        Multicore metadata
+
+        Args:
+            self: (todo): write your description
+        """
 
         if not os.path.exists(".bookworm/metadata"):
             os.makedirs(".bookworm/metadata")
@@ -323,6 +353,12 @@ section'client'
             sys.exit()
 
     def reload_memory(self,args):
+        """
+        Reloads memory
+
+        Args:
+            self: (todo): write your description
+        """
         import bookwormDB.CreateDatabase
         dbnames = [self.dbname]
         if args.all==True:
@@ -341,6 +377,12 @@ section'client'
             Bookworm.reloadMemoryTables(force=args.force)
 
     def database_metadata(self, args):
+        """
+        Initialize the database tables.
+
+        Args:
+            self: (todo): write your description
+        """
         import bookwormDB.CreateDatabase
         logging.debug("creating metadata db")
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
@@ -369,6 +411,12 @@ section'client'
         Bookworm.grantPrivileges()
 
     def add_metadata(self, args):
+        """
+        Add metadata to a bookworm
+
+        Args:
+            self: (todo): write your description
+        """
         import bookwormDB.CreateDatabase
         import bookwormDB.convertTSVtoJSONarray
         bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname,None)
@@ -426,10 +474,23 @@ class Extension(object):
     """
 
     def __init__(self,args,basedir="./"):
+        """
+        Initialize the directory
+
+        Args:
+            self: (todo): write your description
+            basedir: (str): write your description
+        """
         self.args = args
         self.dir = basedir + ".bookworm/extensions/" + re.sub(".*/","",self.args.url)
 
     def clone_or_pull(self):
+        """
+        Clone a pull request to a clone.
+
+        Args:
+            self: (todo): write your description
+        """
         if not os.path.exists(self.dir):
             logging.info("cloning git repo from " + self.args.url)
             call(["git","clone",self.args.url,self.dir])
@@ -438,6 +499,12 @@ class Extension(object):
             Popen(["git","pull"],cwd=self.dir)
 
     def make(self):
+        """
+        Make the current working directory.
+
+        Args:
+            self: (todo): write your description
+        """
         logging.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
         logging.debug("Running make in " + self.dir)
         Popen(["make"], cwd=self.dir)

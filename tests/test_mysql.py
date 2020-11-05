@@ -16,6 +16,12 @@ Tests of the MySQL configuration.
 
 class Bookworm_MySQL_Configuration(unittest.TestCase):
     def test_server_connection(self):
+        """
+        Fetches the database
+
+        Args:
+            self: (todo): write your description
+        """
         logging.info("\n\nTESTING SERVER CONNECTION\n\n")
         """
         Connect to MySQL and run a simple query.
@@ -32,8 +38,20 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
     """
 
     def test_config_files(self):
+        """
+        Return the configuration files.
+
+        Args:
+            self: (todo): write your description
+        """
         logging.info("\n\nTESTING CONFIG FILE ACCESS\n\n")
         def test_config_file(conf):
+            """
+            Return the config file.
+
+            Args:
+                conf: (todo): write your description
+            """
             user = conf.config.get("client","user")
             pw = conf.config.get("client","password")
             return (user,pw)
@@ -49,6 +67,12 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
         self.assertTrue(admin_user != client_user)
         
     def test_createDB_permission(self):
+        """
+        Creates a new permission.
+
+        Args:
+            self: (todo): write your description
+        """
         logging.info("\nTESTING ABILITY TO CREATE DATABASES\n\n")
         import bookwormDB.configuration
         dbname = "A" + hex(random.getrandbits(128))[2:-1]

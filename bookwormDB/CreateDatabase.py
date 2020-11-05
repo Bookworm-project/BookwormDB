@@ -26,6 +26,13 @@ warnings.filterwarnings("ignore", "Incorrect integer value.*")
 
 class DB(object):
     def __init__(self, dbname = None):
+        """
+        Initialize the database.
+
+        Args:
+            self: (todo): write your description
+            dbname: (str): write your description
+        """
         if dbname == None:
             self.dbname = config.get("client","database")
         else:
@@ -35,6 +42,13 @@ class DB(object):
         self.conn = None
         
     def connect(self, setengine=True):
+        """
+        Connect to the sqlite server.
+
+        Args:
+            self: (todo): write your description
+            setengine: (todo): write your description
+        """
         #These scripts run as the Bookworm _Administrator_ on this machine; defined by the location of this my.cnf file.
         conf = Configfile("admin")
         try:
@@ -171,6 +185,15 @@ class BookwormSQLDatabase(object):
             
     def setVariables(self, originFile, anchorField="bookid",
                      jsonDefinition=".bookworm/metadata/field_descriptions_derived.json"):
+        """
+        Sets the variable. variable
+
+        Args:
+            self: (todo): write your description
+            originFile: (str): write your description
+            anchorField: (str): write your description
+            jsonDefinition: (todo): write your description
+        """
         self.variableSet = variableSet(originFile=originFile, anchorField=anchorField, jsonDefinition=jsonDefinition,db=self.db)
 
     def importNewFile(self,originFile,anchorField,jsonDefinition):
@@ -192,6 +215,12 @@ class BookwormSQLDatabase(object):
         #self.reloadMemoryTables()
 
     def create_database(self):
+        """
+        Create a database
+
+        Args:
+            self: (todo): write your description
+        """
         dbname = self.dbname
         dbuser = self.dbuser
         dbpassword = self.dbpassword
@@ -212,6 +241,12 @@ class BookwormSQLDatabase(object):
         db.query("CREATE TABLE IF NOT EXISTS bookworm_information (entry VARCHAR(255), PRIMARY KEY (entry), value VARCHAR(50000))")
 
     def load_word_list(self):
+        """
+        Loads word list of words from the database.
+
+        Args:
+            self: (todo): write your description
+        """
         db = self.db
         logging.info("Making a SQL table to hold the words")
         db.query("""DROP TABLE IF EXISTS words""")
@@ -243,6 +278,17 @@ class BookwormSQLDatabase(object):
         self.variableSet.loadMetadata()
 
     def create_unigram_book_counts(self, newtable=True, ingest=True, index=True, reverse_index=True, table_count=1):
+        """
+        R create new unigram database.
+
+        Args:
+            self: (todo): write your description
+            newtable: (todo): write your description
+            ingest: (todo): write your description
+            index: (int): write your description
+            reverse_index: (bool): write your description
+            table_count: (int): write your description
+        """
         import time
         t0 = time.time()
 
@@ -381,6 +427,12 @@ class BookwormSQLDatabase(object):
         logging.info("Unigram index created in: %.2f s" % ((time.time() - t0)))
 
     def create_bigram_book_counts(self):
+        """
+        Creates bigram counts to bigram.
+
+        Args:
+            self: (todo): write your description
+        """
         db = self.db
         logging.info("Making a SQL table to hold the bigram counts")
         db.query("""DROP TABLE IF EXISTS master_bigrams""")
@@ -497,6 +549,12 @@ class BookwormSQLDatabase(object):
         return create_command + load_command + cleanup_command;
 
     def create_fastcat_and_wordsheap_disk_tables(self):
+        """
+        Create fastcat and fastcat tables.
+
+        Args:
+            self: (todo): write your description
+        """
         for q in self.fastcat_creation_SQL("MYISAM").split(";"):
             if q != "":
                 self.db.query(q)
@@ -505,6 +563,12 @@ class BookwormSQLDatabase(object):
                 self.db.query(q)
 
     def addFilesToMasterVariableTable(self):
+        """
+        Add the variable to the database.
+
+        Args:
+            self: (todo): write your description
+        """
         #Also update the wordcounts for each text.
         code = self.fastcat_creation_SQL("MEMORY")
         self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="fastcat";')
@@ -513,6 +577,15 @@ class BookwormSQLDatabase(object):
 
 
     def wordsheap_creation_SQL(self,engine="MEMORY",max_word_length=30,max_words = 1500000):
+        """
+        Generate a hexadecimal citation string.
+
+        Args:
+            self: (todo): write your description
+            engine: (todo): write your description
+            max_word_length: (int): write your description
+            max_words: (int): write your description
+        """
         tbname = "wordsheap"
         if engine=="MYISAM":
             tbname = "wordsheap_"
@@ -537,6 +610,12 @@ class BookwormSQLDatabase(object):
         self.db.query(query)
         
     def jsonify_data(self):
+        """
+        Writes the database to json.
+
+        Args:
+            self: (todo): write your description
+        """
         variables = self.variableSet.variables
         dbname = self.dbname
         #This creates a JSON file compliant with the Bookworm web site.
@@ -578,6 +657,12 @@ class BookwormSQLDatabase(object):
             outfile.write(json.dumps(output))
 
     def create_API_settings(self):
+        """
+        Create the database settings.
+
+        Args:
+            self: (todo): write your description
+        """
         db = self.db
         try:
             db.query("DROP TABLE IF EXISTS API_settings")

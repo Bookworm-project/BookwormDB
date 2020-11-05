@@ -33,6 +33,13 @@ import random
 import gzip
 
 def flush_counter(counter, qout):
+    """
+    Flush counter
+
+    Args:
+        counter: (int): write your description
+        qout: (str): write your description
+    """
     for k in ['', '\x00']:
         try:
             del counter[k]
@@ -112,6 +119,12 @@ def counter(qout, i, fin, mode = "count"):
         encoder.close()
 
 def create_counts(input):
+    """
+    Create counts of the input.
+
+    Args:
+        input: (str): write your description
+    """
     qout = Queue(cpus * 2)
     workers = []
     logging.info("Spawning {} count processes on {}".format(cpus, input))
@@ -148,6 +161,14 @@ def create_counts(input):
     return wordcounter
 
 def create_wordlist(n, input, output):
+    """
+    Create a list of wordlist.
+
+    Args:
+        n: (todo): write your description
+        input: (str): write your description
+        output: (todo): write your description
+    """
     
     counter = create_counts(input)
     counter = sorted(list(counter.iteritems()), key = lambda x: -1 * x[1])
@@ -158,6 +179,13 @@ def create_wordlist(n, input, output):
             break
         
 def encode_words(wordlist, input = "input.txt"):
+    """
+    Encode a list of words.
+
+    Args:
+        wordlist: (list): write your description
+        input: (str): write your description
+    """
     qout = Queue(cpus * 2)
     workers = []
 

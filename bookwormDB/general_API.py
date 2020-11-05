@@ -68,6 +68,14 @@ def rle(input):
     return output
 
 def DunningLog(df, a, b):
+    """
+    Compute the difference between two dataframes.
+
+    Args:
+        df: (float): write your description
+        a: (array): write your description
+        b: (array): write your description
+    """
     from numpy import log as log
     destination = "Dunning"
     df[a] = df[a].replace(0, 0.5)
@@ -101,6 +109,14 @@ class Aggregator(object):
 
     """    
     def __init__(self, df, groups = None):
+        """
+        Initialize groups
+
+        Args:
+            self: (todo): write your description
+            df: (todo): write your description
+            groups: (list): write your description
+        """
         self.df = df
         self.groups = groups
 
@@ -113,60 +129,169 @@ class Aggregator(object):
         return self.df
             
     def WordCount(self):
+        """
+        Set the number of rows
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["WordCount"] = self.df["WordCount_x"]
         
     def TextCount(self):
+        """
+        Returns the number of rows in the dataframe
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["TextCount"] = self.df["TextCount_x"]
         
     def WordsPerMillion(self):
+        """
+        Sets the value of the dataframe
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["WordsPerMillion"] = (self.df["WordCount_x"].multiply(1000000)/
                                  self.df["WordCount_y"])
     def TotalWords(self):
+        """
+        Set row
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["TotalWords"] = self.df["WordCount_y"]
         
     def SumWords(self):
+        """
+        Returns the sum
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["SumWords"] = self.df["WordCount_y"] + self.df["WordCount_x"]
         
     def WordsRatio(self):
+        """
+        Returns a dataframe
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["WordsRatio"] = self.df["WordCount_x"]/self.df["WordCount_y"]
         
     def TextPercent(self):
+        """
+        Dataframe
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["TextPercent"] = 100*self.df["TextCount_x"].divide(self.df["TextCount_y"])
         
     def TextRatio(self):
+        """
+        Returns a data frame
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["TextRatio"] = self.df["TextCount_x"]/self.df["TextCount_y"]       
 
     def TotalTexts(self):
+        """
+        Set pandas
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["TotalTexts"] = self.df["TextCount_y"]
         
     def SumTexts(self):
+        """
+        Returns a pandas
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["SumTexts"] = self.df["TextCount_y"] + self.df["TextCount_x"]
         
     def HitsPerText(self):
+        """
+        Set the dataframe
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["HitsPerText"] = self.df["WordCount_x"]/self.df["TextCount_x"]
 
     def TextLength(self):
+        """
+        Set length of the length of text
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["TextLength"] = self.df["WordCount_y"]/self.df["TextCount_y"]
 
     def PMI_words(self):
+        """
+        Get i { i - i - i - i - o i { i { i }
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["PMI_words"] = PMI(self.df, "WordCount_x", self.groups)
 
     def PMI_texts(self):
+        """
+        Dataframe of i { i { i { i { i { i
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["PMI_texts"] = PMI(self.df, "TextCount_x", self.groups)        
         
     def TFIDF(self):
+        """
+        Calculate the summary of each row
+
+        Args:
+            self: (todo): write your description
+        """
         from numpy import log as log
         self.df["TF"] = self.df["WordCount_x"]/self.df["WordCount_y"]
         self.df["TFIDF"] = self.df["TF"] * np.log(self.df["TextCount_y"]/self.df['TextCount_x'])
     
     def Dunning(self):
+        """
+        Set dunning
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["Dunning"] = DunningLog(self.df, "WordCount_x", "WordCount_y")
 
 
     def DunningTexts(self):
+        """
+        Dataframe of dataframe
+
+        Args:
+            self: (todo): write your description
+        """
         self.df["DunningTexts"] = DunningLog(self.df, "TextCount_x", "TextCount_y")
 
 def rename(df, newkey):
+    """
+    Rename dataframe to newkey
+
+    Args:
+        df: (todo): write your description
+        newkey: (str): write your description
+    """
     
     # Add "x" and "y" suffixed to the dataframes even when not explicitly needed.
 
@@ -225,6 +350,12 @@ def base_count_types(list_of_final_count_types):
 
 
 def is_a_wordcount_field(string):
+    """
+    Returns true if word is a wordcount field
+
+    Args:
+        string: (str): write your description
+    """
     if string in ["unigram", "bigram", "word"]:
         return True
     return False
@@ -248,6 +379,12 @@ class APIcall(object):
         self.set_defaults()
 
     def set_defaults(self):
+        """
+        Sets query parameters.
+
+        Args:
+            self: (todo): write your description
+        """
         query = self.query
         if "search_limits" not in query:
             self.query["search_limits"] = dict()
@@ -258,6 +395,12 @@ class APIcall(object):
             del query["search_limits"]["unigram"]
 
     def idiot_proof_arrays(self):
+        """
+        The proof of proof.
+
+        Args:
+            self: (todo): write your description
+        """
         for element in ['counttype', 'groups']:
             try:
                 if not isinstance(self.query[element], list):
@@ -302,6 +445,12 @@ class APIcall(object):
         return compare_limits
 
     def data(self):
+        """
+        Extract the dataframe.
+
+        Args:
+            self: (todo): write your description
+        """
         if hasattr(self, "pandas_frame"):
             return self.pandas_frame
         else:
@@ -309,9 +458,21 @@ class APIcall(object):
             return self.pandas_frame
 
     def validate_query(self):
+        """
+        Validate the query.
+
+        Args:
+            self: (todo): write your description
+        """
         self.ensure_query_has_required_fields()
         
     def ensure_query_has_required_fields(self):
+        """
+        Ensure that all required fields exist.
+
+        Args:
+            self: (todo): write your description
+        """
 
         required_fields = ['counttype', 'groups', 'database']
         if self.query['method'] in ['schema', 'search']:
@@ -325,6 +486,12 @@ class APIcall(object):
                 raise BookwormException(err)
 
     def prepare_search_and_compare_queries(self):
+        """
+        Prepares the search queries *
+
+        Args:
+            self: (todo): write your description
+        """
 
         
 
@@ -429,6 +596,12 @@ class APIcall(object):
         return final_DataFrame
 
     def execute(self):
+        """
+        Execute the query to the server
+
+        Args:
+            self: (todo): write your description
+        """
 
         method = self.query['method']
         logging.debug("Preparing to execute with method '{}'".format(method))
@@ -616,6 +789,12 @@ class APIcall(object):
             return data.to_json()
 
         def fixNumpyType(input):
+            """
+            Fixmeience function to integer.
+
+            Args:
+                input: (array): write your description
+            """
             # This is, weirdly, an occasional problem but not a constant one.
             if type(input) is np.int64:
                 return int(input)
@@ -624,6 +803,11 @@ class APIcall(object):
 
         # Define a recursive structure to hold the stuff.
         def tree():
+            """
+            Return a dictionary with the default values.
+
+            Args:
+            """
             return defaultdict(tree)
         returnt = tree()
 
@@ -656,6 +840,14 @@ class APIcall(object):
             return self._prepare_response(returnt, version)
 
     def _prepare_response(self, data, version=1):
+        """
+        Prepare a json response.
+
+        Args:
+            self: (todo): write your description
+            data: (str): write your description
+            version: (str): write your description
+        """
         if version == 1:
             resp = data
         elif version == 2:

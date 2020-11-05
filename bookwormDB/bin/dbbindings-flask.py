@@ -11,6 +11,11 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
+    """
+    Returns the index.
+
+    Args:
+    """
     JSONinput = request.args.get('queryTerms') or request.args.get('query')
     if not JSONinput:
         return "Need query or queryTerms argument"
@@ -18,6 +23,11 @@ def index():
 
 @app.route('/debug')
 def debug_api():
+    """
+    Return a debuginput.
+
+    Args:
+    """
     import logging
     logging.basicConfig(level=logging.INFO)
     JSONinput = request.args.get('queryTerms') or request.args.get('query')
@@ -27,11 +37,22 @@ def debug_api():
 
 @app.route('/debug/query')
 def debug_query():
+    """
+    Returns debug query.
+
+    Args:
+    """
     JSONinput = request.args.get('queryTerms') or request.args.get('query')
     return JSONinput
 
 
 def main(JSONinput):
+    """
+    Main function.
+
+    Args:
+        JSONinput: (int): write your description
+    """
 
     query = json.loads(JSONinput)
 

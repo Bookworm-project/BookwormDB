@@ -61,11 +61,31 @@ class DataQuerySchema(dict):
     A JSON schema for valid queries.
     """
     def __init__(self, con):
+        """
+        Initialize a schema.
+
+        Args:
+            self: (todo): write your description
+            con: (todo): write your description
+        """
         dict.__init__(self, base_schema)
         self.set_base_elements()
 
     def set_base_elements(self):
+        """
+        Sets the base elements.
+
+        Args:
+            self: (todo): write your description
+        """
         pass
 
     def validate(self, query):
+        """
+        Validate a query.
+
+        Args:
+            self: (todo): write your description
+            query: (str): write your description
+        """
         pass

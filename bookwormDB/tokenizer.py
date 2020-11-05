@@ -44,6 +44,12 @@ def wordRegex():
 
 
 def readDictionaryFile(prefix=""):
+    """
+    Read a dictionary from file
+
+    Args:
+        prefix: (str): write your description
+    """
     look = dict()
     for line in open(prefix + ".bookworm/texts/wordlist/wordlist.txt"):
         line = line.rstrip("\n")
@@ -52,6 +58,12 @@ def readDictionaryFile(prefix=""):
     return look
 
 def readIDfile(prefix=""):
+    """
+    Read the id of the prefix. kV file.
+
+    Args:
+        prefix: (str): write your description
+    """
     if not os.path.exists(".bookworm/metadata/textids.sqlite"):
         raise FileNotFoundError("No textids DB: run `bookworm build textids`")
     return KV(prefix + ".bookworm/metadata/textids.sqlite")
@@ -82,12 +94,24 @@ class tokenBatches(object):
         self.completedFile = None
         
     def createOutputFiles(self):
+        """
+        Creates output files
+
+        Args:
+            self: (todo): write your description
+        """
         self.completedFile = open(".bookworm/texts/encoded/completed/" + self.id,"w")
         self.outputFiles = dict()
         for level in self.levels:
             self.outputFiles[level] = open(".bookworm/texts/encoded/{}/{}.txt".format(level, self.id),"w")
         
     def attachDictionaryAndID(self):
+        """
+        Attach a dictionary of dictionaries.
+
+        Args:
+            self: (todo): write your description
+        """
         self.dictionary = readDictionaryFile()
         self.IDfile = readIDfile()
 
@@ -196,6 +220,14 @@ class Tokenizer(object):
     """
     
     def __init__(self, string, tokenization_regex=None):
+        """
+        Initialize the tokenizer.
+
+        Args:
+            self: (todo): write your description
+            string: (todo): write your description
+            tokenization_regex: (str): write your description
+        """
         global haveWarnedUnicode
         self.string = string
         self.tokenization_regex = tokenization_regex
@@ -236,15 +268,40 @@ class Tokenizer(object):
         return l
 
     def unigrams(self):
+        """
+        Returns a list of ngrams that have the ngrams.
+
+        Args:
+            self: (todo): write your description
+        """
         return self.ngrams(1)
 
     def bigrams(self):
+        """
+        Returns the bigrams
+
+        Args:
+            self: (todo): write your description
+        """
         return self.ngrams(2)
 
     def trigrams(self):
+        """
+        The ngrams of the ngrams
+
+        Args:
+            self: (todo): write your description
+        """
         return self.ngrams(3)
 
     def allgrams(self, max = 6):
+        """
+        Return all ngrams of all ngrams.
+
+        Args:
+            self: (todo): write your description
+            max: (float): write your description
+        """
         output = []
         for i in range(1, max + 1):
             output.extend(self.ngrams(i, collapse = True))
@@ -258,6 +315,13 @@ class Tokenizer(object):
         return self.tokens
     
     def counts(self, whichType):
+        """
+        Return the number of unique counts.
+
+        Args:
+            self: (todo): write your description
+            whichType: (str): write your description
+        """
         
         count = dict()
         for gram in getattr(self,whichType)():
@@ -276,6 +340,14 @@ class PreTokenized(object):
     """
 
     def __init__(self, csv_string, level):
+        """
+        Init a csv file.
+
+        Args:
+            self: (todo): write your description
+            csv_string: (str): write your description
+            level: (int): write your description
+        """
         f = read_csv(StringIO(csv_string),
                      lineterminator = "\f",
                      # Ugh--want 'NA' to be a word.
@@ -289,12 +361,25 @@ class PreTokenized(object):
             self.output = dict(zip([tuple(w.split(" ")) for w in f.word], f.counts))
             
     def counts(self,level):
+        """
+        Return the number of rows in the given level.
+
+        Args:
+            self: (todo): write your description
+            level: (int): write your description
+        """
         if level != self.level:
             raise
         return self.output
 
     
 def getAlreadySeenList(folder):
+    """
+    Get a list of all files in folder
+
+    Args:
+        folder: (todo): write your description
+    """
     #Load in a list of what's already been translated for that level.
     #Returns a set.
     files = os.listdir(folder)
@@ -305,6 +390,11 @@ def getAlreadySeenList(folder):
     return seen
 
 def encode_text_stream():
+    """
+    Encode text stream of text using the stream.
+
+    Args:
+    """
     seen = getAlreadySeenList(".bookworm/texts/encoded/completed")
     tokenBatch = tokenBatches()
     tokenBatch.attachDictionaryAndID()
