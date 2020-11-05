@@ -3,6 +3,11 @@ import psutil
 import logging
 
 def mp_stats():
+    """
+    Return statistics about the virtual machines
+
+    Args:
+    """
     try:
         cpus = len(os.sched_getaffinity(0))
     except AttributeError:
@@ -18,6 +23,12 @@ def mp_stats():
     return (cpus, memory)
 
 def running_processes(workerlist):
+    """
+    Return a list of processes.
+
+    Args:
+        workerlist: (str): write your description
+    """
     running = False
     for worker in workerlist:
         if worker.is_alive():

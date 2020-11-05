@@ -9,6 +9,12 @@ import sys
 class Bookworm_Configuration(unittest.TestCase):
 
     def test_config(self):
+        """
+        Çķłæīĳåıĸåįĸĩä»¶
+
+        Args:
+            self: (todo): write your description
+        """
         bookworm = BookwormManager(None, "federalist_bookworm")        
 
         

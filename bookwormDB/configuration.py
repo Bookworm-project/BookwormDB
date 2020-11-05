@@ -13,6 +13,11 @@ import logging
 import uuid
 
 def update():
+    """
+    Updates the dictionary.
+
+    Args:
+    """
     ## Assemble list of all bookworms on the system.
 
     bookworms = [] ### ...
@@ -168,6 +173,13 @@ class Configfile(object):
             return []
 
     def ensure_section(self,section):
+        """
+        Ens a section is_section.
+
+        Args:
+            self: (todo): write your description
+            section: (todo): write your description
+        """
         if not self.config.has_section(section):
             self.config.add_section(section)
 
@@ -199,6 +211,12 @@ class Configfile(object):
         self.config.write(sys.stdout)
 
 def recommend_my_cnf(known_loc = None):
+    """
+    Write csv configuration files.
+
+    Args:
+        known_loc: (todo): write your description
+    """
     if known_loc is None:
         for loc in ["/usr/etc/my.cnf","/etc/mysql/my.cnf","/etc/my.cnf"]:
             if os.path.exists(loc):
@@ -212,6 +230,12 @@ def recommend_my_cnf(known_loc = None):
 
 
 def apache(self = None):
+    """
+    Execute command
+
+    Args:
+        self: (todo): write your description
+    """
     print("""
     Instructions for Apache:
 

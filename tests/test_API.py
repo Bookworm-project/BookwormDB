@@ -16,6 +16,12 @@ from setup import setup_bookworm, setup_bookworm_unicode
 class Bookworm_SQL_Creation(unittest.TestCase):
 
     def test_bookworm_files_exist(self):
+        """
+        Test if bookworm bookworm bookmark.
+
+        Args:
+            self: (todo): write your description
+        """
         bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase("federalist_bookworm")
         db = bookworm.db
         db.query("USE federalist_bookworm")
@@ -28,6 +34,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         """
         
     def test_API(self):
+        """
+        Executes the test test
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -44,6 +56,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
 
 
     def test_multiword_search(self):
+        """
+        Perform a keyword search for a given keyword.
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -59,6 +77,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertTrue(m[0] > 33)
 
     def test_ne_with_one_entry(self):
+        """
+        Test for bookworm bookworm.
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -76,6 +100,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertTrue(len(m)==4)
 
     def test_ne_with_two_entries(self):
+        """
+        * test_nepperpperpperpperpper to test.
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -94,6 +124,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
 
 
     def test_ne_with_two_entries(self):
+        """
+        * test_nepperpperpperpperpper to test.
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -112,6 +148,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
 
 
     def test_or_with_two_entries(self):
+        """
+        * test test test_or *
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -132,6 +174,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertEqual(len(m),2)
 
     def test_lte_and_gte(self):
+        """
+        This function will be called on the database
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -149,6 +197,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertTrue(len(m)==6)
         
     def test_and_with_two_entries(self):
+        """
+        * query :
+
+        Args:
+            self: (todo): write your description
+        """
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
         import json
         
@@ -181,6 +235,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
 
         
         def even_even(number):
+            """
+            Return the number of a number.
+
+            Args:
+                number: (int): write your description
+            """
             if number % 2 == 0:
                 return "even"
             return "odd"
@@ -228,6 +288,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertTrue(m['odd'][0]>=m['even'][0])
         
     def test_case_sensitivity(self):
+        """
+        Set case case case.
+
+        Args:
+            self: (todo): write your description
+        """
         query = {
                 "database":"federalist_bookworm",
                 "search_limits":{"word":["the"]},
@@ -250,6 +316,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
 
 
     def test_case_insensitivity_works_without_search_term(self):
+        """
+        Test for case case case case case search.
+
+        Args:
+            self: (todo): write your description
+        """
         query = {
                 "database":"federalist_bookworm",
                 "search_limits":{"word":["hOwEvEr"]},
@@ -263,6 +335,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertTrue(val1[0] > 0)
 
     def test_unicode_search_term(self):
+        """
+        Test for search query.
+
+        Args:
+            self: (todo): write your description
+        """
         query = {
                 "database":"unicode_test_bookworm",
                 "search_limits":{"word":[u"ᎾᏍᎩ"]},
@@ -276,6 +354,12 @@ class Bookworm_SQL_Creation(unittest.TestCase):
         self.assertTrue(val1[0] > 0)
 
     def test_various_unicode_cases(self):
+        """
+        : return : attr : unicode is valid.
+
+        Args:
+            self: (todo): write your description
+        """
         # There's a 'description_' for each individual item.
         catalog_location = sys.path[0] + "/test_bookworm_files_unicode/jsoncatalog.txt"
         cases = [json.loads(line)["description_"] for line in open(catalog_location)]       

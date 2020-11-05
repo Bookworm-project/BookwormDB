@@ -15,10 +15,22 @@ import time
 defaultDate = datetime.datetime(datetime.MINYEAR, 1, 1)
 
 def DaysSinceZero(dateobj):
+    """
+    Returns the number of days between two dates.
+
+    Args:
+        dateobj: (todo): write your description
+    """
     #Zero isn't a date, which python knows but MySQL and javascript don't.
     return (dateobj - date(1,1,1)).days + 366
 
 def ParseFieldDescs(write = False):
+    """
+    Parse the dll fields.
+
+    Args:
+        write: (bool): write your description
+    """
     f = open('field_descriptions.json', 'r')
     try:
         fields = json.loads(f.read())
@@ -230,6 +242,11 @@ def parse_json_catalog(line_queue, processes, modulo):
 
 
 def parse_catalog_multicore():
+    """
+    Parse a multicore catalog file.
+
+    Args:
+    """
     from .sqliteKV import KV
     cpus, _ = mp_stats()
     encoded_queue = Queue(10000)

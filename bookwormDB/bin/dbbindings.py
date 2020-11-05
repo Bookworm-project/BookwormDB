@@ -11,6 +11,13 @@ cgitb.enable()
 
 
 def headers(method, errorcode=False):
+    """
+    Return http headers.
+
+    Args:
+        method: (str): write your description
+        errorcode: (int): write your description
+    """
 
     print('Access-Control-Allow-Origin: *')
     print('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS')
@@ -43,6 +50,12 @@ def debug(string):
 
 
 def main(JSONinput):
+    """
+    Main function.
+
+    Args:
+        JSONinput: (int): write your description
+    """
 
     query = json.loads(JSONinput)
     # Set up the query.

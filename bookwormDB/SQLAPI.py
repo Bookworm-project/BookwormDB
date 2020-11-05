@@ -26,6 +26,16 @@ class DbConnect(object):
     # This is a read-only account
     def __init__(self, prefs=general_prefs['default'], database=None,
                  host=None):
+        """
+        Initialize database.
+
+        Args:
+            self: (todo): write your description
+            prefs: (str): write your description
+            general_prefs: (todo): write your description
+            database: (str): write your description
+            host: (str): write your description
+        """
         
         self.dbname = database
         
@@ -65,6 +75,12 @@ class DbConnect(object):
         self.cursor = self.db.cursor()
 
 def fail_if_nonword_characters_in_columns(input):
+    """
+    Check if the given nonword matches the given nonword.
+
+    Args:
+        input: (todo): write your description
+    """
     keys = all_keys(input)
     for key in keys:
         if re.search(r"[^A-Za-z_$*0-9]", key):
@@ -105,6 +121,15 @@ class userquery(object):
     The base class for a bookworm search.
     """
     def __init__(self, outside_dictionary = {}, db = None, databaseScheme = None):
+        """
+        Initialize preword database.
+
+        Args:
+            self: (todo): write your description
+            outside_dictionary: (dict): write your description
+            db: (todo): write your description
+            databaseScheme: (str): write your description
+        """
         # Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
         fail_if_nonword_characters_in_columns(outside_dictionary)
         try:
@@ -141,6 +166,13 @@ class userquery(object):
         self.derive_variables() # Derive some useful variables that the query will use.
 
     def defaults(self, outside_dictionary):
+        """
+        Sets the default keywords
+
+        Args:
+            self: (todo): write your description
+            outside_dictionary: (dict): write your description
+        """
         # these are default values;these are the only values that can be set in the query
         # search_limits is an array of dictionaries;
         # each one contains a set of limits that are mutually independent
@@ -293,6 +325,12 @@ class userquery(object):
             self.compare_dictionary['groups'] = [self.compare_dictionary['time_measure']]
 
     def derive_variables(self):
+        """
+        Derive the network
+
+        Args:
+            self: (todo): write your description
+        """
         # These are locally useful, and depend on the search limits put in.
         self.limits = self.search_limits
         # Treat empty constraints as nothing at all, not as full restrictions.
@@ -305,6 +343,13 @@ class userquery(object):
         self.make_wordwheres()
 
     def tablesNeededForQuery(self, fieldNames=[]):
+        """
+        Returns a list of dictionaries.
+
+        Args:
+            self: (todo): write your description
+            fieldNames: (str): write your description
+        """
         db = self.db
         neededTables = set()
         tablenames = dict()
@@ -343,6 +388,12 @@ class userquery(object):
         """
         cols = []
         def pull_keys(entry):
+            """
+            Pulls a list of keys from an entry.
+
+            Args:
+                entry: (dict): write your description
+            """
             val = []
             if isinstance(entry,list) and not isinstance(entry,(str, bytes)):
                 for element in entry:
@@ -361,6 +412,12 @@ class userquery(object):
         
         
     def create_catalog_table(self):
+        """
+        Create the table *
+
+        Args:
+            self: (todo): write your description
+        """
         self.catalog = self.prefs['fastcat'] # 'catalog' # Can be replaced with a more complicated query in the event of longer joins.
 
         """
@@ -741,6 +798,12 @@ class userquery(object):
             self.finaloperations.append(self.finaloperation[summaryStat])
 
     def counts_query(self):
+        """
+        Returns a query for this query.
+
+        Args:
+            self: (todo): write your description
+        """
 
         self.operation = ','.join(self.bookoperations)
         self.build_wordstables()
@@ -761,6 +824,12 @@ class userquery(object):
         return countsQuery
 
     def bookid_query(self):
+        """
+        Return the bookmark query. query.
+
+        Args:
+            self: (todo): write your description
+        """
         # A temporary method to setup the hasword query.
         self.operation = ','.join(self.bookoperations)
         self.build_wordstables()
@@ -778,6 +847,12 @@ class userquery(object):
         return countsQuery
 
     def debug_query(self):
+        """
+        Return debug query.
+
+        Args:
+            self: (todo): write your description
+        """
         query = self.ratio_query(materialize = False)
         return json.dumps(self.denominator.groupings.split(",")) + query
 
@@ -814,6 +889,12 @@ class userquery(object):
         return query
 
     def returnPossibleFields(self):
+        """
+        Returns a list of all unique fields
+
+        Args:
+            self: (todo): write your description
+        """
         try:
             self.cursor.execute("SELECT name,type,description,tablename,dbname,anchor FROM masterVariableTable WHERE status='public'")
             colnames = [line[0] for line in self.cursor.description]
@@ -828,6 +909,13 @@ class userquery(object):
         return returnset
 
     def bibliography_query(self, limit = "100"):
+        """
+        Returns the bibliography.
+
+        Args:
+            self: (todo): write your description
+            limit: (int): write your description
+        """
         # I'd like to redo this at some point so it could work as an API call more naturally.
         self.limit = limit
         self.ordertype = "sum(main.count*10000/nwords)"
@@ -868,9 +956,22 @@ class userquery(object):
         return bibQuery
 
     def disk_query(self, limit="100"):
+        """
+        Query the query.
+
+        Args:
+            self: (todo): write your description
+            limit: (int): write your description
+        """
         pass
 
     def return_books(self):
+        """
+        Returns a list of all search queries
+
+        Args:
+            self: (todo): write your description
+        """
         # This preps up the display elements for a search: it returns an array with a single string for each book, sorted in the best possible way
         silent = self.cursor.execute(self.bibliography_query())
         returnarray = []
@@ -884,6 +985,12 @@ class userquery(object):
         return json.dumps(newerarray)
 
     def search_results(self):
+        """
+        Search for search results.
+
+        Args:
+            self: (todo): write your description
+        """
         # This is an alias that is handled slightly differently in
         # APIimplementation (no "RESULTS" bit in front). Once
         # that legacy code is cleared out, they can be one and the same.
@@ -891,6 +998,12 @@ class userquery(object):
         return json.loads(self.return_books())
 
     def getActualSearchedWords(self):
+        """
+        Retrieve a list of the heapWordsWords
+
+        Args:
+            self: (todo): write your description
+        """
         if len(self.wordswhere) > 7:
             words = self.outside_dictionary['search_limits']['word']
             # Break bigrams into single words.
@@ -937,6 +1050,13 @@ class userquery(object):
         return newarray
 
     def return_tsv(self, query = "ratio_query"):
+        """
+        Return the return statement *
+
+        Args:
+            self: (todo): write your description
+            query: (str): write your description
+        """
         if self.outside_dictionary['counttype'] == "Raw_Counts" or self.outside_dictionary['counttype'] == ["Raw_Counts"]:
             query="counts_query"
             # This allows much speedier access to counts data if you're
@@ -956,6 +1076,12 @@ class userquery(object):
         return "\n".join(results)
 
     def execute(self):
+        """
+        Execute the query.
+
+        Args:
+            self: (todo): write your description
+        """
         # This performs the query using the method specified in the passed parameters.
         if self.method == "Nothing":
             pass
@@ -1001,6 +1127,13 @@ class derived_table(object):
             return False
 
     def fillTableWithData(self, data):
+        """
+        Fills the database
+
+        Args:
+            self: (todo): write your description
+            data: (todo): write your description
+        """
         dataCode = "INSERT INTO %s values ("%self.queryID + ", ".join(["%s"]*len(data[0])) + ")"
         self.db.cursor.executemany(dataCode, data)
         self.db.db.commit()
@@ -1018,6 +1151,13 @@ class databaseSchema(object):
     """
 
     def __init__(self, db):
+        """
+        Initialize the database
+
+        Args:
+            self: (todo): write your description
+            db: (todo): write your description
+        """
         self.db = db
         self.cursor=db.cursor
         # has of what table each variable is in
@@ -1045,6 +1185,13 @@ class databaseSchema(object):
             self.oldStyle(db)
 
     def newStyle(self, db):
+        """
+        Create new table
+
+        Args:
+            self: (todo): write your description
+            db: (todo): write your description
+        """
         self.tableToLookIn['bookid'] = self.fallback_table('fastcat')
         self.anchorFields['bookid'] = self.fallback_table('fastcat')
         self.anchorFields['wordid'] = 'wordid'
@@ -1060,6 +1207,13 @@ class databaseSchema(object):
             self.aliases[dbname] = alias
 
     def oldStyle(self, db):
+        """
+        Writes the contents of the specified name
+
+        Args:
+            self: (todo): write your description
+            db: (todo): write your description
+        """
 
         # This is sorted by engine DESC so that memory table locations will overwrite disk table in the hash.
 
@@ -1099,6 +1253,16 @@ class databaseSchema(object):
         self.tableToLookIn['wordid'] = 'wordsheap'
 
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
+    """
+    Generate a where clause from a dictionary.
+
+    Args:
+        myhash: (todo): write your description
+        joiner: (todo): write your description
+        comp: (todo): write your description
+        escapeStrings: (str): write your description
+        list_joiner: (todo): write your description
+    """
     whereterm = []
     # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
     # For more complicated bits, it gets all recursive until the bits are all in terms of list.
@@ -1156,10 +1320,22 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
                         quotesep = ""
 
                     def escape(value):
+                        """
+                        Escape a string.
+
+                        Args:
+                            value: (todo): write your description
+                        """
                         # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.                        
                         return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
                 else:
                     def escape(value):
+                        """
+                        Escape the string * value * to * value.
+
+                        Args:
+                            value: (todo): write your description
+                        """
                         return to_unicode(value)
                     quotesep = ""
 

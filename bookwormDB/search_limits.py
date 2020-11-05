@@ -1,6 +1,16 @@
 import MySQLdb
 
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
+    """
+    Generate a where clause from a dictionary.
+
+    Args:
+        myhash: (todo): write your description
+        joiner: (todo): write your description
+        comp: (todo): write your description
+        escapeStrings: (str): write your description
+        list_joiner: (todo): write your description
+    """
     whereterm = []
     # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
     # For more complicated bits, it gets all recursive until the bits are all in terms of list.
@@ -58,10 +68,22 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
                         quotesep = ""
 
                     def escape(value):
+                        """
+                        Escape a string.
+
+                        Args:
+                            value: (todo): write your description
+                        """
                         # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.                        
                         return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
                 else:
                     def escape(value):
+                        """
+                        Escape the string * value * to * value.
+
+                        Args:
+                            value: (todo): write your description
+                        """
                         return to_unicode(value)
                     quotesep = ""
 
@@ -77,8 +99,20 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
     
 class Search_limits(dict):
     def to_sql(self):
+        """
+        Returns the sql query for a query.
+
+        Args:
+            self: (todo): write your description
+        """
         return where_from_hash(self)
     def rkeys(self):
+        """
+        Returns a list of keys.
+
+        Args:
+            self: (dict): write your description
+        """
         # Recursively return the SQL keys so we know what fields to work with.
         keys = []
         for k, v in self.iteritems():
@@ -89,6 +123,12 @@ class Search_limits(dict):
                     keys.append(k)
         return keys
     def validate(self):
+        """
+        Validate all keys.
+
+        Args:
+            self: (todo): write your description
+        """
         # Some tests to see if a query is valid
         for k in self.keys():
             pass

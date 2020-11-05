@@ -22,6 +22,14 @@ class DbConnect(object):
     # This is a read-only account
     def __init__(self, database=None,
                  host=None):
+        """
+        Initialize the database.
+
+        Args:
+            self: (todo): write your description
+            database: (str): write your description
+            host: (str): write your description
+        """
         
         self.dbname = database
         
@@ -59,6 +67,12 @@ class DbConnect(object):
         self.cursor = self.db.cursor()
 
 def fail_if_nonword_characters_in_columns(input):
+    """
+    Check if the given nonword matches the given nonword.
+
+    Args:
+        input: (todo): write your description
+    """
     keys = all_keys(input)
     for key in keys:
         if re.search(r"[^A-Za-z_$*0-9]", key):
@@ -95,6 +109,12 @@ def all_keys(input):
 # in various ways.
 
 def check_query(query):
+    """
+    Check that the query is valid.
+
+    Args:
+        query: (str): write your description
+    """
 
     
     fail_if_nonword_characters_in_columns(query)
@@ -119,6 +139,15 @@ class Query(object):
     The base class for a bookworm search.
     """
     def __init__(self, query_object = {}, db = None, databaseScheme = None):
+        """
+        Initialize the database.
+
+        Args:
+            self: (todo): write your description
+            query_object: (todo): write your description
+            db: (todo): write your description
+            databaseScheme: (str): write your description
+        """
         # Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
 
         check_query(query_object)
@@ -149,6 +178,13 @@ class Query(object):
         self.derive_variables() # Derive some useful variables that the query will use.
 
     def defaults(self, query_object):
+        """
+        * wrapper of the query.
+
+        Args:
+            self: (todo): write your description
+            query_object: (dict): write your description
+        """
         # these are default values;these are the only values that can be set in the query
         # search_limits is an array of dictionaries;
         # each one contains a set of limits that are mutually independent
@@ -285,6 +321,12 @@ class Query(object):
         """
 
     def derive_variables(self):
+        """
+        Derive the network specific limits
+
+        Args:
+            self: (todo): write your description
+        """
         # These are locally useful, and depend on the search limits put in.
         self.limits = self.search_limits
         
@@ -352,6 +394,12 @@ class Query(object):
         cols = []
         
         def pull_keys(entry):
+            """
+            Pulls a list of keys from an entry.
+
+            Args:
+                entry: (dict): write your description
+            """
             val = []
             if isinstance(entry,list) and not isinstance(entry,(str, bytes)):
                 for element in entry:
@@ -370,6 +418,12 @@ class Query(object):
         return pull_keys(self.limits)
 
     def wordid_query(self):
+        """
+        Returns the wordid query.
+
+        Args:
+            self: (todo): write your description
+        """
         return self.wordswhere
 
         if self.wordswhere != " TRUE ":
@@ -380,6 +434,12 @@ class Query(object):
             return " TRUE "
     
     def make_group_query(self):
+        """
+        Generate a query for the group.
+
+        Args:
+            self: (todo): write your description
+        """
         aliases = [self.databaseScheme.aliases[g] for g in self.query_object["groups"]]
         if len(aliases) > 0:
             return "GROUP BY {}".format(", ".join(aliases))
@@ -388,12 +448,24 @@ class Query(object):
 
 
     def main_table(self):
+        """
+        Return the main table.
+
+        Args:
+            self: (todo): write your description
+        """
         if self.gram_size() == 1:
             return 'master_bookcounts as main'
         if self.gram_size() == 2:
             return 'master_bigrams as main'
         
     def full_query_tables(self):
+        """
+        Returns a list of tables.
+
+        Args:
+            self: (todo): write your description
+        """
         # Joins are needed to provide groups, but *not* to provide
         # provide evidence for wheres.
 
@@ -415,11 +487,23 @@ class Query(object):
         return tables
         
     def make_join_query(self):
+        """
+        Generate a join query.
+
+        Args:
+            self: (todo): write your description
+        """
         tables = self.full_query_tables()
         return " NATURAL JOIN ".join(tables)
 
 
     def base_query(self):
+        """
+        Generate base query
+
+        Args:
+            self: (todo): write your description
+        """
         dicto = {}
         dicto['finalGroups'] = ', '.join(self.query_object['groups'])
         if dicto['finalGroups'] != '':
@@ -483,6 +567,13 @@ class Query(object):
 
         
     def make_catwhere(self, query = "sub"):
+        """
+        Make a catalog query
+
+        Args:
+            self: (todo): write your description
+            query: (str): write your description
+        """
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
         catlimits = dict()
         
@@ -510,6 +601,12 @@ class Query(object):
         return catwhere
     
     def gram_size(self):
+        """
+        Return the size of the phrase.
+
+        Args:
+            self: (todo): write your description
+        """
         try:
             ls = [phrase.split() for phrase in self.limits['word']]
         except:
@@ -661,6 +758,12 @@ class Query(object):
             # Just a dummy thing to make the SQL writing easier. Shouldn't take any time. Will usually be extended with actual conditions.
 
     def set_operations(self):
+        """
+        Set the query operators list of the query.
+
+        Args:
+            self: (todo): write your description
+        """
 
         with_words = self.word_limits
         
@@ -688,6 +791,12 @@ class Query(object):
         return output
 
     def bookid_query(self):
+        """
+        Return the bookmark
+
+        Args:
+            self: (todo): write your description
+        """
         
         q = "SELECT bookid FROM {catalog} WHERE {catwhere}""".format(**self.__dict__)
 
@@ -721,6 +830,13 @@ class Query(object):
 
 
     def bibliography_query(self, limit = "100"):
+        """
+        Returns the bibliography query
+
+        Args:
+            self: (todo): write your description
+            limit: (int): write your description
+        """
         # I'd like to redo this at some point so it could work as an API call more naturally.
         self.limit = limit
         self.ordertype = "sum(main.count*10000/nwords)"
@@ -774,6 +890,12 @@ class Query(object):
         return bibQuery
 
     def search_results(self):
+        """
+        Search for search results.
+
+        Args:
+            self: (todo): write your description
+        """
         # This is an alias that is handled slightly differently in
         # APIimplementation (no "RESULTS" bit in front). Once
         # that legacy code is cleared out, they can be one and the same.
@@ -781,6 +903,12 @@ class Query(object):
         return json.loads(self.return_books())
 
     def getActualSearchedWords(self):
+        """
+        Retrieves the next wordheap objects
+
+        Args:
+            self: (todo): write your description
+        """
         # 
         if len(self.wordswhere) > 7:
             words = self.query_object['search_limits']['word']
@@ -830,6 +958,12 @@ class Query(object):
         return newarray
     
     def execute(self):
+        """
+        Execute the query.
+
+        Args:
+            self: (todo): write your description
+        """
         # This performs the query using the method specified in the passed parameters.
         if self.method == "Nothing":
             pass
@@ -853,6 +987,13 @@ class databaseSchema(object):
     """
 
     def __init__(self, db):
+        """
+        Initialize the database
+
+        Args:
+            self: (todo): write your description
+            db: (todo): write your description
+        """
         self.db = db
         self.cursor=db.cursor
         # has of what table each variable is in
@@ -878,6 +1019,13 @@ class databaseSchema(object):
 
 
     def newStyle(self, db):
+        """
+        Create new table
+
+        Args:
+            self: (todo): write your description
+            db: (todo): write your description
+        """
         
         self.tableToLookIn['bookid'] = self.fallback_table('fastcat')
         self.tableToLookIn['filename'] = self.fallback_table('fastcat')
@@ -940,6 +1088,14 @@ class databaseSchema(object):
         return tab
 
     def tables_for_variables(self, variables, tables = []):
+        """
+        Returns a list of variables.
+
+        Args:
+            self: (todo): write your description
+            variables: (list): write your description
+            tables: (list): write your description
+        """
         tables = []
 
         for variable in variables:
@@ -960,6 +1116,16 @@ class databaseSchema(object):
     
 
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
+    """
+    Generate a where clause from a dictionary.
+
+    Args:
+        myhash: (todo): write your description
+        joiner: (todo): write your description
+        comp: (todo): write your description
+        escapeStrings: (str): write your description
+        list_joiner: (todo): write your description
+    """
     whereterm = []
     # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
     # For more complicated bits, it gets all recursive until the bits are all in terms of list.
@@ -1017,10 +1183,22 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
                         quotesep = ""
 
                     def escape(value):
+                        """
+                        Escape a string.
+
+                        Args:
+                            value: (todo): write your description
+                        """
                         # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.                        
                         return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
                 else:
                     def escape(value):
+                        """
+                        Escape the string * value * to * value.
+
+                        Args:
+                            value: (todo): write your description
+                        """
                         return to_unicode(value)
                     quotesep = ""
 

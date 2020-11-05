@@ -11,6 +11,12 @@ import subprocess
 from .sqliteKV import KV
 
 def to_unicode(obj):
+    """
+    Convert obj to unicode string.
+
+    Args:
+        obj: (todo): write your description
+    """
     if isinstance(obj, bytes):
         obj = str(obj)
     if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, decimal.Decimal):
@@ -78,6 +84,18 @@ class dataField(object):
     """
 
     def __init__(self, definition, dbToPutIn, anchorType="MEDIUMINT UNSIGNED", anchor="bookid",table="catalog",fasttab="fastcat"):
+        """
+        Initialize fasttab object.
+
+        Args:
+            self: (todo): write your description
+            definition: (todo): write your description
+            dbToPutIn: (todo): write your description
+            anchorType: (todo): write your description
+            anchor: (todo): write your description
+            table: (str): write your description
+            fasttab: (todo): write your description
+        """
         #anchorType should be derived from somewhere.
         self.anchorType = anchorType
         self.anchor = anchor
@@ -120,6 +138,12 @@ class dataField(object):
 
 
     def __repr__(self):
+        """
+        Return a representation of the field.
+
+        Args:
+            self: (todo): write your description
+        """
         val = "Data Field '{}'".format(self.field)
         val += "\n\tdatatype: {}".format(self.datatype)
         val += "\n\ttype: {}".format(self.type)        
@@ -207,6 +231,12 @@ class dataField(object):
         db.query("ALTER TABLE " + dfield.field + "Disk ENABLE KEYS")
 
     def build_ID_and_lookup_tables(self):
+        """
+        Build lookup table and lookup tables *
+
+        Args:
+            self: (todo): write your description
+        """
         IDcode = self.buildIdTable()
         for query in splitMySQLcode(IDcode):
             self.dbToPutIn.query(query)
@@ -240,6 +270,13 @@ class dataField(object):
         return ""
 
     def fastSQLTable(self,engine="MEMORY"):
+        """
+        Returns the sqlalchemy table
+
+        Args:
+            self: (todo): write your description
+            engine: (todo): write your description
+        """
         #setting engine to another value will create these tables on disk.
         queries = ""
         self.engine = engine
@@ -315,6 +352,12 @@ class dataField(object):
         return mydict
 
     def setIntType(self):
+        """
+        Sets the column type.
+
+        Args:
+            self: (todo): write your description
+        """
         try:
             alreadyExists = self.intType
         except AttributeError:
@@ -380,6 +423,12 @@ class dataField(object):
         """
         db = self.dbToPutIn
         def exists(tablename):
+            """
+            Check if a given table exists
+
+            Args:
+                tablename: (str): write your description
+            """
             return len(db.query("SHOW TABLES LIKE '" + tablename + "'").fetchall())>0
         if exists(self.fasttab):
             logging.debug("DELETING FROM " + self.fasttab)
@@ -392,6 +441,12 @@ class dataField(object):
                 self.dbToPutIn.query("DELETE FROM " + self.field+"Lookup")
             
     def updateVariableDescriptionTable(self):
+        """
+        Updates variable
+
+        Args:
+            self: (todo): write your description
+        """
         self.memoryCode = self.fastLookupTableIfNecessary()
         code = """DELETE FROM masterVariableTable WHERE dbname="%(field)s";
         INSERT INTO masterVariableTable
@@ -490,6 +545,16 @@ class variableSet(object):
                 anchorField="bookid",
                 jsonDefinition=None,
                 db=None):
+        """
+        Initialize database tables
+
+        Args:
+            self: (todo): write your description
+            originFile: (str): write your description
+            anchorField: (todo): write your description
+            jsonDefinition: (todo): write your description
+            db: (todo): write your description
+        """
         self.db = db
         self.anchorField = anchorField
         self.originFile=originFile
@@ -522,6 +587,12 @@ class variableSet(object):
             self.variables.append(dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName))
 
     def __repr__(self):
+        """
+        Return a repr representation of - repr string.
+
+        Args:
+            self: (todo): write your description
+        """
         return "A variable set of {} objects".format(len(self.variables))
         
     def setTableNames(self):
@@ -544,6 +615,13 @@ class variableSet(object):
             self.fastName = self.tableName + "heap"
 
     def guessAtFieldDescriptions(self,stopAfter=30000):
+        """
+        Returns a list of the metadata for each line in the metadata file
+
+        Args:
+            self: (todo): write your description
+            stopAfter: (todo): write your description
+        """
         allMyKeys = dict()
         unique = True
         
@@ -599,6 +677,12 @@ class variableSet(object):
             return [variable for variable in self.variables if (variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical")]
     
     def notUniques(self):
+        """
+        Returns a list of variables that are not empty.
+
+        Args:
+            self: (todo): write your description
+        """
         return [variable for variable in self.variables if not variable.unique]
 
     def anchorLookupDictionary(self):
@@ -828,6 +912,13 @@ class variableSet(object):
                 db.query(query)
 
     def uniqueVariableFastSetup(self,engine="MEMORY"):
+        """
+        Generate unique variables for a unique variables.
+
+        Args:
+            self: (todo): write your description
+            engine: (todo): write your description
+        """
         fileCommand = "DROP TABLE IF EXISTS tmp;"
         fileCommand += "CREATE TABLE tmp ({} MEDIUMINT UNSIGNED, PRIMARY KEY  ({}), ".format(
             self.fastAnchor,self.fastAnchor
@@ -900,4 +991,11 @@ class DummyDict(dict):
     """
     # we need to have it there.
     def __missing__(self,key):
+        """
+        Returns true if key is not none.
+
+        Args:
+            self: (todo): write your description
+            key: (str): write your description
+        """
         return key        

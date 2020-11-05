@@ -52,6 +52,13 @@ class KV:
         self.conn.close()
                        
     def __getitem__(self, key):
+        """
+        Get a single item from the key.
+
+        Args:
+            self: (todo): write your description
+            key: (str): write your description
+        """
         rows = self.conn.execute("""SELECT ID FROM keys 
                                WHERE keys.key=(?)""", (key, ))
         row = rows.fetchone()
@@ -60,6 +67,13 @@ class KV:
         return row['ID']
 
     def register(self, key):
+        """
+        Registers a key. redis.
+
+        Args:
+            self: (todo): write your description
+            key: (str): write your description
+        """
         self.conn.execute("INSERT INTO keys(key) VALUES (?)",
                           (key, ))
 
