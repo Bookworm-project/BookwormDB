@@ -36,7 +36,7 @@ class Bookworm_MySQL_Configuration(unittest.TestCase):
         def test_config_file(conf):
             user = conf.config.get("client","user")
             pw = conf.config.get("client","password")
-            return (user,pw)
+            return (user, pw)
 
         global_configuration_file = Configfile("read_only")
         admin_configuration_file = Configfile("admin")

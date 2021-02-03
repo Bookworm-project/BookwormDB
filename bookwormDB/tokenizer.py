@@ -129,6 +129,7 @@ class tokenBatches(object):
         IDfile = self.IDfile
 
         levels = None
+        
         """
         if source=="raw_text":
             parts = row.split("\t", 1)
@@ -148,7 +149,7 @@ class tokenBatches(object):
                 raise
             tokens = preTokenized(token, count, self.levels[0])
         """
-
+        
         try:
             textid = IDfile[filename]
         except KeyError:
@@ -296,7 +297,7 @@ class PreTokenized(object):
         else:
             self.output = dict(zip([tuple(w.split(" ")) for w in f.word], f.counts))
 
-    def counts(self,level):
+    def counts(self, level):
         if level != self.level:
             raise
         return self.output

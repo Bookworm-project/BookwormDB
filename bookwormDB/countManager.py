@@ -64,6 +64,7 @@ def counter(qout, i, fin, mode = "count"):
     datatype = "raw"
 
     count_signals = [".unigrams", ".bigrams", ".trigrams", ".quadgrams"]
+    logging.info(f"fin is {fin}")
     for signal in count_signals:
         if signal in fin:
             datatype = signal.strip(".")
@@ -149,6 +150,12 @@ def yield_lines_from_single_file(fname, i, cpus):
 
 
 def create_counts(input):
+
+    """
+    The first step of wordcounting is done on a worker--then those
+    counts are shipped here to a bounter object that counts approximately.
+    """
+
     qout = Queue(cpus * 2)
     workers = []
     logging.info("Spawning {} count processes on {}".format(cpus, input))
@@ -189,6 +196,8 @@ def create_wordlist(n, input, output):
     counter = create_counts(input)
     counter = sorted(list(counter.iteritems()), key = lambda x: -1 * x[1])
     output = open(output, "w")
+    logging.info(f"Created wordlist from {input}")
+    logging.info(f"top 10 words are {[c for c in counter[:10]]}")
     for i, (k, v) in enumerate(counter):
         output.write("{}\t{}\t{}\n".format(i, k, v))
         if i >= n:
