@@ -226,7 +226,12 @@ class dataField(object):
             self.setIntType()
             self.maxlength = self.dbToPutIn.query("SELECT MAX(CHAR_LENGTH(%(field)s)) FROM %(field)s__id" % self.__dict__)
             self.maxlength = self.maxlength.fetchall()[0][0]
-            self.maxlength = max([self.maxlength,1])
+            try:
+                self.maxlength = max([self.maxlength,1])
+            except TypeError:
+                logging.error(f"Unable to calculate length for {field}"
+                                "perhaps there are no entries in the catalog?")
+                raise
             code = """DROP TABLE IF EXISTS tmp;
                    CREATE TABLE tmp (%(field)s__id %(intType)s ,PRIMARY KEY (%(field)s__id),
                          %(field)s VARCHAR (%(maxlength)s) ) ENGINE=%(engine)s
@@ -262,57 +267,6 @@ class dataField(object):
             pass
 
         return queries
-
-    def jsonDict(self):
-        """
-        DEPRECATED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        #This builds a JSON dictionary that can be loaded into outside
-        bookworm in the "options.json" file.
-        It's a bad design decision; newer version
-        just load this directly from the database.
-        """
-        mydict = dict()
-        #It gets confusingly named: "type" is the key for real name ("time", "categorical" in the json), but also the mysql key ('character','integer') here. That would require renaming code in a couple places.
-        mydict['type'] = self.datatype
-        mydict['dbfield'] = self.field
-        try:
-            mydict['name'] = self.name
-        except:
-            mydict['name'] = self.field
-        if self.datatype == "etc" or self.type == "text":
-            return dict() #(Some things don't go into the fast settings because they'd take too long)
-        if self.datatype == "time":
-            mydict['unit'] = self.field
-            #default to the full min and max date ranges
-            #times may not be zero or negative
-            cursor = self.dbToPutIn.query("SELECT MIN(" + self.field + "), MAX(" + self.field + ") FROM catalog WHERE " + self.field + " > 0 ")
-            results = cursor.fetchall()[0]
-            mydict['range'] = [results[0], results[1]]
-            mydict['initial'] = [results[0], results[1]]
-
-        if self.datatype == "categorical":
-            mydict['dbfield'] = self.field + "__id"
-            #Find all the variables used more than 20 times from the database, and build them into something json-usable.
-            cursor = self.dbToPutIn.query("SELECT %(field)s, %(field)s__id  FROM %(field)s__id WHERE %(field)s__count > 20 ORDER BY %(field)s__id ASC LIMIT 500;" % self.__dict__)
-            sort_order = []
-            descriptions = dict()
-            for row in cursor.fetchall():
-                code = row[1]
-                name = row[0]
-                code = to_unicode(code)
-                sort_order.append(code)
-                descriptions[code] = dict()
-                """
-                These three things all have slightly different meanings:
-                the english name, the database code for that name, and the short display name to show.
-                It would be worth allowing lookup files for these: for now, they are what they are and can be further improved by hand.
-                """
-                descriptions[code]["dbcode"] = code
-                descriptions[code]["name"] = name
-                descriptions[code]["shortname"] = name
-            mydict["categorical"] = {"descriptions": descriptions, "sort_order": sort_order}
-
-        return mydict
 
     def setIntType(self):
         try:
