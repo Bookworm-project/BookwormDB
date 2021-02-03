@@ -215,13 +215,18 @@ section'client'
                         input = input,
                         output = ".bookworm/texts/wordlist/wordlist.txt")
 
-    def pristine(self, args):
+    def destroy(self, args):
+        self.pristine(args)
 
+    def pristine(self, args):
+        # Old name still works.
         import bookwormDB.CreateDatabase
         bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname, variableFile=None)
         if self.dbname == "mysql":
             raise NameError("Don't try to delete the mysql database")
         bookworm.db.query("DROP DATABASE IF EXISTS {}".format(self.dbname))
+        import shutil
+        shutil.rmtree('.bookworm')
 
     def encoded(self, args):
         """
