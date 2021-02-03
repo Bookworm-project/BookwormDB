@@ -126,11 +126,11 @@ def yield_texts_from_directory(dir, i):
             logging.error(f"Can't handle file {file}")
         yield (basename, fin.read().replace("\t", "\f").replace("\n", "\f"))
 
-def yield_lines_from_single_file(fname, i, cpus):
-    if (fname.endswith(".gz")):
-        fin = gzip.open(fin, 'rt')
+def yield_lines_from_single_file(fname, i):
+    if (str(fname).endswith(".gz")):
+        fin = gzip.open(fname, 'rt')
     else:
-        fin = open(fin)
+        fin = open(fname)
     totals = 0
     errors = 0
     for ii, row in enumerate(fin):
