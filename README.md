@@ -238,6 +238,24 @@ Once this works, you can use various libraries to query the endpoint,
 or create an HTML page that builds off the endpoint. See
 the (currently underdeveloped) Bookworm-Vega repository for some examples.
 
+## Pre-tokenized data.
+
+If you're using data that's already been tokenized, it can be ingested
+by using a different file than 'input.txt' or 'input.txt.gz'.
+
+```
+bookworm --feature-counts unigrams.txt --feature-counts bigrams.txt build all
+```
+
+The format for `unigrams.txt` is a little wonky. It should consist of one row
+per document. The first element is the identifier, followed by a tab. The next element
+should be a CSV file that uses the formfeed character (`\f`) instead of the newline
+to separate records.
+
+```
+id\t{word,count csv}
+
+```
 
 ## Production servers
 

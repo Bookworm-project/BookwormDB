@@ -98,7 +98,7 @@ class Configfile(object):
 
         self.ask_about_defaults = ask_about_defaults
 
-        logging.info("Creating configuration as " + usertype)
+        logging.debug("Creating configuration as " + usertype)
 
         self.usertype = usertype
 

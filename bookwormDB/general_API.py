@@ -707,6 +707,29 @@ class oldSQLAPIcall(APIcall):
         df = read_sql(q, con.db)
         return df
 
+class MetaAPIcall(APIcall):
+    def __init__(self, endpoints):
+        self.endpoints = endpoints
+        
+    def connect(self, endpoint):
+        # return some type of a connection.
+        pass
+        
+    def generate_pandas_frame(self, call):
+        if call is None:
+            call = deepcopy(self.query)
+            call['format'] = 'feather'
+        for endpoint in self.endpoints:
+            connection = self.connect(endpoint)
+            d = connection.query(call)
+        count_fields = []
+        
+        for field in ['WordCount', 'TextCount']:
+            if field in call["counttype"]:
+                count_fields.push(field)        
+        together = pd.concat(d)
+        together[count_fields].sum()
+
 class SQLAPIcall(APIcall):
     """
     To make a new backend for the API, you just need to extend the base API
