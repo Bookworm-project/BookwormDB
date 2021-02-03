@@ -133,8 +133,9 @@ def parse_json_catalog(line_queue, processes, modulo):
             try:
                 line = json.loads(line)
             except:
-                logging.warn("Couldn't parse catalog line {}".format(line))
-                continue
+                logging.error(f"Invalid json in line {i}\n:{line}"
+                "The input file must be in ndjson format (http://ndjson.org/)")
+                raise
 
         for field in fields:
             # Smash together misidentified lists
