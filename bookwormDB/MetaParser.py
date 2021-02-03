@@ -68,7 +68,6 @@ def ParseFieldDescs(write = False):
     except ValueError:
         raise ValueError("Error parsing JSON: Check to make sure that your field_descriptions.json file is valid.")
 
-
     if write:
         derivedFile = open('.bookworm/metadata/field_descriptions_derived.json', 'w')
 
@@ -77,7 +76,7 @@ def ParseFieldDescs(write = False):
     fields_to_derive = []
 
     for field in fields:
-        if field["field"] in mySQLreservedWords:
+        if field["field"].upper() in mySQLreservedWords:
             raise NameError(f"{field['field']} is a reserved word but appears"
             "in field_description.json. Please choose a different name for"
             "the column.")

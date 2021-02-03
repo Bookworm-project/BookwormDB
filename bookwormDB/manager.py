@@ -80,26 +80,6 @@ section'client'
             from bookwormDB.configuration import apache
             apache()
 
-    def ftokenize(self, args):
-
-        import bookwormDB.tokenizer
-
-        """
-        Handle functions related to tokenization and encoding.
-
-        Should eventually be able to accept arguments like "token-regex"
-        and already-tokenized documents.
-        """
-
-        if args.process == "encode":
-            self.encoded(args)
-
-        if args.process == "text_stream" or args.process == "token_stream":
-            raise NotImplementedError("This feature has been removed")
-
-        if args.process == "word_db":
-            self.wordlist(args)
-
     def init(self, args):
         """
         Initialize the current directory as a bookworm directory.
@@ -227,7 +207,7 @@ section'client'
         except FileExistsError:
             pass
 
-        input = "input.txt"
+        input = args.input
         if args.feature_counts:
             logging.info(args.feature_counts)
             input = [a for a in args.feature_counts if 'unigrams' in a][0]
@@ -261,7 +241,7 @@ section'client'
             for feature in args.feature_counts:
                 encode_words(".bookworm/texts/wordlist/wordlist.txt", feature)
         else:
-            encode_words(".bookworm/texts/wordlist/wordlist.txt", "input.txt")
+            encode_words(".bookworm/texts/wordlist/wordlist.txt", args.input)
 
     def all(self, args):
         self.preDatabaseMetadata(args)
@@ -272,7 +252,10 @@ section'client'
     def preDatabaseMetadata(self, args=None, **kwargs):
         import os
         if not os.path.exists("field_descriptions.json"):
-            self.guessAtFieldDescriptions()
+            if os.path.exists("field_descriptions.csv"):
+                self.field_descriptions_from_csv()
+            else:
+                self.guess_field_descriptions()
         self.derived_catalog(args)
         import bookwormDB.CreateDatabase
         # Doesn't need a created database yet, just needs access
@@ -297,7 +280,14 @@ section'client'
         logging.debug("Preparing to write catalog")
         parse_catalog_multicore()
 
-    def guessAtFieldDescriptions(self, args = None, **kwargs):
+    def field_descriptions_from_csv(self):
+        import pandas as pd
+        import json
+        jsonified = pd.read_csv("field_descriptions.csv").to_json(orient="records")
+        with open("field_descriptions.json", "w") as fout:
+            fout.write(jsonified)
+
+    def guess_field_descriptions(self, args = None, **kwargs):
 
         """
         Use a number of rules of thumb to automatically generate a field_descriptions.json file.
@@ -307,20 +297,17 @@ section'client'
 
         import bookwormDB.CreateDatabase
         import json
+        import os
+        import pandas as pd
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname, variableFile=None)
         Bookworm.setVariables("jsoncatalog.txt", jsonDefinition=None)
-        import os
-        if not os.path.exists("field_descriptions.json"):
-            output = open("field_descriptions.json","w")
-            guess = json.dumps(Bookworm.variableSet.guessAtFieldDescriptions(), indent = 2)
-            logging.warning("Creating guess for field descriptions at: {}".format(guess))
-            output.write(guess)
-        else:
-            logging.error("""
-            You already have a file at field_descriptions.json
-            Dying rather than overwrite it.
-            """)
-            sys.exit()
+        guess = Bookworm.variableSet.guessAtFieldDescriptions()
+        guess = pd.DataFrame(guess)
+        guess.to_csv("field_descriptions.csv", index = False)
+        raise FileNotFoundError("No field descriptions file found."
+         "Creating guess for field descriptions at: field_descriptions.csv."
+         "You should probably inspect and edit this file before you build."
+         "But if you suspect it's right, you can rebuild again immediately.")
 
     def reload_memory(self,args):
         import bookwormDB.CreateDatabase
@@ -353,18 +340,7 @@ section'client'
 
         Bookworm.loadVariableDescriptionsIntoDatabase()
 
-
         Bookworm.create_fastcat_and_wordsheap_disk_tables()
-
-        # The temporary memory tables are no longer automatically created on a build.
-        # To create them, use `bookworm reload_memory`.
-        # Bookworm.reloadMemoryTables()
-
-        #print "adding cron job to automatically reload memory tables on launch"
-        #print "(this assumes this machine is the MySQL server, which need not be the case)"
-        #call(["sh","scripts/scheduleCronJob.sh"])
-        Bookworm.jsonify_data() # Create the self.dbname.json file in the root directory.
-        Bookworm.create_API_settings()
 
         Bookworm.grantPrivileges()
 
@@ -469,6 +445,12 @@ def run_arguments():
 
     parser.add_argument("--log-level","-l", help="The logging detail to use for errors. Default is 'warning', only significant problems; info gives a fuller record, and 'debug' dumps many MySQL queries, etc.",choices=["warning","info","debug"],type=str.lower,default="warning")
 
+    parser.add_argument("--input", "-i",
+        help = "The location of texts for an initial build."
+        "Either a text file ('input.txt' or 'input.txt.gz')"
+        "or a folder containing txt or txt.gz files, which may be nested"
+        "inside other directories", default = "input.txt")
+
 
     parser.add_argument("--feature-counts", action='append',
                                  help="Use pre-calculated feature counts rather than tokenizing complete text on the fly. Supply any number of single files per count level like 'input.unigrams', 'input.bigrams', etc.")
@@ -478,8 +460,6 @@ def run_arguments():
 
     # Use subparsers to have an action syntax, like git.
     subparsers = parser.add_subparsers(title="action", help='The commands to run with Bookworm', dest="action")
-
-
 
     ############# build #################
     build_parser = subparsers.add_parser("build",description = "Create files",help="""Build up the component parts of a Bookworm.\

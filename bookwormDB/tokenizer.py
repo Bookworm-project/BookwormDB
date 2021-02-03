@@ -50,7 +50,12 @@ def readDictionaryFile(prefix=""):
     look = dict()
     for line in open(prefix + ".bookworm/texts/wordlist/wordlist.txt"):
         line = line.rstrip("\n")
-        v, k, _ = line.split("\t")
+        try:
+            v, k, _ = line.split("\t")
+        except ValueError:
+            print(line)
+            print([look.keys()][:10])
+            raise
         look[k] = v
     return look
 

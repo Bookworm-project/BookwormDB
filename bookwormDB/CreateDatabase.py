@@ -13,10 +13,6 @@ import logging
 import warnings
 from .sqliteKV import KV
 
-#if logging.getLogger().isEnabledFor(logging.DEBUG):
-    # Catch MYSQL warnings as errors if logging is set to debug.
-#    warnings.filterwarnings('error', category=MySQLdb.Warning) # For testing
-
 warnings.filterwarnings('ignore', 'Table .* already exists')
 warnings.filterwarnings("ignore", ".*Can't create database.*; database exists.*")
 warnings.filterwarnings("ignore", ".*Unknown table.*")
@@ -216,6 +212,8 @@ class BookwormSQLDatabase(object):
 
     def load_word_list(self):
         db = self.db
+        if db is None:
+            raise AttributeError("No database connection defined--are you running Bookworm without a configuration file or naming the bookworm like `bookworm -d my_bookworm build all`?")
         logging.info("Making a SQL table to hold the words")
         db.query("""DROP TABLE IF EXISTS words""")
         db.query("""CREATE TABLE IF NOT EXISTS words (
@@ -487,11 +485,12 @@ class BookwormSQLDatabase(object):
             ", ".join(fastFieldsCreateList), engine)
 
         if engine == "MYISAM":
-            fastFields = ["bookid","nwords"] + [variable.fastField for variable in self.variableSet.uniques("fast")]
+            fastFields = ["bookid", "nwords"] + [variable.fastField for variable in self.variableSet.uniques("fast")]
             load_command = "INSERT INTO tmp SELECT "
             load_command += ",".join(fastFields) + " FROM catalog USE INDEX () "
             # LEFT JOIN fixes a bug where fields were being dropped
-            load_command += " ".join(["LEFT JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variableSet.uniques("categorical")]) + ";"
+            load_command += " ".join(["LEFT JOIN %(field)s__id USING (%(field)s )" % variable.__dict__ for variable in self.variableSet.uniques("categorical")])
+            load_command += " WHERE nwords IS NOT NULL;"
         elif engine == "MEMORY":
             load_command = "INSERT INTO tmp SELECT * FROM fastcat_;"
 
@@ -538,63 +537,6 @@ class BookwormSQLDatabase(object):
         query += "VALUES ('wordsheap','wordsheap','{}'); ".format(wordCommand)
         logging.info("Creating wordsheap")
         self.db.query(query)
-
-    def jsonify_data(self):
-        variables = self.variableSet.variables
-        dbname = self.dbname
-        #This creates a JSON file compliant with the Bookworm web site.
-        #Deprecated.
-        output = dict()
-        output['settings'] = {
-                              "dbname": self.dbname,
-                              "itemName":" text",
-                              "sourceName": self.dbname,
-                              "sourceURL": self.dbname
-                             }
-        ui_components = [
-                         {
-                          "type":"text",
-                          "dbfield":"word",
-                          "name":"Word(s)"
-                         }
-                        ]
-        for variable in variables:
-            newdict = variable.jsonDict()
-            if newdict: #(It can be empty, in which case we don't want it for the json)
-                ui_components.append(newdict)
-        try:
-            mytime = [variable.field for variable in variables if variable.datatype=='time'][0]
-            output['default_search'] = [
-                                         {
-                                          "search_limits": [{"word":["test"]}],
-                                          "time_measure": mytime,
-                                          "words_collation": "Case_Sensitive",
-                                          "counttype": "Occurrences_per_Million_Words",
-                                          "smoothingSpan": 0
-                                         }
-                                        ]
-        except:
-            logging.warning("No default search created because of insufficient data.")
-        output['ui_components'] = ui_components
-
-        with open('.bookworm/%s.json' % dbname, 'w') as outfile:
-            outfile.write(json.dumps(output))
-
-    def create_API_settings(self):
-        db = self.db
-        try:
-            db.query("DROP TABLE IF EXISTS API_settings")
-            db.query("CREATE TABLE API_settings (settings VARCHAR(8192));")
-        except:
-            pass
-        api_info = {
-                    "HOST": "10.102.15.45",
-                    "database": self.dbname,
-                    "read_default_file": "/etc/mysql/my.cnf",
-                   }
-        addCode = json.dumps(api_info)
-        logging.info(addCode)
-        db.query("INSERT INTO API_settings VALUES ('%s');" % addCode)
 
     def update_Porter_stemming(self): #We use stems occasionally.
         """
