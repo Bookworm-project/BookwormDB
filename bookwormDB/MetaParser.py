@@ -18,22 +18,73 @@ def DaysSinceZero(dateobj):
     #Zero isn't a date, which python knows but MySQL and javascript don't.
     return (dateobj - date(1,1,1)).days + 366
 
+
+mySQLreservedWords = set(["ACCESSIBLE", "ADD",
+"ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE",
+"BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL",
+"CASCADE", "CASE", "CHANGE", "CHAR", "CHARACTER", "CHECK", "COLLATE",
+"COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE", "CONVERT", "CREATE",
+"CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+"CURRENT_USER", "CURSOR", "DATABASE", "DATABASES", "DAY_HOUR",
+"DAY_MICROSECOND", "DAY_MINUTE", "DAY_SECOND", "DEC", "DECIMAL",
+"DECLARE", "DEFAULT", "DELAYED", "DELETE", "DESC", "DESCRIBE",
+"DETERMINISTIC", "DISTINCT", "DISTINCTROW", "DIV", "DOUBLE", "DROP",
+"DUAL", "EACH", "ELSE", "ELSEIF", "ENCLOSED", "ESCAPED", "EXISTS",
+"EXIT", "EXPLAIN", "FALSE", "FETCH", "FLOAT", "FLOAT4", "FLOAT8",
+"FOR", "FORCE", "FOREIGN", "FROM", "FULLTEXT", "GENERAL", "GRANT",
+"GROUP", "HAVING", "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_MINUTE",
+"HOUR_SECOND", "IF", "IGNORE", "IGNORE_SERVER_IDS", "IN", "INDEX",
+"INFILE", "INNER", "INOUT", "INSENSITIVE", "INSERT", "INT", "INT1",
+"INT2", "INT3", "INT4", "INT8", "INTEGER", "INTERVAL", "INTO", "IS",
+"ITERATE", "JOIN", "KEY", "KEYS", "KILL", "LEADING", "LEAVE", "LEFT",
+"LIKE", "LIMIT", "LINEAR", "LINES", "LOAD", "LOCALTIME",
+"LOCALTIMESTAMP", "LOCK", "LONG", "LONGBLOB", "LONGTEXT", "LOOP",
+"LOW_PRIORITY", "MASTER_HEARTBEAT_PERIOD[c]",
+"MASTER_SSL_VERIFY_SERVER_CERT", "MATCH", "MAXVALUE", "MEDIUMBLOB",
+"MEDIUMINT", "MEDIUMTEXT", "MIDDLEINT", "MINUTE_MICROSECOND",
+"MINUTE_SECOND", "MOD", "MODIFIES", "NATURAL", "NOT",
+"NO_WRITE_TO_BINLOG", "NULL", "NUMERIC", "ON", "OPTIMIZE", "OPTION",
+"OPTIONALLY", "OR", "ORDER", "OUT", "OUTER", "OUTFILE", "PRECISION",
+"PRIMARY", "PROCEDURE", "PURGE", "RANGE", "READ", "READS",
+"READ_WRITE", "REAL", "REFERENCES", "REGEXP", "RELEASE", "RENAME",
+"REPEAT", "REPLACE", "REQUIRE", "RESIGNAL", "RESTRICT", "RETURN",
+"REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SCHEMAS", "SECOND_MICROSECOND",
+"SELECT", "SENSITIVE", "SEPARATOR", "SET", "SHOW", "SIGNAL",
+"SLOW[d]", "SMALLINT", "SPATIAL", "SPECIFIC", "SQL", "SQLEXCEPTION",
+"SQLSTATE", "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS",
+"SQL_SMALL_RESULT", "SSL", "STARTING", "STRAIGHT_JOIN", "TABLE",
+"TERMINATED", "THEN", "TINYBLOB", "TINYINT", "TINYTEXT", "TO",
+"TRAILING", "TRIGGER", "TRUE", "UNDO", "UNION", "UNIQUE", "UNLOCK",
+"UNSIGNED", "UPDATE", "USAGE", "USE", "USING", "UTC_DATE", "UTC_TIME",
+"UTC_TIMESTAMP", "VALUES", "VARBINARY", "VARCHAR", "VARCHARACTER",
+"VARYING", "WHEN", "WHERE", "WHILE", "WITH", "WRITE", "XOR",
+"YEAR_MONTH", "ZEROFILL", "WORDS", "NWORDS", "WORD", "UNIGRAM"])
+
+
 def ParseFieldDescs(write = False):
     f = open('field_descriptions.json', 'r')
     try:
         fields = json.loads(f.read())
     except ValueError:
-        raise ValueError("Error parsing JSON: Check to make sure that your field_descriptions.json file is valid?")
+        raise ValueError("Error parsing JSON: Check to make sure that your field_descriptions.json file is valid.")
 
 
     if write:
         derivedFile = open('.bookworm/metadata/field_descriptions_derived.json', 'w')
 
     output = []
-    
+
     fields_to_derive = []
-    
+
     for field in fields:
+        if field["field"] in mySQLreservedWords:
+            raise NameError(f"{field['field']} is a reserved word but appears"
+            "in field_description.json. Please choose a different name for"
+            "the column.")
+        for character in [" ","-", "&","+","."]:
+            if character in field['field']:
+                raise NameError(f"{field['field']} contains a special character, please rename")
+
         if field["datatype"] == "time":
             if "derived" in field:
                 fields_to_derive.append(field)
@@ -56,25 +107,26 @@ def ParseFieldDescs(write = False):
     if write:
         derivedFile.write(json.dumps(output))
         derivedFile.close()
-        
+
     return (fields_to_derive, fields)
+
 
 def parse_json_catalog(line_queue, processes, modulo):
     fields_to_derive, fields = ParseFieldDescs(write = False)
-    
+
     if os.path.exists("jsoncatalog.txt"):
         mode = "json"
         fin = open("jsoncatalog.txt")
-        
+
     if os.path.exists("catalog.csv"):
         mode = "csv"
         import csv
-        fin  = csv.DictReader("catalog.csv")
-        
+        fin = csv.DictReader("catalog.csv")
+
     for i, line in enumerate(fin):
         if i % processes != modulo:
             continue
-        
+
         for char in ['\t', '\n']:
             line = line.replace(char, '')
 
@@ -84,7 +136,7 @@ def parse_json_catalog(line_queue, processes, modulo):
             except:
                 logging.warn("Couldn't parse catalog line {}".format(line))
                 continue
-            
+
         for field in fields:
             # Smash together misidentified lists
             try:
@@ -92,19 +144,19 @@ def parse_json_catalog(line_queue, processes, modulo):
                     line[field["field"]] = "--".join(line[field["field"]])
             except KeyError:
                 pass
-        
+
         for field in fields_to_derive:
-            
+
             """
-            Using fields_to_derive as a shorthand for dates--this may break 
+            Using fields_to_derive as a shorthand for dates--this may break
             if we get more ambitious about derived fields,
             but this whole metadata-parsing code needs to be refactored anyway.
 
-            Note: this code is inefficient--it parses the same date multiple times. 
-            We should be parsing the date once and pulling 
+            Note: this code is inefficient--it parses the same date multiple times.
+            We should be parsing the date once and pulling
             derived fields out of that one parsing.
             """
-            
+
             try:
                 if line[field["field"]]=="":
                     # Use blankness as a proxy for unknown
@@ -113,7 +165,7 @@ def parse_json_catalog(line_queue, processes, modulo):
                 time = dateutil.parser.parse(line[field["field"]],default = defaultDate)
                 intent = [time.year,time.month,time.day]
                 content = [str(item) for item in intent]
-                
+
                 pass
             except:
                 """
@@ -234,7 +286,7 @@ def parse_catalog_multicore():
     cpus, _ = mp_stats()
     encoded_queue = Queue(10000)
     workers = []
-    
+
     for i in range(cpus):
         p = Process(target = parse_json_catalog, args = (encoded_queue, cpus, i))
         p.start()
@@ -243,7 +295,7 @@ def parse_catalog_multicore():
 
     bookids = KV(".bookworm/metadata/textids.sqlite")
     import sqlite3
-    
+
     while True:
         try:
             filename, n = encoded_queue.get_nowait()
@@ -255,7 +307,7 @@ def parse_catalog_multicore():
                 if filename in ids:
                     logging.warning("Duplicate key insertion {}".format(filename))
             ids.add(filename)
-                
+
         except Empty:
             if running_processes(workers):
                 # Give it a sec to fill back up to avoid this thread taking up
@@ -264,6 +316,6 @@ def parse_catalog_multicore():
             else:
                 # We're done!
                 break
-            
+
     bookids.close()
     output.close()

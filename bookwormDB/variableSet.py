@@ -18,7 +18,7 @@ def to_unicode(obj):
     return obj
 
 def splitMySQLcode(string):
-    
+
     """
     MySQL code can only be executed one command at a time, and fails if it has any empty slots
     So as a convenience wrapper, I'm just splitting it and returning an array.
@@ -122,16 +122,16 @@ class dataField(object):
     def __repr__(self):
         val = "Data Field '{}'".format(self.field)
         val += "\n\tdatatype: {}".format(self.datatype)
-        val += "\n\ttype: {}".format(self.type)        
-        val += "\n\tuniqueness: {}".format(self.unique)            
+        val += "\n\ttype: {}".format(self.type)
+        val += "\n\tuniqueness: {}".format(self.unique)
         return val
-    
+
     def slowSQL(self, withIndex=False):
         """
         This returns something like "author VARCHAR(255)",
         a small definition string with an index, potentially.
         """
-        
+
         mysqltypes = {
             "character": "VARCHAR(255)",
             "integer": "INT",
@@ -257,7 +257,7 @@ class dataField(object):
             elif engine=="MEMORY":
                 queries += "INSERT INTO tmp SELECT * FROM {}_; ".format(tname)
             queries += "DROP TABLE IF EXISTS {}; RENAME TABLE tmp TO {}; ".format(tname,tname)
-            
+
         if self.datatype == 'categorical' and self.unique:
             pass
 
@@ -338,7 +338,7 @@ class dataField(object):
         a 12-byte VARCHAR field takes 5.5 seconds, but a GROUP BY with a 3-byte MEDIUMINT
         field corresponding exactly to that takes 2.2 seconds on the exact same data.
         That sort of query is included in every single bookworm
-        search multiple times, so it's necessary to optimize. 
+        search multiple times, so it's necessary to optimize.
         Plus, it means we can save space on memory storage
         in important ways as well.
         """
@@ -352,10 +352,10 @@ class dataField(object):
 
         # XXXX to fix
         # Hardcoding this for now at one per 100K in the method definition. Could be user-set.
-        n_documents = self.dbToPutIn.query("SELECT COUNT(*) FROM catalog").fetchall()[0][0]        
+        n_documents = self.dbToPutIn.query("SELECT COUNT(*) FROM catalog").fetchall()[0][0]
         self.minimum_count = round(n_documents*minimum_occurrence_rate)
-        # XXXX            
-        
+        # XXXX
+
         returnt +="DELETE FROM tmp WHERE count < %(minimum_count)s;" % self.__dict__
 
         returnt += "DROP TABLE IF EXISTS %(field)s__id;\n\n" % self.__dict__
@@ -390,7 +390,7 @@ class dataField(object):
         if self.datatype=="categorical":
             if exists(self.field+"Lookup"):
                 self.dbToPutIn.query("DELETE FROM " + self.field+"Lookup")
-            
+
     def updateVariableDescriptionTable(self):
         self.memoryCode = self.fastLookupTableIfNecessary()
         code = """DELETE FROM masterVariableTable WHERE dbname="%(field)s";
@@ -412,7 +412,7 @@ class dataField(object):
             self.dbToPutIn.query(q, (self.field + "heap", parentTab, code))
         if self.datatype=="categorical":
             #Variable Info
-            
+
             code = """
             DELETE FROM masterVariableTable WHERE dbname='%(field)s__id';
             INSERT IGNORE INTO masterVariableTable
@@ -436,53 +436,9 @@ class dataField(object):
 #            self.dbToPutIn.query(q)
 
             q = "INSERT INTO masterTableTable VALUES (%s, %s, %s)"
-            
+
             self.dbToPutIn.query(q, (self.field+"Lookup", self.fasttab, code))
-            
 
-# Ugh! This could probably be solved just by putting a lot of
-# backticks in the code!
-
-mySQLreservedWords = set(["ACCESSIBLE", "ADD",
-"ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE",
-"BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL",
-"CASCADE", "CASE", "CHANGE", "CHAR", "CHARACTER", "CHECK", "COLLATE",
-"COLUMN", "CONDITION", "CONSTRAINT", "CONTINUE", "CONVERT", "CREATE",
-"CROSS", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
-"CURRENT_USER", "CURSOR", "DATABASE", "DATABASES", "DAY_HOUR",
-"DAY_MICROSECOND", "DAY_MINUTE", "DAY_SECOND", "DEC", "DECIMAL",
-"DECLARE", "DEFAULT", "DELAYED", "DELETE", "DESC", "DESCRIBE",
-"DETERMINISTIC", "DISTINCT", "DISTINCTROW", "DIV", "DOUBLE", "DROP",
-"DUAL", "EACH", "ELSE", "ELSEIF", "ENCLOSED", "ESCAPED", "EXISTS",
-"EXIT", "EXPLAIN", "FALSE", "FETCH", "FLOAT", "FLOAT4", "FLOAT8",
-"FOR", "FORCE", "FOREIGN", "FROM", "FULLTEXT", "GENERAL", "GRANT",
-"GROUP", "HAVING", "HIGH_PRIORITY", "HOUR_MICROSECOND", "HOUR_MINUTE",
-"HOUR_SECOND", "IF", "IGNORE", "IGNORE_SERVER_IDS", "IN", "INDEX",
-"INFILE", "INNER", "INOUT", "INSENSITIVE", "INSERT", "INT", "INT1",
-"INT2", "INT3", "INT4", "INT8", "INTEGER", "INTERVAL", "INTO", "IS",
-"ITERATE", "JOIN", "KEY", "KEYS", "KILL", "LEADING", "LEAVE", "LEFT",
-"LIKE", "LIMIT", "LINEAR", "LINES", "LOAD", "LOCALTIME",
-"LOCALTIMESTAMP", "LOCK", "LONG", "LONGBLOB", "LONGTEXT", "LOOP",
-"LOW_PRIORITY", "MASTER_HEARTBEAT_PERIOD[c]",
-"MASTER_SSL_VERIFY_SERVER_CERT", "MATCH", "MAXVALUE", "MEDIUMBLOB",
-"MEDIUMINT", "MEDIUMTEXT", "MIDDLEINT", "MINUTE_MICROSECOND",
-"MINUTE_SECOND", "MOD", "MODIFIES", "NATURAL", "NOT",
-"NO_WRITE_TO_BINLOG", "NULL", "NUMERIC", "ON", "OPTIMIZE", "OPTION",
-"OPTIONALLY", "OR", "ORDER", "OUT", "OUTER", "OUTFILE", "PRECISION",
-"PRIMARY", "PROCEDURE", "PURGE", "RANGE", "READ", "READS",
-"READ_WRITE", "REAL", "REFERENCES", "REGEXP", "RELEASE", "RENAME",
-"REPEAT", "REPLACE", "REQUIRE", "RESIGNAL", "RESTRICT", "RETURN",
-"REVOKE", "RIGHT", "RLIKE", "SCHEMA", "SCHEMAS", "SECOND_MICROSECOND",
-"SELECT", "SENSITIVE", "SEPARATOR", "SET", "SHOW", "SIGNAL",
-"SLOW[d]", "SMALLINT", "SPATIAL", "SPECIFIC", "SQL", "SQLEXCEPTION",
-"SQLSTATE", "SQLWARNING", "SQL_BIG_RESULT", "SQL_CALC_FOUND_ROWS",
-"SQL_SMALL_RESULT", "SSL", "STARTING", "STRAIGHT_JOIN", "TABLE",
-"TERMINATED", "THEN", "TINYBLOB", "TINYINT", "TINYTEXT", "TO",
-"TRAILING", "TRIGGER", "TRUE", "UNDO", "UNION", "UNIQUE", "UNLOCK",
-"UNSIGNED", "UPDATE", "USAGE", "USE", "USING", "UTC_DATE", "UTC_TIME",
-"UTC_TIMESTAMP", "VALUES", "VARBINARY", "VARCHAR", "VARCHARACTER",
-"VARYING", "WHEN", "WHERE", "WHILE", "WITH", "WRITE", "XOR",
-"YEAR_MONTH", "ZEROFILL", "WORDS", "NWORDS", "WORD", "UNIGRAM"])
 
 class variableSet(object):
     def __init__(self,
@@ -495,7 +451,7 @@ class variableSet(object):
         self.originFile=originFile
         self.jsonDefinition=jsonDefinition
         logging.debug(jsonDefinition)
-            
+
         if jsonDefinition==None:
             logging.warning("No field_descriptions.json file provided, so guessing based "
                             "on variable names.")
@@ -512,18 +468,14 @@ class variableSet(object):
 
         for item in self.jsonDefinition:
             #The anchor field has special methods hard coded in.
-            
+
             if item['field'] == self.anchorField:
-                continue
-            if item['field'].upper() in mySQLreservedWords:
-                logging.warning(item['field'] + """ is a reserved word in MySQL, so can't be used as a Bookworm field name: skipping it for now, but you probably want to rename it to something different""")
-                item['field'] = item['field'] + "___"
                 continue
             self.variables.append(dataField(item,self.db,anchor=anchorField,table=self.tableName,fasttab=self.fastName))
 
     def __repr__(self):
         return "A variable set of {} objects".format(len(self.variables))
-        
+
     def setTableNames(self):
         """
         For the base case, they're catalog and fastcat: otherwise, it's just they key
@@ -532,7 +484,7 @@ class variableSet(object):
         if os.path.split(self.originFile)[-1] == 'jsoncatalog_derived.txt':
             self.tableName = "catalog"
             self.fastName = "fastcat"
-            
+
         else:
             try:
                 self.tableName = self.jsonDefinition[0]['field'] + "_" + self.jsonDefinition[1]['field']
@@ -546,14 +498,14 @@ class variableSet(object):
     def guessAtFieldDescriptions(self,stopAfter=30000):
         allMyKeys = dict()
         unique = True
-        
+
         for i, line in enumerate(open(self.originFile)):
             try:
                 entry = json.loads(line.rstrip("\n"))
             except:
                 logging.warning("Error in line {} of {}".format(i, self.originFile))
                 logging.warning(line)
-                
+
             for key in entry:
                 if type(entry[key])==list:
                     unique=False
@@ -575,11 +527,11 @@ class variableSet(object):
         myOutput = []
 
         for metadata in allMyKeys:
-            
+
             bestGuess = guessBasedOnNameAndContents(metadata,allMyKeys[metadata])
             if unique==False:
                 bestGuess['unique'] = False
-            
+
             myOutput.append(bestGuess)
 
         myOutput = [output for output in myOutput if output["field"] != "filename"]
@@ -597,7 +549,7 @@ class variableSet(object):
             return [variable for variable in self.variables if (variable.unique and variable.fastSQL() is not None)]
         if type=="categorical":
             return [variable for variable in self.variables if (variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical")]
-    
+
     def notUniques(self):
         return [variable for variable in self.variables if not variable.unique]
 
@@ -605,11 +557,11 @@ class variableSet(object):
         db = self.db
         anchor = self.anchorField
         self.fastAnchor = self.anchorField
-        
+
         if anchor == "bookid" and self.tableName != "catalog":
             self.fastAnchor="bookid"
             bookids = DummyDict()
-            
+
         elif anchor=="filename" or anchor=="bookid":
             self.fastAnchor = "bookid"
             bookids = dict()
@@ -681,13 +633,13 @@ class variableSet(object):
             variable.output = open(variable.outputloc, 'w')
 
         for entry in metadatafile:
-            
+
             try:
                 entry = json.loads(entry)
             except:
                 logging.warning("""WARNING: json parsing failed for this JSON line:
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n""" + entry)
-                
+
                 continue
 
             #We always lead with the bookid and the filename.
@@ -708,13 +660,13 @@ class variableSet(object):
                     #If the key isn't in the name table, we have no use for this entry.
                     continue
             mainfields = [str(bookid),to_unicode(entry[self.anchorField])]
-            
+
             if self.tableName != "catalog":
                 #It can get problematic to have them both, so we're just writing over the
                 #anchorField here.
                 mainfields = [str(bookid)]
             # First, pull the unique variables and write them to the 'catalog' table
-            
+
             for var in [variable for variable in variables if variable.unique]:
                 if var.field not in [self.anchorField,self.fastAnchor]:
                     myfield = entry.get(var.field, "")
@@ -726,7 +678,7 @@ class variableSet(object):
                 catalog.write(catalogtext)
             except TypeError:
                 catalog.write(catalogtext)
-                
+
             for variable in [variable for variable in variables if not variable.unique]:
                 # Each of these has a different file it must write to...
                 outfile = variable.output
@@ -771,7 +723,7 @@ class variableSet(object):
         for variable in self.uniques():
             createstring = variable.slowSQL(withIndex=True)
             mysqlfields.append(createstring)
-        
+
         if len(mysqlfields) > 1:
             #This creates the main (slow) catalog table
             db.query("""DROP TABLE IF EXISTS %s """ % self.tableName)
@@ -787,10 +739,10 @@ class variableSet(object):
             db.query("ALTER TABLE %s DISABLE KEYS" % self.tableName)
             logging.info("loading data into %s using LOAD DATA LOCAL INFILE..." % self.tableName)
             anchorFields = self.fastAnchor
-            
+
             if self.tableName=="catalog":
                 anchorFields = "bookid,filename"
-                
+
             loadEntries = {
                 "catLoc": self.catalogLocation,
                 "tabName": self.tableName,
@@ -803,7 +755,7 @@ class variableSet(object):
             loadcode = """LOAD DATA LOCAL INFILE '%(catLoc)s'
                        INTO TABLE %(tabName)s FIELDS ESCAPED BY ''
                        (%(loadingFields)s)""" % loadEntries
-            
+
             db.query(loadcode)
             logging.info("enabling keys on %s" %self.tableName)
             db.query("ALTER TABLE %s ENABLE KEYS" % self.tableName)
@@ -820,7 +772,7 @@ class variableSet(object):
         for variable in self.variables:
             if variable.datatype=="categorical":
                 variable.build_ID_and_lookup_tables()
-                
+
         if len(self.uniques()) > 0 and self.tableName!="catalog":
             #catalog has separate rules handled in CreateDatabase.py.
             fileCommand = self.uniqueVariableFastSetup("MYISAM")
@@ -834,9 +786,9 @@ class variableSet(object):
             )
         fileCommand += ",\n".join([variable.fastSQL() for variable in self.variables if (variable.unique and variable.fastSQL() is not None)])
         fileCommand += ") ENGINE=%s;\n" % engine
-        
+
         fast_fields = self.fastAnchor + ", " + ",".join([variable.fastField for variable in self.variables if variable.unique and variable.fastSQL() is not None])
-        
+
         fileCommand += "INSERT INTO tmp SELECT " + fast_fields
         fileCommand += " FROM %s " % self.tableName
         fileCommand += " ".join([" JOIN %(field)s__id USING (%(field)s ) " % variable.__dict__ for variable in self.variables if variable.unique and variable.fastSQL() is not None and variable.datatype=="categorical"])+ ";\n"
@@ -848,7 +800,7 @@ class variableSet(object):
         fileCommand += "RENAME TABLE tmp TO %s;\n" % name
 
         return fileCommand
-    
+
     def updateMasterVariableTable(self):
         """
         All the categorical variables get a lookup table;
@@ -878,7 +830,7 @@ class variableSet(object):
                     raise
             self.db.query('DELETE FROM masterTableTable WHERE masterTableTable.tablename="%s";' %self.fastName)
             self.db.query("INSERT INTO masterTableTable VALUES (%s, %s, %s)", (self.fastName,parentTab,escape_string(fileCommand)))
-    
+
     def createNwordsFile(self):
         """
         A necessary supplement to the `catalog` table.
@@ -900,4 +852,4 @@ class DummyDict(dict):
     """
     # we need to have it there.
     def __missing__(self,key):
-        return key        
+        return key
