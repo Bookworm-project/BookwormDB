@@ -18,7 +18,6 @@ def DaysSinceZero(dateobj):
     #Zero isn't a date, which python knows but MySQL and javascript don't.
     return (dateobj - date(1,1,1)).days + 366
 
-
 mySQLreservedWords = set(["ACCESSIBLE", "ADD",
 "ALL", "ALTER", "ANALYZE", "AND", "AS", "ASC", "ASENSITIVE", "BEFORE",
 "BETWEEN", "BIGINT", "BINARY", "BLOB", "BOTH", "BY", "CALL",

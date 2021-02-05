@@ -226,7 +226,11 @@ section'client'
             raise NameError("Don't try to delete the mysql database")
         bookworm.db.query("DROP DATABASE IF EXISTS {}".format(self.dbname))
         import shutil
-        shutil.rmtree('.bookworm')
+        try:
+            shutil.rmtree('.bookworm')
+        except FileNotFoundError:
+            pass
+
 
     def encoded(self, args):
         """

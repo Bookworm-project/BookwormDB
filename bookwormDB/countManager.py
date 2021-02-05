@@ -32,9 +32,6 @@ QUEUE_POST_THRESH = max([100000, QUEUE_POST_THRESH])
 
 logging.info("Filling dicts to size {}".format(QUEUE_POST_THRESH))
 
-import random
-import gzip
-
 def flush_counter(counter, qout):
     for k in ['', '\x00']:
         try:
@@ -65,16 +62,14 @@ def counter(qout, i, fin, mode = "count"):
 
     count_signals = [".unigrams", ".bigrams", ".trigrams", ".quadgrams"]
     logging.info(f"fin is {fin}")
+
     for signal in count_signals:
         if signal in fin:
             datatype = signal.strip(".")
             if mode == "encode":
                 encoder = tokenBatches([datatype])
 
-
-
-    for id, text in yield_texts(fin, i):
-
+    for id, text in yield_texts(fin, i, encoder.IDfile):
         if datatype == "raw":
             tokenizer = Tokenizer(text)
         else:
@@ -100,35 +95,42 @@ def counter(qout, i, fin, mode = "count"):
     if mode == "encode":
         encoder.close()
 
-def yield_texts(fname, i):
+def yield_texts(fname, i, IDfile):
     p = Path(fname)
     if p.is_dir():
-        for id, text in yield_texts_from_directory(p, i):
+        for id, text in yield_texts_from_directory(p, i, IDfile):
             yield (id, text)
     else:
-        for id, text in yield_lines_from_single_file(p, i):
+        for id, text in yield_lines_from_single_file(p, i, IDfile):
             yield (id, text)
 
-
-def yield_texts_from_directory(dir, i):
+def yield_texts_from_directory(dir, i, IDfile):
     for file in dir.glob('**/*.txt*'):
-        # Strips _djvu for Internet Archive.
-        basename = file.name.rstrip(".gz").rstrip(".txt").rstrip("_djvu")
+        # Strips _djvu just for Internet Archive.
+        basename = file.name.rsplit(".txt", 1)[0]
+        # print(basename, file.name)
+        try:
+            id = IDfile[basename]
+        except KeyError:
+            logging.info(f"No catalog entry for {basename} at {file.name}, skipping")
+            continue
         # Use sha256
         key = int(hashlib.md5(basename.encode('utf-8')).hexdigest(), 16)
+        logging.info(basename, key)
         if key % cpus != i:
             continue
         if file.name.endswith(".txt.gz"):
-            fin = gzip.open(file)
+            fin = gzip.open(file, mode="rt")
         elif file.name.endswith(".txt"):
             fin = open(file)
         else:
             logging.error(f"Can't handle file {file}")
         yield (basename, fin.read().replace("\t", "\f").replace("\n", "\f"))
 
-def yield_lines_from_single_file(fname, i):
+def yield_lines_from_single_file(fname, i, IDfile):
+
     if (str(fname).endswith(".gz")):
-        fin = gzip.open(fname, 'rt')
+        fin = gzip.open(fname, mode = 'rt')
     else:
         fin = open(fname)
     totals = 0
@@ -144,6 +146,12 @@ def yield_lines_from_single_file(fname, i):
         except ValueError:
             errors += 1
             continue
+        try:
+            id = IDfile[filename]
+        except KeyError:
+            logging.warning(f"No catalog entry for {id} though it appears in {filename}, skipping")
+            continue
+
         yield (filename, text)
     if totals > 0 and errors/totals > 0.01:
         logging.warning("Skipped {} rows without tabs".format(errors))

@@ -43,6 +43,7 @@ def wordRegex():
     Note: this compiles looking for the most complicated words first, and as it goes on finds simpler and simpler forms
     """
     bigregex = re.compile("|".join([decimals,possessive,numbers,abbreviation,sharps,punctuators,MasterExpression]),re.UNICODE|re.IGNORECASE)
+    bigregex = re.compile(u"\w+|\p{P}|\p{S}")
     return bigregex
 
 
@@ -78,7 +79,7 @@ class tokenBatches(object):
     with 3-byte integer encoding for wordid and bookid.
     """
 
-    def __init__(self, levels=["unigrams","bigrams"]):
+    def __init__(self, levels=["unigrams", "bigrams"]):
         """
 
         mode: 'encode' (write files out)
@@ -87,26 +88,36 @@ class tokenBatches(object):
         self.levels=levels
 
         # placeholder to alert that createOutputFiles must be run.
-        self.completedFile = None
+        self._IDfile = None
+        self._dictionary = None
 
-    def createOutputFiles(self):
-        self.completedFile = open(".bookworm/texts/encoded/completed/" + self.id,"w")
-        self.outputFiles = dict()
-        for level in self.levels:
-            self.outputFiles[level] = open(".bookworm/texts/encoded/{}/{}.txt".format(level, self.id),"w")
+    def output_files(self, level):
+        if not hasattr(self, "outputFiles"):
+            self.outputFiles = dict()
+        if not level in self.outputFiles:
+            self.outputFiles[level] = open(".bookworm/texts/encoded/{}/{}.txt".format(level, self.id), "w")
+        return self.outputFiles[level]
 
-    def attachDictionaryAndID(self):
-        self.dictionary = readDictionaryFile()
-        self.IDfile = readIDfile()
+    @property
+    def IDfile(self):
+        if self._IDfile:
+            return self._IDfile
+        self._IDfile = readIDfile()
+        return self._IDfile
 
+    @property
+    def dictionary(self):
+        if self._dictionary:
+            return self._dictionary
+        self._dictionary = readDictionaryFile()
+        return self._dictionary
 
     def close(self):
         """
         This test allows the creation of bookworms with fewer document than requested
         threads, which happens to be the case in the tests.
         """
-        if self.completedFile is not None:
-            self.completedFile.close()
+        if hasattr(self, "outputFiles"):
             for v in self.outputFiles.values():
                 v.close()
 
@@ -120,16 +131,13 @@ class tokenBatches(object):
         'tokenizer': a tokenizer object
 
         """
-        if self.completedFile is None:
-            self.createOutputFiles()
-            self.attachDictionaryAndID()
 
         #The dictionary and ID lookup tables should be pre-attached.
         dictionary = self.dictionary
         IDfile = self.IDfile
 
         levels = None
-        
+
         """
         if source=="raw_text":
             parts = row.split("\t", 1)
@@ -149,7 +157,7 @@ class tokenBatches(object):
                 raise
             tokens = preTokenized(token, count, self.levels[0])
         """
-        
+
         try:
             textid = IDfile[filename]
         except KeyError:
@@ -157,7 +165,7 @@ class tokenBatches(object):
             return
 
         for level in self.levels:
-            outputFile = self.outputFiles[level]
+            outputFile = self.output_files(level)
             output = []
 
             counts = tokenizer.counts(level)
@@ -186,9 +194,6 @@ class tokenBatches(object):
             except IOError as e:
                 logging.exception(e)
 
-        if write_completed:
-            self.completedFile.write(filename + "\n")
-
 class Tokenizer(object):
     """
     A tokenizer is initialized with a single text string.
@@ -208,17 +213,17 @@ class Tokenizer(object):
         global haveWarnedUnicode
         self.string = string
         self.tokenization_regex = tokenization_regex
-        self.tokens = None
+        self._tokens = None
+
+    @property
+    def tokens(self):
+        if self._tokens:
+            return self._tokens
+        self._tokens = self.tokenize()
+        return self._tokens
+
     def tokenize(self):
-        """
-        This tries to return the pre-made tokenization:
-        if that doesn't exist, it creates it.
-        """
-        if self.tokens is not None:
-            return self.tokens
-        """
-        For speed, don't import until here.
-        """
+
         tokenization_regex=self.tokenization_regex
         global re
         if re is None:
@@ -229,20 +234,22 @@ class Tokenizer(object):
             if bigregex==None:
                 bigregex = wordRegex()
             tokenization_regex = bigregex
-        self.tokens = re.findall(tokenization_regex, self.string)
-        return self.tokens
+
+
+        components = self.string.split("\f")
+        return [re.findall(tokenization_regex, component) for component in components]
 
     def ngrams(self, n, collapse = False):
         """
         All the ngrams in the text can be created as a tuple by zipping an arbitrary number of
         copies of the text to itself.
         """
-
-        self.tokenize()
-        l = list(zip(*[self.tokens[i:] for i in range(n)]))
+        values = []
+        for tokenset in self.tokens:
+            values.extend(zip(*[tokenset[i:] for i in range(n)]))
         if collapse:
-            l = [" ".join(tupled) for tupled in l]
-        return l
+            values = [" ".join(tupled) for tupled in values]
+        return values
 
     def unigrams(self):
         return self.ngrams(1)
@@ -263,8 +270,7 @@ class Tokenizer(object):
         """
         1-grams have tuple keys, but words have index keys.
         """
-        self.tokenize()
-        return self.tokens
+        return [item for sublist in self.tokens for item in sublist]
 
     def counts(self, whichType):
 
@@ -301,29 +307,3 @@ class PreTokenized(object):
         if level != self.level:
             raise
         return self.output
-
-
-def getAlreadySeenList(folder):
-    #Load in a list of what's already been translated for that level.
-    #Returns a set.
-    files = os.listdir(folder)
-    seen = set([])
-    for file in files:
-        for line in open(folder + "/" + file):
-            seen.add(line.rstrip("\n"))
-    return seen
-
-def encode_text_stream():
-    seen = getAlreadySeenList(".bookworm/texts/encoded/completed")
-    tokenBatch = tokenBatches()
-    tokenBatch.attachDictionaryAndID()
-    for line in sys.stdin:
-        filename = line.split("\t",1)[0]
-        line = line.rstrip("\n")
-        if filename not in seen:
-            tokenBatch.encodeRow(line)
-
-    # And printout again at the end
-
-if __name__=="__main__":
-    encode_text_stream()

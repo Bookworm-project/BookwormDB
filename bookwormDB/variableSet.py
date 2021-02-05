@@ -229,9 +229,9 @@ class dataField(object):
             try:
                 self.maxlength = max([self.maxlength,1])
             except TypeError:
-                logging.error(f"Unable to calculate length for {field}"
+                logging.error(f"Unable to calculate length for {self.field}"
                                 "perhaps there are no entries in the catalog?")
-                raise
+                self.maxlength = 1;
             code = """DROP TABLE IF EXISTS tmp;
                    CREATE TABLE tmp (%(field)s__id %(intType)s ,PRIMARY KEY (%(field)s__id),
                          %(field)s VARCHAR (%(maxlength)s) ) ENGINE=%(engine)s
