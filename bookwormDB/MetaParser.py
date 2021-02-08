@@ -87,7 +87,16 @@ def ParseFieldDescs(write = False):
             if "derived" in field:
                 fields_to_derive.append(field)
             else:
-                output.append(field)
+                if field['type'] == "character":
+                    field['derived'] = [
+                        {"resolution": "year"},
+                        {"resolution": "day"}
+                    ]
+                    fields_to_derive.append(field)
+                elif field['type'] == "integer":
+                    output.append(field)
+                else:
+                    raise TypeError("Unable to parse temporal field " + field['field'])
         else:
             output.append(field)
 
