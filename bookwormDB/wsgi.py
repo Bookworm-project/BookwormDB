@@ -15,6 +15,9 @@ def content_type(query):
     if format == "json":
         return "application/json"
 
+    if format == "json_c":
+        return "application/json"
+
     if format == "feather":
         return "application/octet-stream"
 
