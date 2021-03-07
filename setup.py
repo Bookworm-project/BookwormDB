@@ -19,7 +19,6 @@ setup(
     author_email="bmschmidt@gmail.com",
     license="MIT",
     classifiers=[
-        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Education',
         "Natural Language :: English",
@@ -36,6 +35,6 @@ setup(
     ],
     install_requires=["numpy","pandas","mysqlclient",
                       "python-dateutil", "psutil", "bounter",
-                      "gunicorn", "regex"
+                      "gunicorn", "regex", "pyarrow"
     ]
 )

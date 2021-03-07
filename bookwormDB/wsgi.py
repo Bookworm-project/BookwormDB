@@ -4,6 +4,8 @@ from urllib.parse import unquote
 import logging
 import multiprocessing
 import gunicorn.app.base
+from bookwormDB.query_cache import cache, cacheAPI
+
 from datetime import datetime
 
 def content_type(query):

@@ -1,16 +1,15 @@
 #!/usr/bin/python
 
-from pandas import merge
-from pandas import Series
+from pandas import merge, Series, set_option, DataFrame
 from pandas.io.sql import read_sql
-from pandas import merge
-from pandas import set_option
+from pyarrow import feather
 from copy import deepcopy
 from collections import defaultdict
 from .mariaDB import DbConnect
 from .SQLAPI import userquery
 from .mariaDB import Query
 from .bwExceptions import BookwormException
+from .query_cache import Query_Cache
 import re
 import json
 import logging
@@ -18,6 +17,8 @@ import numpy as np
 import csv
 import io
 import numpy as np
+from urllib import request
+from urllib import parse
 
 """
 The general API is some functions for working with pandas to calculate
@@ -258,6 +259,8 @@ class APIcall(object):
             query["search_limits"]["word"] = query["search_limits"]["unigram"]
             del query["search_limits"]["unigram"]
 
+    
+
     def idiot_proof_arrays(self):
         for element in ['counttype', 'groups']:
             try:
@@ -309,6 +312,12 @@ class APIcall(object):
             self.pandas_frame = self.get_data_from_source()
             return self.pandas_frame
 
+    #@attr
+    #data_frame(self):
+    #    if self._pandas_frame is not None:
+    #        return self.return_pandas_frame
+            
+        
     def validate_query(self):
         self.ensure_query_has_required_fields()
 
@@ -326,8 +335,6 @@ class APIcall(object):
                 raise BookwormException(err)
 
     def prepare_search_and_compare_queries(self):
-
-
 
         call1 = deepcopy(self.query)
         call2 = deepcopy(call1)
@@ -491,10 +498,13 @@ class APIcall(object):
                 if fmt == "tsv":
                     return frame.to_csv(sep="\t", encoding="utf8", index=False)
 
-                if fmt == "feather":
+                if fmt == "feather" or fmt == "feather_js":
+                    compression = "zstd"
+                    if fmt == "feather_js":
+                        compression = "uncompressed"
                     fout = io.BytesIO(b'')
                     try:
-                        frame.to_feather(fout)
+                        feather.write_table(frame, fout, compression = compression)
                     except:
                         logging.warning("You need the pyarrow package installed to export as feather.")
                         raise
@@ -710,6 +720,7 @@ class oldSQLAPIcall(APIcall):
 class MetaAPIcall(APIcall):
     def __init__(self, endpoints):
         self.endpoints = endpoints
+        super().__init__(self)
         
     def connect(self, endpoint):
         # return some type of a connection.
@@ -741,8 +752,9 @@ class SQLAPIcall(APIcall):
     But the point is, you need to define a function "generate_pandas_frame"
     that accepts an API call and returns a pandas frame.
 
-    But that API call is more limited than the general API; you only need to
+    But that API call is more limited than the general API; it need only
     support "WordCount" and "TextCount" methods.
+    
     """
 
     def generate_pandas_frame(self, call = None):
@@ -764,3 +776,99 @@ class SQLAPIcall(APIcall):
         df = read_sql(q, con.db)
         logging.debug("Query retrieved")
         return df
+
+
+
+def my_sort(something):
+    if type(something) == list:
+        return sorted(something)
+    if type(something) == dict:
+        ks = sorted([*dict.keys()])
+        output = {}
+        for k in ks:
+            output[k] = something[k]
+        return output
+    return something
+    
+def standardized_query(query: dict) -> dict:
+    trimmed_call = {}
+    needed_keys = [
+        'search_limits',
+        'compare_limits',
+        'words_collation',
+        'database',
+        'method',
+        'groups',
+        'counttypes',
+        ]
+    needed_keys.sort()
+    for k in needed_keys:
+        try:
+            trimmed_call[k] = my_sort(query[k])
+        except KeyError:
+            continue
+    return trimmed_call
+
+
+
+class ProxyAPI(APIcall):
+    
+    """
+    Forward a request to a remote url.
+    
+    Can be useful if you want a proxy server with caching on one server which
+    reaches out to a different server for uncached requests, or perhaps 
+    if you want a single gateway for multiple different bookworms.
+    
+    """
+    
+    def __init__(self, endpoint):
+        """
+        Endpoint: A URL, like `http://localhost:10013`.
+        """
+        self.endpoint = endpoint
+        super().__init__(self)
+    
+    def generate_pandas_frame(self, call = None) -> DataFrame:
+        """
+        Note--requires that the endpoint expose the new feather method.
+        """
+        
+        if call is None:
+            call = self.query
+        call = deepcopy(call)
+        call['format'] = 'feather'
+        qstring = parse.urlencode(json.dumps(query))
+        connection = request.urlopen(f"{self.endpoint}/?qstring")
+        return feather.read_table(connection)
+        
+class Caching_API(APIcall):
+    def __init__(self, query: dict, cache: Query_Cache, fallback_api: APIcall, **kwargs):
+        """
+        cache: an existing Query_Cache method. These are expensive to create,
+               so you don't get one generated by default.
+               
+        fallback_api: Must be initialized with a parent API class that also
+                      inherits from APICall.
+        
+        kwargs: are passed to the fallback API.
+        """
+        self.cache = cache
+        self.Fallback = fallback_api
+        self.kwargs = kwargs
+        super().__init__(query)
+        
+    def generate_pandas_frame(self, call = None) -> DataFrame:
+        if call is None:
+            call = self.query
+            
+        trimmed_call = standardized_query(call)
+        try:
+            return self.cache[trimmed_call]
+        except FileNotFoundError:
+            resolution = Fallback(query, **self.kwargs).generate_pandas_frame()
+            self.cache[trimmed_call] = resolution
+            if random.random() < .1:
+                # Don't bother doing this every time.
+                self.cache.trim_cache()
+            return resolution
