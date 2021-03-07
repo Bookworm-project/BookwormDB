@@ -74,7 +74,7 @@ class Query_Cache:
         files = Path(self.location).glob("*.feather")
         all_of_em = []
         for file in files:
-            all_of_em.push((-1 * file.stat().st_mtime, file))
+            all_of_em.append((-1 * file.stat().st_mtime, file))
         all_of_em.sort()
         for extra in all_of_em[self.max_entries:]:
             try:
