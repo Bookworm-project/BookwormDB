@@ -7,6 +7,7 @@ import sys
 import os
 import bookwormDB
 import argparse
+from .store import store
 
 """
 This is the code that actually gets run from the command-line executable.
@@ -567,15 +568,19 @@ def run_arguments():
 "the gunicorn endpoint behind a more powerful webserver like apache or nginx.")
 
     serve_parser.add_argument("--full-site", action = "store_true", help="Serve a webpage as well as a query endpoint? Not active.")
-
     serve_parser.add_argument("--port", "-p", default="10012", help="The port over which to serve the bookworm", type=int)
-
     serve_parser.add_argument("--bind", "-b", default="127.0.0.1", help="The IP address to bind the server to.", type=str)
-
     serve_parser.add_argument("--workers", "-w", default="0", help="How many gunicorn worker threads to launch for the API. Reduce if you're seeing memory issues.",type=int)
-
     serve_parser.add_argument("--dir","-d",default="http_server",help="A filepath for a directory to serve from. Will be created if it does not exist.")
-
+#    serve_parser.add_argument("--API", "-a", default="MySQL",
+#                                help="The type of API endpoint to run. 'MySQL' will"
+#                                      "will run MySQL")
+    serve_parser.add_argument("--cache", default = "none",
+                                help="cache locations?")
+    serve_parser.add_argument("--cold-storage", default = "none",
+                                help="A folder with cached query results. Allows long-term cold-storage.")                                                            
+    serve_parser.add_argument("--remote-host", default = None,
+                                help="Hosts to pass queries through to. If enabled.")
 
 
     # Configure the global server.
@@ -586,6 +591,8 @@ def run_arguments():
 
     # Call the function
     args = parser.parse_args()
+    # stash those away.
+    store()['args'] = args
     # Set the logging level based on the input.
     numeric_level = getattr(logging, args.log_level.upper(), None)
     if not isinstance(numeric_level, int):

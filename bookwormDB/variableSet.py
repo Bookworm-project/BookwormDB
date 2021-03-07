@@ -216,10 +216,10 @@ class dataField(object):
             self.dbToPutIn.query(query)
 
     def fastLookupTableIfNecessary(self, engine="MEMORY"):
-
         """
         This uses the already-created ID table to create a memory lookup.
         """
+        
         self.engine = engine
         if self.datatype == 'categorical':
             logging.debug("Creating a memory lookup table for " + self.field)
