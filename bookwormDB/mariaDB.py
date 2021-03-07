@@ -778,7 +778,6 @@ class Query(object):
             self.actualWords = [item[0] for item in self.cursor.fetchall()]
         else:
             raise TypeError("Suspiciously low word count")
-            self.actualWords = ["tasty", "mistake", "happened", "here"]
 
     def custom_SearchString_additions(self, returnarray):
         """
