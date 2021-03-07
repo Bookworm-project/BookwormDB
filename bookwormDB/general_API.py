@@ -19,6 +19,7 @@ import io
 import numpy as np
 from urllib import request
 from urllib import parse
+import random
 
 """
 The general API is some functions for working with pandas to calculate
@@ -504,7 +505,7 @@ class APIcall(object):
                         compression = "uncompressed"
                     fout = io.BytesIO(b'')
                     try:
-                        feather.write_table(frame, fout, compression = compression)
+                        feather.write_feather(frame, fout, compression = compression)
                     except:
                         logging.warning("You need the pyarrow package installed to export as feather.")
                         raise
@@ -783,9 +784,10 @@ def my_sort(something):
     if type(something) == list:
         return sorted(something)
     if type(something) == dict:
-        ks = sorted([*dict.keys()])
+        keys = list(something.keys())
+        keys.sort()
         output = {}
-        for k in ks:
+        for k in keys:
             output[k] = something[k]
         return output
     return something
@@ -822,12 +824,12 @@ class ProxyAPI(APIcall):
     
     """
     
-    def __init__(self, endpoint):
+    def __init__(self, query, endpoint):
         """
-        Endpoint: A URL, like `http://localhost:10013`.
+        Endpoint: A URL, like `http://localhost:10012`.
         """
         self.endpoint = endpoint
-        super().__init__(self)
+        super().__init__(query)
     
     def generate_pandas_frame(self, call = None) -> DataFrame:
         """
@@ -838,10 +840,21 @@ class ProxyAPI(APIcall):
             call = self.query
         call = deepcopy(call)
         call['format'] = 'feather'
-        qstring = parse.urlencode(json.dumps(query))
-        connection = request.urlopen(f"{self.endpoint}/?qstring")
-        return feather.read_table(connection)
-        
+        print(call)
+        query_string = json.dumps(call)
+        print(query_string)
+        qstring = parse.quote(query_string)
+        print(qstring)
+        remote_url = f"{self.endpoint}/?{qstring}"
+        buffer = io.BytesIO()
+        connection = request.urlopen(remote_url)
+        buffer.write(connection.read())
+        try:
+            return feather.read_feather(buffer)
+        except:
+            # TODO: re-throw bookworm errors with additional context.
+            
+            raise
 class Caching_API(APIcall):
     def __init__(self, query: dict, cache: Query_Cache, fallback_api: APIcall, **kwargs):
         """
@@ -866,7 +879,7 @@ class Caching_API(APIcall):
         try:
             return self.cache[trimmed_call]
         except FileNotFoundError:
-            resolution = Fallback(query, **self.kwargs).generate_pandas_frame()
+            resolution = self.Fallback(call, **self.kwargs).generate_pandas_frame()
             self.cache[trimmed_call] = resolution
             if random.random() < .1:
                 # Don't bother doing this every time.

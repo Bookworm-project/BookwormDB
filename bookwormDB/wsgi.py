@@ -1,10 +1,12 @@
-from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
+from bookwormDB.general_API import SQLAPIcall as SQLAPIcall, Caching_API, ProxyAPI
 import json
 from urllib.parse import unquote
 import logging
 import multiprocessing
 import gunicorn.app.base
-from bookwormDB.query_cache import cache, cacheAPI
+from bookwormDB.store import store
+from .store import store
+from .query_cache import Query_Cache 
 
 from datetime import datetime
 
@@ -25,6 +27,27 @@ def content_type(query):
 
     return 'text/plain'
 
+
+args = store()['args']
+API_kwargs = {}
+if args.cache != "none":
+    query_cache = Query_Cache(
+        args.cache,
+        max_entries = 256,
+        max_length = 2**8,
+        cold_storage = args.cold_storage)
+
+    
+if args.remote_host is None:
+    logging.info("Using SQL API")
+    API = SQLAPIcall
+else:
+    logging.info("Using proxy API")
+    API = ProxyAPI
+    API_kwargs = {
+        "endpoint": args.remote_host 
+    }
+    
 def application(environ, start_response, logfile = "bookworm_queries.log"):
     # Starting with code from http://wsgi.tutorial.codepoint.net/parsing-the-request-post
     try:
@@ -73,7 +96,12 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
         start_response(status, list(headers.items()))
         return [b'{"status":"error", "message": "You have passed invalid JSON to the Bookworm API"}']
 
-    process = SQLAPIcall(query)
+    args = store()['args']
+    if args.cache == "none":
+        process = API(query, **API_kwargs)
+    else:
+        process = Caching_API(query, query_cache, API, **API_kwargs)
+    
     response_body = process.execute()
 
     # It might be binary already.
@@ -124,7 +152,9 @@ class StandaloneApplication(gunicorn.app.base.BaseApplication):
 def run(port = 10012, bind="0.0.0.0", workers = number_of_workers()):
     """
     port: the service port
-    bind: the host to bind to.
+    bind: the host to bind to. Requests that don't match this address
+          will be ignored. The default accepts all connections: 127.0.0.1 listens
+          only to localhost.
     """
     if workers==0:
         workers = number_of_workers()

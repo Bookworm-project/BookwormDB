@@ -13,6 +13,7 @@ import sys
 import json
 from setup import setup_bookworm, setup_bookworm_unicode
 from pyarrow import feather
+import io
 
 class Bookworm_Return_Formats(unittest.TestCase):
 

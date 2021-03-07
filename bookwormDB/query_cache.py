@@ -12,8 +12,11 @@ def hashcode(query: dict) -> str:
     return hashlib.sha1(json.dumps(query).encode("utf-8")).hexdigest()
 
 class Query_Cache:
+    # By default, use locally stored feather files. If that's bad, it Would
+    # be pretty easy to split the class out into anything using an API 
+    # that maps from cache[query_dictionary] -> pandas_frame.
     
-    def __init__(self, location = "/tmp",
+    def __init__(self, location,
                 max_entries = 256,
                 max_length = 2**8,
                 cold_storage = None):
@@ -32,20 +35,22 @@ class Query_Cache:
         if not Path(location).exists():
             Path(location).mkdir(parents = True)
         assert Path(location).is_dir()
-        for path in Path(cold_storage).glob("**/*.feather"):
-            code = str(path.with_suffix("").name)
-            self.precache[code] = path
+        if cold_storage is not None:
+            for path in Path(cold_storage).glob("**/*.feather"):
+                code = str(path.with_suffix("").name)
+                self.precache[code] = path
         
     def filepath(self, query: dict) -> Path: 
         code = hashcode(query)
-        if code in precache:
-            return precache[code]
-        return (Path(self.location) / code).with_suffix("feather")
+        if code in self.precache:
+            return self.precache[code]
+        return (Path(self.location) / code).with_suffix(".feather")
         
     def __getitem__(self, query: dict) -> pd.DataFrame:
         if hashcode(query) in self.precache:
             # First check any manual queries.
-            return feather.read_feather[self.precache[hashcode(query)]]
+#            print(self.precache[hashcode(query)])
+            return feather.read_feather(self.precache[hashcode(query)])
             
         p = self.filepath(query)
         table = feather.read_feather(p)
@@ -58,7 +63,7 @@ class Query_Cache:
         if not self.max_length:
             # 0 or None are both reasonable here.
             return 
-        path = self.filepath(query).open(mode="w")
+        path = self.filepath(query).open(mode="wb")
         feather.write_feather(table, path, compression = "zstd")
         
     def trim_cache(self):
