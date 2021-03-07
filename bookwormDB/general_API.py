@@ -261,7 +261,7 @@ class APIcall(object):
     def idiot_proof_arrays(self):
         for element in ['counttype', 'groups']:
             try:
-                if not isinstance(self.query[element], list):
+                if isinstance(self.query[element], str):
                     self.query[element] = [self.query[element]]
             except KeyError:
                 # It's OK if it's not there.
@@ -628,6 +628,7 @@ class APIcall(object):
         # Define a recursive structure to hold the stuff.
         def tree():
             return defaultdict(tree)
+
         returnt = tree()
 
         for row in data.itertuples(index=False):
@@ -710,11 +711,11 @@ class oldSQLAPIcall(APIcall):
 class MetaAPIcall(APIcall):
     def __init__(self, endpoints):
         self.endpoints = endpoints
-        
+
     def connect(self, endpoint):
         # return some type of a connection.
         pass
-        
+
     def generate_pandas_frame(self, call):
         if call is None:
             call = deepcopy(self.query)
@@ -723,10 +724,10 @@ class MetaAPIcall(APIcall):
             connection = self.connect(endpoint)
             d = connection.query(call)
         count_fields = []
-        
+
         for field in ['WordCount', 'TextCount']:
             if field in call["counttype"]:
-                count_fields.push(field)        
+                count_fields.push(field)
         together = pd.concat(d)
         together[count_fields].sum()
 
