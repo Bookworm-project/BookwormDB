@@ -120,13 +120,26 @@ def yield_texts_from_directory(dir, i, IDfile):
         if key % cpus != i:
             continue
         if file.name.endswith(".txt.gz"):
-            fin = gzip.open(file, mode="rt")
+            try:
+                fin = gzip.open(file, mode="rt")
+            except UnicodeDecodeError:
+                logging.error(f"Unable to read {file}: unicode error")
+                continue
+            except gzip.BadGzipFile:
+                logging.error(f"Unable to read {file}: Bad gzip file")
+                continue
         elif file.name.endswith(".txt"):
             fin = open(file)
         else:
             logging.error(f"Can't handle file {file}")
-        yield (basename, fin.read().replace("\t", "\f").replace("\n", "\f"))
-
+        try:
+            yield (basename, fin.read().replace("\t", "\f").replace("\n", "\f"))
+        except UnicodeDecodeError:
+            logging.error(f"Unable to read {file}")
+        except gzip.BadGzipFile:
+            logging.error(f"Unable to read {file}: Bad gzip file")
+            continue            
+        
 def yield_lines_from_single_file(fname, i, IDfile):
 
     if (str(fname).endswith(".gz")):
