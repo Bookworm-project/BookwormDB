@@ -6,9 +6,11 @@ import multiprocessing
 import gunicorn.app.base
 from bookwormDB.store import store
 from .store import store
-from .query_cache import Query_Cache 
+from .query_cache import Query_Cache
 
 from datetime import datetime
+
+
 
 def content_type(query):
     try:
@@ -40,7 +42,7 @@ if args.cache != "none":
         max_length = 2**8,
         cold_storage = args.cold_storage)
 
-    
+
 if args.remote_host is None:
     logging.info("Using SQL API")
     API = SQLAPIcall
@@ -48,9 +50,9 @@ else:
     logging.info("Using proxy API")
     API = ProxyAPI
     API_kwargs = {
-        "endpoint": args.remote_host 
+        "endpoint": args.remote_host
     }
-    
+
 def application(environ, start_response, logfile = "bookworm_queries.log"):
     # Starting with code from http://wsgi.tutorial.codepoint.net/parsing-the-request-post
     try:
@@ -70,6 +72,12 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
         ip = environ.get('REMOTE_ADDR')
     if ip is None:
         ip = environ.get('REMOTE_ADDR')
+
+    # Caching IPs directly is probably in violation of GPDR.
+    # It's nice to have session browsing data, so we'll grab just the
+    # last byte which should be enough to get something out of.
+    ip = ip.split(".")[-1]
+
     query = unquote(q)
 
     headers = {
@@ -104,7 +112,7 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
         process = API(query, **API_kwargs)
     else:
         process = Caching_API(query, query_cache, API, **API_kwargs)
-    
+
     response_body = process.execute()
 
     # It might be binary already.
