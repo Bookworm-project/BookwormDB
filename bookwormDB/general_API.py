@@ -5,9 +5,7 @@ from pandas.io.sql import read_sql
 from pyarrow import feather
 from copy import deepcopy
 from collections import defaultdict
-from .mariaDB import DbConnect
-from .SQLAPI import userquery
-from .mariaDB import Query
+from .duckdb import DuckQuery
 from .bwExceptions import BookwormException
 from .query_cache import Query_Cache
 import re
@@ -239,13 +237,13 @@ class APIcall(object):
 
     Without a "return_pandas_frame" method, it won't run.
     """
-    def __init__(self, APIcall):
+    def __init__(self, query):
 
         """
         Initialized with a dictionary unJSONed from the API defintion.
         """
 
-        self.query = APIcall
+        self.query = query
         self.idiot_proof_arrays()
         self.set_defaults()
 
@@ -743,21 +741,17 @@ class MetaAPIcall(APIcall):
         together = pd.concat(d)
         together[count_fields].sum()
 
-class SQLAPIcall(APIcall):
+class DuckDBCall(APIcall):
     """
-    To make a new backend for the API, you just need to extend the base API
-    call class like this.
-
-    This one is comically short because all the real work is done in the
-    userquery object.
-
-    But the point is, you need to define a function "generate_pandas_frame"
-    that accepts an API call and returns a pandas frame.
-
-    But that API call is more limited than the general API; it need only
-    support "WordCount" and "TextCount" methods.
-    
+    Fetches from DuckDB. Must create a connection before passing,
+    to discourage on-the-fly creation which is slow.
     """
+
+    def __init__(self, db, **kwargs):
+
+        self.db = db
+            
+        super().__init__(**kwargs)
 
     def generate_pandas_frame(self, call = None):
         """
@@ -769,16 +763,14 @@ class SQLAPIcall(APIcall):
         more legacy code.
 
         """
-
         if call is None:
             call = self.query
-        con = DbConnect(self.query['database'])
-        q = Query(call).query()
-        logging.debug("Preparing to execute {}".format(q))
-        df = read_sql(q, con.db)
+
+        q = DuckQuery(call, db = self.db).query()
+        logging.warning("Preparing to execute {}".format(q))
+        df = self.db.execute(q).df()
         logging.debug("Query retrieved")
         return df
-
 
 
 def my_sort(something):
@@ -813,7 +805,6 @@ def standardized_query(query: dict) -> dict:
     return trimmed_call
 
 
-
 class ProxyAPI(APIcall):
     
     """
@@ -841,11 +832,8 @@ class ProxyAPI(APIcall):
             call = self.query
         call = deepcopy(call)
         call['format'] = 'feather'
-        print(call)
         query_string = json.dumps(call)
-        print(query_string)
         qstring = parse.quote(query_string)
-        print(qstring)
         remote_url = f"{self.endpoint}/?{qstring}"
         buffer = io.BytesIO()
         connection = request.urlopen(remote_url)
@@ -854,8 +842,8 @@ class ProxyAPI(APIcall):
             return feather.read_feather(buffer)
         except:
             # TODO: re-throw bookworm errors with additional context.
-            
             raise
+
 class Caching_API(APIcall):
     def __init__(self, query: dict, cache: Query_Cache, fallback_api: APIcall, **kwargs):
         """
@@ -886,3 +874,4 @@ class Caching_API(APIcall):
                 # Don't bother doing this every time.
                 self.cache.trim_cache()
             return resolution
+

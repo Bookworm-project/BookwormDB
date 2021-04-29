@@ -7,42 +7,10 @@ from .bwExceptions import BookwormException
 import json
 import re
 import copy
-import MySQLdb
 import hashlib
 import logging
-
-
-
-# If you have bookworms stored on a different host, you can create more lines
-# like this.
-# A different host and read_default_file will let you import things onto a
-# different server.
-
-class DbConnect(object):
-    # This is a read-only account
-    def __init__(self, database=None, host=None):
-
-        self.dbname = database
-
-        import bookwormDB.configuration
-        conf = bookwormDB.configuration.Configfile("read_only").config
-
-        if database is None:
-            raise BookwormException("You must specify a database")
-
-        connargs = {
-            "db": database,
-            "use_unicode": 'True',
-            "charset": 'utf8',
-            "user": conf.get("client", "user"),
-            "password": conf.get("client", "password"),
-            "host": conf.get("client", "host")
-        }
-
-        logging.warning("Preparing to connect with args")
-        logging.warning(connargs)
-        self.db = MySQLdb.connect(**connargs)
-        self.cursor = self.db.cursor()
+from MySQLdb import escape_string
+#import duckdb
 
 def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
@@ -50,7 +18,6 @@ def fail_if_nonword_characters_in_columns(input):
         if re.search(r"[^A-Za-z_$*0-9]", key):
             logging.error("{} has nonword character".format(key))
             raise
-
 
 def all_keys(input):
     """
@@ -100,7 +67,7 @@ def check_query(query):
                                      ' counts are supported by the SQL api, but passed {}'.format(v)})
 
 
-class Query(object):
+class DuckQuery(object):
     """
     The base class for a bookworm search.
     """
@@ -115,13 +82,11 @@ class Query(object):
 
         self.db = db
         if db is None:
-            self.db = DbConnect(query_object['database'])
+            raise TypeError("Must supply database.")
 
         self.databaseScheme = databaseScheme
         if databaseScheme is None:
             self.databaseScheme = databaseSchema(self.db)
-
-        self.cursor = self.db.cursor
 
         # Some tablenames.
 
@@ -149,7 +114,12 @@ class Query(object):
         self.search_limits = query_object.setdefault('search_limits', [{"word":["polka dot"]}])
         self.words_collation = query_object.setdefault('words_collation', "Case_Insensitive")
 
-        lookups = {"Case_Insensitive":'word', 'lowercase':'lowercase', 'casesens':'casesens', "case_insensitive":"word", "Case_Sensitive":"casesens", "All_Words_with_Same_Stem":"stem", 'stem':'stem'}
+        lookups = {
+            "Case_Insensitive":'word',
+            'lowercase':'lowercase',
+            'casesens':'casesens', "case_insensitive":"word",
+            "Case_Sensitive":"casesens", "All_Words_with_Same_Stem":"stem",
+            'stem':'stem'}
         self.word_field = lookups[self.words_collation]
 
         self.time_limits = query_object.setdefault('time_limits', [0, 10000000])
@@ -193,7 +163,7 @@ class Query(object):
                         raise
 
                 lookupTableName = "%sLookup%s" %(gramType, gramPos)
-                self.outerGroups.append("%s.%s as %s" %(lookupTableName, self.word_field, group))
+                self.outerGroups.append(f"`{lookupTableName}`.`{self.word_field}` as {group}")
                 self.finalMergeTables.add(" JOIN %s as %s ON %s.wordid=w%s" %(self.wordsheap, lookupTableName, lookupTableName, gramPos))
                 self.groups.add("words%s.wordid as w%s" %(gramPos, gramPos))
 
@@ -265,10 +235,7 @@ class Query(object):
                     del self.compare_dictionary['search_limits'][list(self.query_object['search_limits'].keys())[0]]
                 except:
                     pass
-        """
-        The grouping behavior here is not desirable, but I'm not quite sure how yet.
-        Aha--one way is that it accidentally drops out a bunch of options. I'm just disabling it: let's see what goes wrong now.
-        """
+
 
     def derive_variables(self):
         # These are locally useful, and depend on the search limits put in.
@@ -303,8 +270,8 @@ class Query(object):
 
         q = "SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);"
         logging.debug(q)
-        db.cursor.execute(q)
-        for row in db.cursor.fetchall():
+        db.execute(q)
+        for row in db.fetchall():
             tablenames[row[0]] = row[2]
             tableDepends[row[2]] = row[3]
 
@@ -367,17 +334,17 @@ class Query(object):
 
     def make_group_query(self):
         aliases = [self.databaseScheme.aliases[g] for g in self.query_object["groups"]]
-        if len(aliases) > 0:
-            return "GROUP BY {}".format(", ".join(aliases))
+        if len(self.query_object["groups"]) > 0:
+            return "GROUP BY {}".format(", ".join(self.query_object["groups"]))
         else:
             return " "
 
 
     def main_table(self):
         if self.gram_size() == 1:
-            return 'master_bookcounts as main'
+            return 'unigrams_wordid as main'
         if self.gram_size() == 2:
-            return 'master_bigrams as main'
+            return 'bigrams_word1_word2 as main'
 
     def full_query_tables(self):
         # Joins are needed to provide groups, but *not* to provide
@@ -452,21 +419,15 @@ class Query(object):
         databaseScheme = self.databaseScheme
 
         cols = self.needed_columns()
-        cols = [c for c in cols if not c in ["word", "word1", "word2"]]
+
+        cols = [c for c in cols if not c in {"word", "word1", "word2", "word3", "word4"}]
 
         self.relevantTables = self.databaseScheme.tables_for_variables(cols)
 
         # moreTables = self.tablesNeededForQuery(columns)
 
-
         self.catalog = " NATURAL JOIN ".join(self.relevantTables)
         return self.catalog
-#        for table in self.relevantTables:
-#            if table!="fastcat" and table!="words" and table!="wordsheap" and table!="master_bookcounts" and table!="master_bigrams" and table != "fastcat_" and table != "wordsheap_":
-#                self.catalog = self.catalog + """ NATURAL JOIN """ + table + " "#
-#
-#        return self.catalog
-
 
     def make_catwhere(self, query = "sub"):
         # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
@@ -541,18 +502,17 @@ class Query(object):
                         searchingFor = searchingFor.lower()
 
 
-                    selectString = "SELECT wordid FROM %s WHERE %s = %%s" % (self.wordsheap, self.word_field)
-                    logging.debug(selectString)
-                    cursor = self.db.cursor
-                    cursor.execute(selectString,(searchingFor,))
+                    selectString = f"SELECT wordid FROM wordsheap_ WHERE word = '{searchingFor}'"
+                    logging.warning(selectString)
+                    self.db.execute(selectString)
 
                     # Set the search key being used.
                     search_key = "wordid"
                     if self.gram_size() > 1:
                         # 1-indexed entries in the bigram tables.
-                        search_key = "word{}".format(n + 1)
+                        search_key = f"word{n + 1}"
 
-                    for row in cursor.fetchall():
+                    for row in self.db.fetchall():
                         wordid = row[0]
                         try:
                             locallimits[search_key] += [wordid]
@@ -604,7 +564,7 @@ class Query(object):
 
         if needsBigrams:
             self.main = '''
-                 master_bigrams as main
+                 bigrams_word1_word2 as main
             '''
 
             self.wordstables = """
@@ -616,7 +576,7 @@ class Query(object):
 
         elif needsUnigrams:
             self.main = '''
-            master_bookcounts as main
+            unigrams_wordid as main
             '''
 
             self.wordstables = """
@@ -662,20 +622,20 @@ class Query(object):
 
         if with_words:
             if "TextCount" in self.query_object['counttype']:
-                output.append("count(DISTINCT main.bookid) as TextCount")
+                output.append("count(DISTINCT main.bookid) as 'TextCount'")
             if "WordCount" in self.query_object['counttype']:
-                output.append("sum(main.count) as WordCount")
+                output.append("sum(main.count) as 'WordCount'")
         else:
             if "WordCount" in self.query_object['counttype']:
-                output.append("sum(nwords) as WordCount")
+                output.append("sum(nwords) as 'WordCount'")
             if "TextCount" in self.query_object['counttype']:
-                output.append("count(nwords) as TextCount")
+                output.append("count(nwords) as 'TextCount'")
 
         return output
 
     def bookid_query(self):
 
-        q = "SELECT bookid FROM {catalog} WHERE {catwhere}""".format(**self.__dict__)
+        q = f""" {self.catwhere} """
 
         logging.debug("'{}'".format(self.catwhere))
 
@@ -683,7 +643,7 @@ class Query(object):
             self.bookid_where = " TRUE "
 
         else:
-            self.bookid_where = " bookid IN ({}) ".format(q)
+            self.bookid_where = q
 
 
         return self.bookid_where
@@ -774,8 +734,8 @@ class Query(object):
             words = ' '.join(words).split(' ')
             q = "SELECT word FROM {} WHERE {}".format(self.wordsheap, where_from_hash({self.word_field:words}))
             logging.debug(q)
-            self.cursor.execute(q)
-            self.actualWords = [item[0] for item in self.cursor.fetchall()]
+            self.db.execute(q)
+            self.actualWords = [item[0] for item in self.db.fetchall()]
         else:
             raise TypeError("Suspiciously low word count")
 
@@ -838,8 +798,8 @@ class databaseSchema(object):
     """
 
     def __init__(self, db):
+        # XXXX
         self.db = db
-        self.cursor=db.cursor
         # has of what table each variable is in
         self.tableToLookIn = {}
 
@@ -880,9 +840,9 @@ class databaseSchema(object):
         tableDepends = dict()
         q = "SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);"
         logging.debug(q)
-        db.cursor.execute(q)
+        db.execute(q)
 
-        for row in db.cursor.fetchall():
+        for row in db.fetchall():
             (dbname, alias, tablename, dependsOn) = row
             tablename = self.fallback_table(tablename)
             dependsOn = self.fallback_table(dependsOn)
@@ -901,7 +861,7 @@ class databaseSchema(object):
         tab = tabname
         if tab.endswith("_"):
             return tab
-        if tab in ["words","master_bookcounts","master_bigrams","catalog"]:
+        if tab in ["words","unigrams_wordid","bigrams_word1_word2","catalog"]:
             return tab
 
         if not hasattr(self,"fallbacks_cache"):
@@ -909,15 +869,14 @@ class databaseSchema(object):
 
         if tabname in self.fallbacks_cache:
             return self.fallbacks_cache[tabname]
-
         q = "SELECT COUNT(*) FROM {}".format(tab)
         logging.debug(q)
         try:
-            self.db.cursor.execute(q)
-            length = self.db.cursor.fetchall()[0][0]
+            self.db.execute(q)
+            length = self.db.fetchall()[0][0]
             if length==0:
                 tab += "_"
-        except MySQLdb.ProgrammingError:
+        except RuntimeError:
             tab += "_"
 
         self.fallbacks_cache[tabname] = tab
@@ -925,22 +884,26 @@ class databaseSchema(object):
         return tab
 
     def tables_for_variables(self, variables, tables = []):
-        tables = []
-
+        lookups = []
         for variable in variables:
+            stack_here = []
             lookup_table = self.tableToLookIn[variable]
             if lookup_table in tables:
                 continue
-            tables.append(lookup_table)
+            stack_here.append(lookup_table)
             while True:
                 anchor = self.fallback_table(self.anchorFields[lookup_table])
-                if anchor in tables:
+                if anchor in stack_here or anchor in lookups:
                     break
                 else:
-                    tables.append(anchor)
+                    # Must go first in duck.
+                    stack_here.append(anchor)
                 lookup_table = anchor
-
-        return tables
+            stack_here.reverse()
+            for variable in stack_here:
+              if not variable in lookups:
+                lookups.append(variable)
+        return list(lookups)
 
 
 
@@ -1003,7 +966,7 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
 
                     def escape(value):
                         # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.
-                        return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
+                        return str(escape_string(to_unicode(value)), 'utf-8')
                 else:
                     def escape(value):
                         return to_unicode(value)
