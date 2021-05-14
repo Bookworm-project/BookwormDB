@@ -33,7 +33,8 @@ setup(
         "Topic :: Text Processing :: Indexing",
         "Topic :: Text Processing :: Linguistic"
     ],
-    install_requires=["numpy","pandas","mysqlclient",
+    install_requires=["pandas","mysqlclient",
+                      "duckdb",
                       "python-dateutil", "psutil", "bounter",
                       "gunicorn", "regex", "pyarrow"
     ]

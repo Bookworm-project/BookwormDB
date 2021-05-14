@@ -48,24 +48,17 @@ def all_keys(input):
 # in various ways.
 
 def check_query(query):
-
-
     fail_if_nonword_characters_in_columns(query)
-
     for key in ['database']:
         if not key in query:
             raise BookwormException({"code": 400, "message": "You must specify a value for {}".format(key)})
-
-
     if query['method'] in ["schema", "search"]:
         # Queries below this only apply to "data"
         return
-
     for v in query['counttype']:
         if not v in ['WordCount', 'TextCount']:
             raise BookwormException({"code": 400, "message": 'Only "WordCount" and "TextCount"'
                                      ' counts are supported by the SQL api, but passed {}'.format(v)})
-
 
 class DuckQuery(object):
     """
@@ -75,9 +68,7 @@ class DuckQuery(object):
         # Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
 
         check_query(query_object)
-
         self.prefs = {'database': query_object['database']}
-
         self.query_object = query_object
 
         self.db = db
@@ -104,12 +95,7 @@ class DuckQuery(object):
         # search_limits is an array of dictionaries;
         # each one contains a set of limits that are mutually independent
         # The other limitations are universal for all the search limits being set.
-
-
-
         self.wordsTables = None
-
-
         # Set up a dictionary for the denominator of any fraction if it doesn't already exist:
         self.search_limits = query_object.setdefault('search_limits', [{"word":["polka dot"]}])
         self.words_collation = query_object.setdefault('words_collation', "Case_Insensitive")
@@ -121,9 +107,6 @@ class DuckQuery(object):
             "Case_Sensitive":"casesens", "All_Words_with_Same_Stem":"stem",
             'stem':'stem'}
         self.word_field = lookups[self.words_collation]
-
-        self.time_limits = query_object.setdefault('time_limits', [0, 10000000])
-        self.time_measure = query_object.setdefault('time_measure', 'year')
 
         self.groups = set()
         self.outerGroups = []
@@ -326,7 +309,7 @@ class DuckQuery(object):
         return self.wordswhere
 
         if self.wordswhere != " TRUE ":
-            f = "SELECT wordid FROM {words} as words1 WHERE {wordswhere}".format(**self.__dict__)
+            f = "SELECT wordid FROM { words } as words1 WHERE { wordswhere }".format(**self.__dict__)
             logging.debug("`" + self.wordswhere + "`")
             return " wordid IN ({})".format(f)
         else:
@@ -636,16 +619,11 @@ class DuckQuery(object):
     def bookid_query(self):
 
         q = f""" {self.catwhere} """
-
         logging.debug("'{}'".format(self.catwhere))
-
         if self.catwhere == "TRUE":
             self.bookid_where = " TRUE "
-
         else:
             self.bookid_where = q
-
-
         return self.bookid_where
 
     def query(self):
@@ -935,7 +913,7 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
             # Certain function operators can use MySQL terms.
             # These are the only cases that a dict can be passed as a limitations
             operations = {"$gt":">", "$ne":"!=", "$lt":"<",
-                          "$grep":" REGEXP ", "$gte":">=",
+                          "$grep":" SIMILAR TO ", "$gte":">=",
                           "$lte":"<=", "$eq":"="}
 
             for operation in list(values.keys()):
