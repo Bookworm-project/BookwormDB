@@ -440,116 +440,71 @@ class APIcall(object):
         method = self.query['method']
         logging.debug("Preparing to execute with method '{}'".format(method))
         fmt = self.query['format'] if 'format' in self.query else False
-
-        if method == 'data' or method == 'schema' or method == 'search':
-            version = 2
-            if fmt in ['json_c', 'search', 'html', 'csv', 'tsv']:
-                version = 3
-        else:
-            version = 1
-
-        if version == 1:
+        version = 3
+        try:
             # What to do with multiple search_limits
+
             if isinstance(self.query['search_limits'], list):
-                if method in ["json", "return_json"]:
-                    self.query['method'] = 'data'
-                    self.query['format'] = 'json'
-                    return self.multi_execute(version=version)
+                if fmt == "json" or version >= 3:
+                    frame = self.multi_execute(version = version)
                 else:
                     # Only return first search limit if not return in json
                     self.query['search_limits'] = self.query['search_limits'][0]
-
-            form = method[7:] if method[:6] == 'return' else method
-
-            logging.warning("method == \"%s\" is deprecated. Use method=\"data\" "
-                         "with format=\"%s\" instead." % (method, form))
-
-            if method == "return_json" or method == "json":
-                    self.query['method'] = 'data'
-                    self.query['format'] = 'json'
-                    return self.return_json(version=1)
-
-            elif method == "return_csv" or method == "csv":
-                self.query['method'] = 'data'
-                self.query['format'] = 'json'
+            else:
                 frame = self.data()
-                return frame.to_csv(path = None, sep="\t", encoding="utf8", index=False,
-                                    quoting=csv.QUOTE_NONE, escapechar="\\")
-        elif version >= 2:
-            try:
-                # What to do with multiple search_limits
 
-                if isinstance(self.query['search_limits'], list):
-                    if fmt == "json" or version >= 3:
-                        frame = self.multi_execute(version = version)
-                    else:
-                        # Only return first search limit if not return in json
-                        self.query['search_limits'] = self.query['search_limits'][0]
-                else:
-                    frame = self.data()
+            if fmt == "json":
+                return self.return_json(version=2)
 
-                if fmt == "json":
-                    return self.return_json(version=2)
+            if fmt == "csv":
+                return frame.to_csv(encoding="utf8", index=False)
 
-                if fmt == "csv":
-                    return frame.to_csv(encoding="utf8", index=False)
+            if fmt == "tsv":
+                return frame.to_csv(sep="\t", encoding="utf8", index=False)
 
-                if fmt == "tsv":
-                    return frame.to_csv(sep="\t", encoding="utf8", index=False)
+            if fmt == "feather" or fmt == "feather_js":
+                compression = "zstd"
+                if fmt == "feather_js":
+                    compression = "uncompressed"
+                fout = io.BytesIO(b'')
+                try:
+                    feather.write_feather(frame, fout, compression = compression)
+                except:
+                    logging.warning("You need the pyarrow package installed to export as feather.")
+                    raise
+                fout.seek(0)
+                return fout.read()
 
-                if fmt == "feather" or fmt == "feather_js":
-                    compression = "zstd"
-                    if fmt == "feather_js":
-                        compression = "uncompressed"
-                    fout = io.BytesIO(b'')
-                    try:
-                        feather.write_feather(frame, fout, compression = compression)
-                    except:
-                        logging.warning("You need the pyarrow package installed to export as feather.")
-                        raise
-                    fout.seek(0)
-                    return fout.read()
+            if fmt == 'json_c':
+                return self.return_rle_json(frame)
 
-                if fmt == 'json_c':
-                    return self.return_rle_json(frame)
+            if fmt == 'html':
+                return self.html(frame)
 
-                if fmt == 'html':
-                    return self.html(frame)
-
-                else:
-                    err = dict(status="error", code=200,
-                               message="Only formats in ['csv', 'tsv', 'json', 'feather']"
-                               " currently supported")
-                    return json.dumps(err)
-            except BookwormException as e:
-                # Error status codes are HTTP codes
-                # http://www.restapitutorial.com/httpstatuscodes.html
-                err = e.args[0]
-                err['status'] = "error"
+            else:
+                err = dict(status="error", code=200,
+                            message="Only formats in ['csv', 'tsv', 'json', 'feather']"
+                            " currently supported")
                 return json.dumps(err)
-            except Exception as ex:
-                # General Uncaught error.
-                logging.exception("{}".format(ex))
-                logging.exception("Database error")
-                return json.dumps({"status": "error", "message": "Database error. "
-                               "Try checking field names."})
+        except BookwormException as e:
+            # Error status codes are HTTP codes
+            # http://www.restapitutorial.com/httpstatuscodes.html
+            err = e.args[0]
+            err['status'] = "error"
+            return json.dumps(err)
+        except Exception as ex:
+            # General Uncaught error.
+            logging.exception("{}".format(ex))
+            logging.exception("Database error")
+            return json.dumps({"status": "error", "message": "Database error. "
+                            "Try checking field names."})
 
         # Temporary catch-all pushes to the old methods:
         if method in ["returnPossibleFields", "search_results",
                       "return_books", "schema"]:
-                try:
-                    logging.warn("Using deprecated API call.")
-
-                    query = userquery(self.query)
-                    if method == "return_books":
-                        return query.execute()
-                    return json.dumps(query.execute())
-                except Exception as e:
-                    if len(str(e)) > 1 and e[1].startswith("Unknown database"):
-                        return "No such bookworm {}".format(e[1].replace("Unknown database",""))
-                except:
-                    return "General error"
-
+            return json.dumps({"status": "error", "message": "Database error. "
+                            "Try checking field names."})
+        raise "No return requested"
     def multi_execute(self, version=1):
 
         """

@@ -1,9 +1,8 @@
 #!/usr/local/bin/python
 
-from .variableSet import to_unicode
 from .search_limits import Search_limits
 from .bwExceptions import BookwormException
-
+from .DuckSchema import DuckSchema
 import json
 import re
 import copy
@@ -48,10 +47,6 @@ def all_keys(input):
 # in various ways.
 
 def check_query(query):
-    fail_if_nonword_characters_in_columns(query)
-    for key in ['database']:
-        if not key in query:
-            raise BookwormException({"code": 400, "message": "You must specify a value for {}".format(key)})
     if query['method'] in ["schema", "search"]:
         # Queries below this only apply to "data"
         return
@@ -68,7 +63,7 @@ class DuckQuery(object):
         # Certain constructions require a DB connection already available, so we just start it here, or use the one passed to it.
 
         check_query(query_object)
-        self.prefs = {'database': query_object['database']}
+        self.prefs = {}
         self.query_object = query_object
 
         self.db = db
@@ -77,17 +72,10 @@ class DuckQuery(object):
 
         self.databaseScheme = databaseScheme
         if databaseScheme is None:
-            self.databaseScheme = databaseSchema(self.db)
+            self.databaseScheme = DuckSchema(self.db)
 
-        # Some tablenames.
-
-        self.wordsheap = self.databaseScheme.fallback_table('wordsheap')
-        self.fastcat = self.databaseScheme.fallback_table("fastcat")
-        logging.info("Catalog set to {}".format(self.fastcat))
         self.words = "words"
-
         self.defaults(query_object) # Take some defaults
-
         self.derive_variables() # Derive some useful variables that the query will use.
 
     def defaults(self, query_object):
@@ -101,11 +89,13 @@ class DuckQuery(object):
         self.words_collation = query_object.setdefault('words_collation', "Case_Insensitive")
 
         lookups = {
-            "Case_Insensitive":'word',
+            "Case_Insensitive":'lowercase',
             'lowercase':'lowercase',
-            'casesens':'casesens', "case_insensitive":"word",
-            "Case_Sensitive":"casesens", "All_Words_with_Same_Stem":"stem",
+            'casesens':'word',
+            "case_insensitive":"lowercase",
+            "Case_Sensitive":"word",
             'stem':'stem'}
+
         self.word_field = lookups[self.words_collation]
 
         self.groups = set()
@@ -116,11 +106,6 @@ class DuckQuery(object):
             groups = query_object['groups']
         except:
             groups = None
-
-        if groups == [] or groups == ["unigram"]:
-            # Set an arbitrary column name that will always be true if nothing else is set.
-            pass
-        #            groups.insert(0, "1 as In_Library")
 
         if groups is None:
             # A user query can't demand ungrouped results,
@@ -160,7 +145,7 @@ class DuckQuery(object):
                         table = self.databaseScheme.tableToLookIn[group]
 
                         joinfield = self.databaseScheme.aliases[group]
-                        self.finalMergeTables.add(" JOIN " + table + " USING (" + joinfield + ") ")
+                        self.finalMergeTables.add(f' JOIN "{table}" USING ("{joinfield}")')
                     else:
                         self.groups.add(group)
                 except KeyError:
@@ -185,41 +170,6 @@ class DuckQuery(object):
         if isinstance(self.counttype, (str, bytes)):
             self.counttype = [self.counttype]
 
-    def determineOutsideDictionary(self):
-        """
-        deprecated--tagged for deletion.
-        """
-        self.compare_dictionary = copy.deepcopy(self.query_object)
-        if 'compare_limits' in list(self.query_object.keys()):
-            self.compare_dictionary['search_limits'] = self.query_object['compare_limits']
-            del self.query_object['compare_limits']
-        elif sum([bool(re.search(r'\*', string)) for string in list(self.query_object['search_limits'].keys())]) > 0:
-            # If any keys have stars at the end, drop them from the compare set
-            # This is often a _very_ helpful definition for succinct comparison queries of many types.
-            # The cost is that an asterisk doesn't allow you
-
-            for key in list(self.query_object['search_limits'].keys()):
-                if re.search(r'\*', key):
-                    # rename the main one to not have a star
-                    self.query_object['search_limits'][re.sub(r'\*', '', key)] = self.query_object['search_limits'][key]
-                    # drop it from the compare_limits and delete the version in the search_limits with a star
-                    del self.query_object['search_limits'][key]
-                    del self.compare_dictionary['search_limits'][key]
-        else: # if nothing specified, we compare the word to the corpus.
-            deleted = False
-            for key in list(self.query_object['search_limits'].keys()):
-                if re.search('words?\d', key) or re.search('gram$', key) or re.match(r'word', key):
-                    del self.compare_dictionary['search_limits'][key]
-                    deleted = True
-            if not deleted:
-                # If there are no words keys, just delete the first key of any type.
-                # Sort order can't be assumed, but this is a useful failure mechanism of last resort. Maybe.
-                try:
-                    del self.compare_dictionary['search_limits'][list(self.query_object['search_limits'].keys())[0]]
-                except:
-                    pass
-
-
     def derive_variables(self):
         # These are locally useful, and depend on the search limits put in.
         self.limits = self.search_limits
@@ -235,47 +185,9 @@ class DuckQuery(object):
             self.word_limits = False
 
         self.set_operations()
-
         self.create_catalog_table()
-
         self.make_catwhere()
-
         self.make_wordwheres()
-
-    def tablesNeededForQuery(self, fieldNames=[]):
-        """
-        Deprecated.
-        """
-        db = self.db
-        neededTables = set()
-        tablenames = dict()
-        tableDepends = dict()
-
-        q = "SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);"
-        logging.debug(q)
-        db.execute(q)
-        for row in db.fetchall():
-            tablenames[row[0]] = row[2]
-            tableDepends[row[2]] = row[3]
-
-        for fieldname in fieldNames:
-            parent = ""
-            try:
-                current = tablenames[fieldname]
-                neededTables.add(current)
-                n = 1
-                while parent not in ['fastcat', 'wordsheap']:
-                    parent = tableDepends[current]
-                    neededTables.add(parent)
-                    current = parent
-                    n+=1
-                    if n > 100:
-                        raise TypeError("Unable to handle this; seems like a recursion loop in the table definitions.")
-                    # This will add 'fastcat' or 'wordsheap' exactly once per entry
-            except KeyError:
-                pass
-
-        return neededTables
 
     def needed_columns(self):
         """
@@ -289,7 +201,7 @@ class DuckQuery(object):
 
         def pull_keys(entry):
             val = []
-            if isinstance(entry,list) and not isinstance(entry,(str, bytes)):
+            if isinstance(entry, list) and not isinstance(entry, (str, bytes)):
                 for element in entry:
                     val += pull_keys(element)
             elif isinstance(entry,dict):
@@ -316,7 +228,13 @@ class DuckQuery(object):
             return " TRUE "
 
     def make_group_query(self):
-        aliases = [self.databaseScheme.aliases[g] for g in self.query_object["groups"]]
+        aliases = []
+        for g in self.query_object["groups"]:
+            try:
+                aliases.append(self.databaseScheme.aliases[g])
+            except KeyError:
+                aliases.append(g)
+
         if len(self.query_object["groups"]) > 0:
             return "GROUP BY {}".format(", ".join(self.query_object["groups"]))
         else:
@@ -325,9 +243,9 @@ class DuckQuery(object):
 
     def main_table(self):
         if self.gram_size() == 1:
-            return 'unigrams_wordid as main'
+            return 'unigram_bookid as main'
         if self.gram_size() == 2:
-            return 'bigrams_word1_word2 as main'
+            return 'word1_word2_bookid as main'
 
     def full_query_tables(self):
         # Joins are needed to provide groups, but *not* to provide
@@ -336,7 +254,7 @@ class DuckQuery(object):
         # But if there's a group, there may also need to be an associated where.
 
         if self.word_limits == False:
-            tables = [self.fastcat]
+            tables = ["fastcat"]
         else:
             tables = [self.main_table()]
 
@@ -356,32 +274,22 @@ class DuckQuery(object):
 
 
     def base_query(self):
-        dicto = {}
-        dicto['finalGroups'] = ', '.join(self.query_object['groups'])
-        if dicto['finalGroups'] != '':
-            dicto['finalGroups'] = ", " + dicto['finalGroups']
-
-        dicto['group_query'] = self.make_group_query()
-        dicto['op'] = ', '.join(self.set_operations())
-        dicto['bookid_where'] = self.bookid_query()
-        dicto['wordid_where'] = self.wordid_query()
-        dicto['tables'] = self.make_join_query()
-        logging.info("'{}'".format(dicto['tables']))
-
-        dicto['catwhere'] = self.make_catwhere("main")
-
-        basic_query = """
-        SELECT {op} {finalGroups}
-        FROM {tables}
+        try:
+            finalGroups = self.query_object['groups']
+        except:
+            print(self.query_object)
+            raise
+        return f"""
+        SELECT {', '.join(self.set_operations() + finalGroups)}
+        FROM {self.make_join_query()}
         WHERE
-          {bookid_where}
+          {self.bookid_query()}
           AND
-          {wordid_where}
-          AND {catwhere}
-        {group_query}
-        """.format(**dicto)
-
-        return basic_query
+          {self.wordid_query()}
+          AND
+          {self.make_catwhere("main")}
+        {self.make_group_query()}
+        """
 
     def create_catalog_table(self):
         # self.catalog = self.prefs['fastcat'] # 'catalog' # Can be replaced with a more complicated query in the event of longer joins.
@@ -407,21 +315,17 @@ class DuckQuery(object):
 
         self.relevantTables = self.databaseScheme.tables_for_variables(cols)
 
-        # moreTables = self.tablesNeededForQuery(columns)
-
         self.catalog = " NATURAL JOIN ".join(self.relevantTables)
         return self.catalog
 
     def make_catwhere(self, query = "sub"):
-        # Where terms that don't include the words table join. Kept separate so that we can have subqueries only working on one half of the stack.
+        # Where terms that don't include the words table join.
         catlimits = dict()
 
         for key in list(self.limits.keys()):
-            # !!Warning--none of these phrases can be used in a bookworm as a custom table names.
-
             if key not in ('word', 'word1', 'word2', 'hasword') and not re.search("words\d", key):
                 catlimits[key] = self.limits[key]
-
+            
         if query == "main":
             ts = set(self.full_query_tables())
             for key in list(catlimits.keys()):
@@ -485,7 +389,7 @@ class DuckQuery(object):
                         searchingFor = searchingFor.lower()
 
 
-                    selectString = f"SELECT wordid FROM wordsheap_ WHERE word = '{searchingFor}'"
+                    selectString = f"SELECT wordid FROM wordsheap WHERE word = '{searchingFor}'"
                     logging.warning(selectString)
                     self.db.execute(selectString)
 
@@ -559,7 +463,7 @@ class DuckQuery(object):
 
         elif needsUnigrams:
             self.main = '''
-            unigrams_wordid as main
+            unigram_bookid as main
             '''
 
             self.wordstables = """
@@ -674,7 +578,6 @@ class DuckQuery(object):
 #            self.ordertype = "RAND()"
 
         dicto = {
-            'fastcat': self.fastcat,
             'tables': self.make_join_query(),
             'ordertype': self.ordertype,
             'catwhere': self.make_catwhere("main"),
@@ -760,131 +663,6 @@ class DuckQuery(object):
             value = getattr(self, self.method)()
             return value
 
-class databaseSchema(object):
-    """
-    This class stores information about the database setup that is used to optimize query creation query
-    and so that queries know what tables to include.
-    It's broken off like this because it might be usefully wrapped around some of
-    the backend features,
-    because it shouldn't be run multiple times in a single query (that spawns two instances of itself),
-    as was happening before.
-
-    It's closely related to some of the classes around variables and
-    variableSets in the Bookworm Creation scripts,
-    but is kept separate for now: that allows a bit more flexibility,
-    but is probaby a Bad Thing in the long run.
-    """
-
-    def __init__(self, db):
-        # XXXX
-        self.db = db
-        # has of what table each variable is in
-        self.tableToLookIn = {}
-
-        # hash of what the root variable for each search term is (eg,
-        # 'author_birth' might be crosswalked to 'authorid' in the
-        # main catalog.)
-        self.anchorFields = {}
-
-        # aliases: a hash showing internal identifications codes that
-        # dramatically speed up query time, but which shouldn't be
-        # exposed.  So you can run a search for "state," say, and the
-        # database will group on a 50-element integer code instead of
-        # a VARCHAR that has to be long enough to support
-        # "Massachusetts" and "North Carolina."  A couple are
-        # hard-coded in, but most are derived by looking for fields
-        # that end in the suffix "__id" later.
-
-        # The aliases starts with a dummy alias for fully grouped queries.
-        self.aliases = {}
-        self.newStyle(db)
-
-
-    def newStyle(self, db):
-
-        self.tableToLookIn['bookid'] = self.fallback_table('fastcat')
-        self.tableToLookIn['filename'] = self.fallback_table('fastcat')
-        ff = self.fallback_table('fastcat')
-        self.anchorFields[ff] = ff
-
-        self.tableToLookIn['wordid'] = self.fallback_table('wordsheap')
-        self.tableToLookIn['word'] = self.fallback_table('wordsheap')
-
-        ww = self.fallback_table('wordsheap')
-        self.anchorFields[ww] = ww
-
-
-        tablenames = dict()
-        tableDepends = dict()
-        q = "SELECT dbname,alias,tablename,dependsOn FROM masterVariableTable JOIN masterTableTable USING (tablename);"
-        logging.debug(q)
-        db.execute(q)
-
-        for row in db.fetchall():
-            (dbname, alias, tablename, dependsOn) = row
-            tablename = self.fallback_table(tablename)
-            dependsOn = self.fallback_table(dependsOn)
-
-            self.tableToLookIn[dbname] = tablename
-            self.anchorFields[tablename] = dependsOn
-
-            self.aliases[dbname] = alias
-
-    def fallback_table(self,tabname):
-        """
-        Fall back to the saved versions if the memory tables are unpopulated.
-
-        Use a cache first to avoid unnecessary queries, though the overhead shouldn't be much.
-        """
-        tab = tabname
-        if tab.endswith("_"):
-            return tab
-        if tab in ["words","unigrams_wordid","bigrams_word1_word2","catalog"]:
-            return tab
-
-        if not hasattr(self,"fallbacks_cache"):
-            self.fallbacks_cache = {}
-
-        if tabname in self.fallbacks_cache:
-            return self.fallbacks_cache[tabname]
-        q = "SELECT COUNT(*) FROM {}".format(tab)
-        logging.debug(q)
-        try:
-            self.db.execute(q)
-            length = self.db.fetchall()[0][0]
-            if length==0:
-                tab += "_"
-        except RuntimeError:
-            tab += "_"
-
-        self.fallbacks_cache[tabname] = tab
-
-        return tab
-
-    def tables_for_variables(self, variables, tables = []):
-        lookups = []
-        for variable in variables:
-            stack_here = []
-            lookup_table = self.tableToLookIn[variable]
-            if lookup_table in tables:
-                continue
-            stack_here.append(lookup_table)
-            while True:
-                anchor = self.fallback_table(self.anchorFields[lookup_table])
-                if anchor in stack_here or anchor in lookups:
-                    break
-                else:
-                    # Must go first in duck.
-                    stack_here.append(anchor)
-                lookup_table = anchor
-            stack_here.reverse()
-            for variable in stack_here:
-              if not variable in lookups:
-                lookups.append(variable)
-        return list(lookups)
-
-
-
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
     whereterm = []
     # The general idea here is that we try to break everything in search_limits down to a list, and then create a whereterm on that joined by whatever the 'joiner' is ("AND" or "OR"), with the comparison as whatever comp is ("=",">=",etc.).
@@ -944,10 +722,10 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
 
                     def escape(value):
                         # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.
-                        return str(escape_string(to_unicode(value)), 'utf-8')
+                        return str(escape_string(value), 'utf-8')
                 else:
                     def escape(value):
-                        return to_unicode(value)
+                        return value
                     quotesep = ""
 
                 joined = list_joiner.join([" ({}{}{}{}{}) ".format(key, comp, quotesep, escape(value), quotesep) for value in values])
