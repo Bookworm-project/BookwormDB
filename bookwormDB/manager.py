@@ -114,11 +114,13 @@ section'client'
         Run a query against the API from the command line.
         """
 
-        from bookwormDB.general_API import SQLAPIcall
+        from bookwormDB.general_API import DuckDBCall
         import json
-
+        import duckdb
         query = json.loads(args.APIcall)
-        caller = SQLAPIcall(query)
+        print(query)
+        con = duckdb.connect("/drobo/bookworm_dbs/" + query['database'], read_only = True)
+        caller = DuckDBCall(con, query = query)
         print(caller.execute())
 
     def serve(self, args):

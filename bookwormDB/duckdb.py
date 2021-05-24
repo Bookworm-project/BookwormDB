@@ -798,8 +798,6 @@ class databaseSchema(object):
     """
 
     def __init__(self, db):
-        # XXXX
-        self.db = db
         # has of what table each variable is in
         self.tableToLookIn = {}
 
@@ -819,6 +817,7 @@ class databaseSchema(object):
 
         # The aliases starts with a dummy alias for fully grouped queries.
         self.aliases = {}
+        self.db = db
         self.newStyle(db)
 
 
