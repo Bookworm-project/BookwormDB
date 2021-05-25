@@ -1,4 +1,3 @@
-import MySQLdb
 
 def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_joiner = " OR "):
     whereterm = []
@@ -14,22 +13,24 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
             values = [values]
         # Or queries are special, since the default is "AND". This toggles that around for a subportion.
 
-        if key == "$or" or key == "$OR":
+        if key == "$or":
             local_set = []
             for comparison in values:
                 local_set.append(where_from_hash(comparison, comp=comp))
             whereterm.append(" ( " + " OR ".join(local_set) + " )")
-        elif key == '$and' or key == "$AND":
+        elif key == '$and':
             for comparison in values:
                 whereterm.append(where_from_hash(comparison, joiner=" AND ", comp=comp))                
         elif isinstance(values, dict):
             if joiner is None:
                 joiner = " AND "
-            # Certain function operators can use MySQL terms.
+            # Certain function operators can use Mongo terms.
             # These are the only cases that a dict can be passed as a limitations
-            operations = {"$gt":">", "$ne":"!=", "$lt":"<",
-                          "$grep":" REGEXP ", "$gte":">=",
-                          "$lte":"<=", "$eq":"="}
+            operations = {
+                "$gt" : ">", "$ne" : "!=", "$lt" : "<",
+                "$grep" : " REGEXP ", "$gte" : ">=",
+                "$lte" : "<=", "$eq" : "="
+            }
             
             for operation in list(values.keys()):
                 if operation == "$ne":
@@ -59,10 +60,10 @@ def where_from_hash(myhash, joiner=None, comp = " = ", escapeStrings=True, list_
 
                     def escape(value):
                         # NOTE: stringifying the escape from MySQL; hopefully doesn't break too much.                        
-                        return str(MySQLdb.escape_string(to_unicode(value)), 'utf-8')
+                        return value
                 else:
                     def escape(value):
-                        return to_unicode(value)
+                        return value
                     quotesep = ""
 
                 joined = list_joiner.join([" ({}{}{}{}{}) ".format(key, comp, quotesep, escape(value), quotesep) for value in values])

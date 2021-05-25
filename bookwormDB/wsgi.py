@@ -56,8 +56,7 @@ duck_connections = DuckPool()
 if args.remote_host is None:
     logging.info("Using SQL API")
     API = DuckDBCall
-    API_kwargs = {
-    }
+    API_kwargs = {}
 
 else:
     logging.info("Using proxy API")

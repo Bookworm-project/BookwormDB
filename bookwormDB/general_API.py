@@ -446,6 +446,7 @@ class APIcall(object):
             self.query['method'] = "schema"
             method = "schema"
 
+        version = 3
         try:
             # What to do with multiple search_limits
 
@@ -503,7 +504,6 @@ class APIcall(object):
             logging.exception("Database error")
             return json.dumps({"status": "error", "message": "Database error. "
                             "Try checking field names."})
-
 
     def multi_execute(self, version=1):
 
@@ -705,7 +705,6 @@ class DuckDBCall(APIcall):
     def __init__(self, db, **kwargs):
 
         self.db = db
-            
         super().__init__(**kwargs)
 
     def generate_pandas_frame(self, call = None):

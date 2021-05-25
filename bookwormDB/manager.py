@@ -1,12 +1,11 @@
 from __future__ import print_function
 import re
-from subprocess import call
-from subprocess import Popen
 import logging
 import sys
 import os
 import bookwormDB
 import argparse
+import nonconsumptive as nc
 from .store import store
 
 """
@@ -118,10 +117,10 @@ section'client'
         import json
         import duckdb
         query = json.loads(args.APIcall)
-        print(query)
+        logging.info(query)
         con = duckdb.connect("/drobo/bookworm_dbs/" + query['database'], read_only = True)
         caller = DuckDBCall(con, query = query)
-        print(caller.execute())
+        logging.info(caller.execute())
 
     def serve(self, args):
 
