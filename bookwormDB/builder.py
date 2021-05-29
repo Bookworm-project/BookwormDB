@@ -6,6 +6,9 @@ import pyarrow as pa
 from nonconsumptive import Corpus
 from nonconsumptive.metadata import Catalog
 from pathlib import Path
+import logging
+from pyarrow import feather
+logger = logging.getLogger("bookworm")
 
 class BookwormCorpus(Corpus):
     """
@@ -25,8 +28,12 @@ class BookwormCorpus(Corpus):
     def bookworm_name(self):
         return self.db_location.with_suffix("").name
     
-    def prepare_parquet_ingest_file(self):
-        quacksort(self.encoded_batches(), ['wordid', 'bookid'], self.root / 'unigram_bookid.parquet', block_size = 1_000_000_000)
+    def sort_parquet_unigrams(self):
+        dest = self.root / 'unigram_bookid.parquet'
+        if dest.exists():
+            logger.warning(f"Using existed sorted unigrams at {dest} without checking if they're out of date.")
+            return
+        quacksort(self.encoded_batches(), ['wordid', 'bookid'], self.root / 'unigram_bookid.parquet', block_size = 5_000_000_000)
 
     def prepare_metadata(self):
         self.metadata.to_flat_catalog()
@@ -78,12 +85,6 @@ class BookwormCorpus(Corpus):
                         (tabname, b64encode(pa.parquet.ParquetFile(tab).schema_arrow.serialize().to_pybytes()), 
                         "table"))
 
-    def update_wordcounts(self):
-        rel = self.con.register_arrow("my_nwords", self.document_wordcounts(key='bookid'))
-        self.con.execute("ALTER TABLE fastcat ADD nwords INT32")
-        rel.execute("UPDATE fastcat SET nwords = s.nwords FROM my_nwords as s WHERE s.bookid = fastcat.bookid")
-        rel.unregister_arrow("my_nwords")
-    
     def create_slow_catalog(self):
         con = self.con
         catcols = set(con.execute("DESCRIBE TABLE catalog").df()['Field'])
@@ -95,13 +96,37 @@ class BookwormCorpus(Corpus):
             unique.append(f'"{col}"')
         con.execute(f"CREATE VIEW slowcat AS SELECT {','.join(unique)} FROM catalog")
 
+    def ingest_wordcounts(self):
+        self.con.execute('CREATE TABLE nwords ("@id" VARCHAR, "nwords" INTEGER)')
+
+        for p in (self.root / "document_lengths").glob("*.feather"):
+            tb = feather.read_table(p)
+            rel = self.con.register_arrow("t", tb)
+            self.con.execute("INSERT INTO nwords SELECT * FROM t")
+            self.con.unregister("t")
+
+        self.con.execute("ALTER TABLE catalog ADD nwords INTEGER")
+        self.con.execute('UPDATE catalog SET nwords = nwords.nwords FROM nwords WHERE "catalog"."@id" = "nwords"."@id"')
+        self.con.execute("ALTER TABLE fastcat ADD nwords INTEGER")
+        self.con.execute('UPDATE fastcat SET nwords = catalog.nwords FROM catalog WHERE catalog.bookid = fastcat.bookid')
+
     def build(self):
-        self.prepare_parquet_ingest_file()
+        logger.info("Preparing metadata")
         self.prepare_metadata()
+        logger.info("Sorting unigrams for duck ingest")
+        self.sort_parquet_unigrams()
+        logger.info("Ingesting unigrams")
         self.ingest_unigrams()
+#        logger.warning("Ingesting bigrams")
+        logger.info("Ingesting metadata")
+
         self.ingest_metadata()
+        logger.info("Creating schemas for load")
+
+        self.ingest_wordcounts()
         self.create_table_schemas()
-        self.update_wordcounts()
+
+        logger.info("Building slow catalog view")
         self.create_slow_catalog()
 
 

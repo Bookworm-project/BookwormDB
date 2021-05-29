@@ -1,6 +1,7 @@
 import os
 import psutil
 import logging
+logger = logging.getLogger("bookworm")
 
 def mp_stats():
     try:
@@ -13,7 +14,7 @@ def mp_stats():
     memory = int(psutil.virtual_memory()[4])
 
     if memory < 1024:
-        logging.warning("Not much memory to work with--vocab may be inexact")
+        logger.warning("Not much memory to work with--vocab may be inexact")
 
     return (cpus, memory)
 

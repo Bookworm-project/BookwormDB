@@ -1,12 +1,14 @@
 from __future__ import print_function
 import re
-import logging
+
 import sys
 import os
 import bookwormDB
 import argparse
 import nonconsumptive as nc
 from .store import store
+import logging
+logger = logging.getLogger("bookworm")
 
 """
 This is the code that actually gets run from the command-line executable.
@@ -45,7 +47,7 @@ section'client'
                 self.basedir = basedir
                 break
             if self.basedir==None:
-                logging.debug("No bookworm directory found; hopefully this isn't a build call.")
+                logger.debug("No bookworm directory found; hopefully this isn't a build call.")
 
         if cnf_file is not None:
             config = configparser.ConfigParser(allow_no_value=True)
@@ -87,7 +89,7 @@ section'client'
         # Create a configuration file
         if not args.force:
             if os.path.exists(".bookworm"):
-                logging.error("""
+                logger.error("""
                 You already have a folder named '.bookworm'.
                 Probably you've already initialized a Bookworm here.
                 """)
@@ -117,10 +119,10 @@ section'client'
         import json
         import duckdb
         query = json.loads(args.APIcall)
-        logging.info(query)
+        logger.info(query)
         con = duckdb.connect("/drobo/bookworm_dbs/" + query['database'], read_only = True)
         caller = DuckDBCall(con, query = query)
-        logging.info(caller.execute())
+        logger.info(caller.execute())
 
     def serve(self, args):
 
@@ -193,7 +195,7 @@ section'client'
 
         That's a little groaty, I know.
         """
-        logging.debug(args)
+        logger.debug(args)
 
         getattr(self, args.goal)(args)
 
@@ -211,7 +213,7 @@ section'client'
 
         input = args.input
         if args.feature_counts:
-            logging.info(args.feature_counts)
+            logger.info(args.feature_counts)
             input = [a for a in args.feature_counts if 'unigrams' in a][0]
         create_wordlist(n = 1.5e06,
                         input = input,
@@ -272,7 +274,7 @@ section'client'
         # Doesn't need a created database yet, just needs access
         # to some pieces.
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase()
-        logging.info("Writing metadata to new catalog file...")
+        logger.info("Writing metadata to new catalog file...")
         Bookworm.variableSet.writeMetadata()
 
         # This creates helper files in the /metadata/ folder.
@@ -286,9 +288,9 @@ section'client'
 
         from bookwormDB.MetaParser import parse_catalog_multicore, ParseFieldDescs
 
-        logging.debug("Preparing to write field descriptions")
+        logger.debug("Preparing to write field descriptions")
         ParseFieldDescs(write = True)
-        logging.debug("Preparing to write catalog")
+        logger.debug("Preparing to write catalog")
         parse_catalog_multicore()
 
     def field_descriptions_from_csv(self):
@@ -329,22 +331,22 @@ section'client'
             cursor = datahandler.db.query("SELECT TABLE_SCHEMA FROM information_schema.tables WHERE TABLE_NAME='masterTableTable'")
             for row in cursor.fetchall():
                 dbnames.append(row[0])
-            logging.info("The following databases are bookworms to be reloaded:")
+            logger.info("The following databases are bookworms to be reloaded:")
             for name in dbnames:
-                logging.info("\t" + name)
+                logger.info("\t" + name)
 
         for database in dbnames:
-            logging.info("Reloading memory tables for %s" %database)
+            logger.info("Reloading memory tables for %s" %database)
             Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(database,variableFile=None)
             Bookworm.reloadMemoryTables(force=args.force)
 
     def database_metadata(self, args):
         import bookwormDB.CreateDatabase
-        logging.debug("creating metadata db")
+        logger.debug("creating metadata db")
         Bookworm = bookwormDB.CreateDatabase.BookwormSQLDatabase(self.dbname)
         Bookworm.variableSet.loadMetadata()
 
-        logging.debug("creating metadata variable tables")
+        logger.debug("creating metadata variable tables")
 
         # This creates a table in the database that makes the results of
         # field_descriptions accessible through the API, and updates the
@@ -418,15 +420,15 @@ class Extension(object):
 
     def clone_or_pull(self):
         if not os.path.exists(self.dir):
-            logging.info("cloning git repo from " + self.args.url)
+            logger.info("cloning git repo from " + self.args.url)
             call(["git","clone",self.args.url,self.dir])
         else:
-            logging.info("updating pre-existing git repo at " + self.dir)
+            logger.info("updating pre-existing git repo at " + self.dir)
             Popen(["git","pull"],cwd=self.dir)
 
     def make(self):
-        logging.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        logging.debug("Running make in " + self.dir)
+        logger.debug("~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        logger.debug("Running make in " + self.dir)
         Popen(["make"], cwd=self.dir)
 
 # Initiate MySQL connection.
@@ -601,8 +603,8 @@ def run_arguments():
     # While we're at it, log with line numbers
     FORMAT = "[%(filename)s:%(lineno)s-%(funcName)s() %(asctime)s.%(msecs)03d] %(message)s"
     logging.basicConfig(format=FORMAT, level=numeric_level, datefmt="%I:%M:%S")
-    logging.info("Info logging enabled.")
-    logging.info("Debug logging enabled.")
+    logger.info("Info logging enabled.")
+    logger.info("Debug logging enabled.")
 
     # Create the bookworm
     my_bookworm = BookwormManager(args.configuration, args.database)

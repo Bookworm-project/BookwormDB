@@ -8,12 +8,13 @@ import re
 import copy
 import hashlib
 import logging
+logger = logging.getLogger("bookworm")
 
 def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
     for key in keys:
         if re.search(r"[^A-Za-z_$*0-9]", key):
-            logging.error("{} has nonword character".format(key))
+            logger.error("{} has nonword character".format(key))
             raise
 
 def all_keys(input):
@@ -200,7 +201,7 @@ class DuckQuery(object):
 
         if self.wordswhere != " TRUE ":
             f = "SELECT wordid FROM { words } as words1 WHERE { wordswhere }".format(**self.__dict__)
-            logging.debug("`" + self.wordswhere + "`")
+            logger.debug("`" + self.wordswhere + "`")
             return " wordid IN ({})".format(f)
         else:
             return " TRUE "
@@ -355,7 +356,7 @@ class DuckQuery(object):
 
 
                 selectString = f"SELECT wordid FROM wordsheap WHERE \"{word_field}\" = '{searchingFor}'"
-                logging.warning(selectString)
+                logger.warning(selectString)
                 self.db.execute(selectString)
 
                 # Set the search key being used.
@@ -480,7 +481,7 @@ class DuckQuery(object):
     def bookid_query(self):
 
         q = f""" {self.catwhere} """
-        logging.debug("'{}'".format(self.catwhere))
+        logger.debug("'{}'".format(self.catwhere))
         if self.catwhere == "TRUE":
             self.bookid_where = " TRUE "
         else:
@@ -568,7 +569,7 @@ class DuckQuery(object):
             # Break bigrams into single words.
             words = ' '.join(words).split(' ')
             q = "SELECT word FROM {} WHERE {}".format(self.wordsheap, where_from_hash({self.word_field:words}))
-            logging.debug(q)
+            logger.debug(q)
             self.db.execute(q)
             self.actualWords = [item[0] for item in self.db.fetchall()]
         else:

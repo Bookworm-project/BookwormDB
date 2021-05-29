@@ -11,6 +11,8 @@ from .query_cache import Query_Cache
 import re
 import json
 import logging
+logger = logging.getLogger("bookworm")
+
 import numpy as np
 import csv
 import io
@@ -328,7 +330,7 @@ class APIcall(object):
 
         for field in required_fields:
             if field not in self.query:
-                logging.error("Missing field: %s" % field)
+                logger.error("Missing field: %s" % field)
                 err = dict(message="Bad query. Missing \"%s\" field" % field,
                            code=400)
                 raise BookwormException(err)
@@ -391,7 +393,7 @@ class APIcall(object):
         try:
             df1 = self.generate_pandas_frame(self.call1)
             rename(df1, "x")
-            logging.debug(self.call2)
+            logger.debug(self.call2)
             df2 = self.generate_pandas_frame(self.call2)
             rename(df2, "y")
 
@@ -476,7 +478,7 @@ class APIcall(object):
                 try:
                     feather.write_feather(frame, fout, compression = compression)
                 except:
-                    logging.warning("You need the pyarrow package installed to export as feather.")
+                    logger.warning("You need the pyarrow package installed to export as feather.")
                     raise
                 fout.seek(0)
                 return fout.read()
@@ -611,7 +613,7 @@ class APIcall(object):
                         for r in row
                         ]
                     except:
-                        logging.warning(row)
+                        logger.warning(row)
                         pass
                     destination[key] = row
                     break
@@ -721,9 +723,9 @@ class DuckDBCall(APIcall):
             call = self.query
 
         q = DuckQuery(call, db = self.db).query()
-        logging.warning("Preparing to execute {}".format(q))
+        logger.warning("Preparing to execute {}".format(q))
         df = self.db.execute(q).df()
-        logging.debug("Query retrieved")
+        logger.debug("Query retrieved")
         return df
 
 

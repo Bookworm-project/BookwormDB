@@ -1,5 +1,8 @@
 import pyarrow as pa
 from base64 import b64decode
+import logging
+logger = logging.getLogger("bookworm")
+
 class DuckSchema(object):
     """
     This class stores information about the database setup that is used to 

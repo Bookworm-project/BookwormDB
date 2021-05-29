@@ -2,6 +2,8 @@ from bookwormDB.general_API import DuckDBCall, Caching_API, ProxyAPI
 import json
 from urllib.parse import unquote
 import logging
+logger = logging.getLogger("bookworm")
+
 import multiprocessing
 import gunicorn.app.base
 from bookwormDB.store import store
@@ -54,12 +56,12 @@ class DuckPool(dict):
 duck_connections = DuckPool()
 
 if args.remote_host is None:
-    logging.info("Using SQL API")
+    logger.info("Using SQL API")
     API = DuckDBCall
     API_kwargs = {}
 
 else:
-    logging.info("Using proxy API")
+    logger.info("Using proxy API")
     API = ProxyAPI
     API_kwargs = {
         "endpoint": args.remote_host
@@ -102,7 +104,7 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
     }
 
 
-    logging.debug("Received query {}".format(query))
+    logger.debug("Received query {}".format(query))
     start = datetime.now()
 
     # Backward-compatability: we used to force query to be
@@ -144,7 +146,7 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
     with open(logfile, 'a') as fout:
         json.dump(query, fout)
         fout.write("\n")
-    logging.debug("Writing to log: \n{}\n".format(json.dumps(query)))
+    logger.debug("Writing to log: \n{}\n".format(json.dumps(query)))
     return [response_body]
 
 # Copied from the gunicorn docs.

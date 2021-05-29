@@ -4,6 +4,8 @@ import pandas as pd
 from pathlib import Path
 
 import logging
+logger = logging.getLogger("bookworm")
+
 import json
 import hashlib
 import random
@@ -80,4 +82,4 @@ class Query_Cache:
             try:
                 extra[1].unlink()
             except:
-                logging.error(f"Unable to unlink file {extra}; assuming another thread got it first, although that's pretty unlikely!")
+                logger.error(f"Unable to unlink file {extra}; assuming another thread got it first, although that's pretty unlikely!")

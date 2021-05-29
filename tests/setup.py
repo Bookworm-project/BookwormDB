@@ -3,6 +3,7 @@ import bookwormDB
 import bookwormDB.CreateDatabase
 from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import logging
+logger = logging.getLogger("bookworm")
 import os
 from subprocess import call as call
 import sys
@@ -13,7 +14,7 @@ def setup_bookworm():
     """
     Creates a test bookworm. Removes any existing databases called "federalist_bookworm"
     """
-    logging.info("\n\nTESTING BOOKWORM CREATION\n\n")
+    logger.info("\n\nTESTING BOOKWORM CREATION\n\n")
     import MySQLdb
     from warnings import filterwarnings
     filterwarnings('ignore', category = MySQLdb.Warning)
@@ -42,7 +43,7 @@ def setup_bookworm():
             pass
         else:
             print(e)
-            logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
+            logger.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
             
     call(["bookworm --log-level warning build all"],shell=True,cwd=sys.path[0] + "/test_bookworm_files")
 
@@ -51,7 +52,7 @@ def setup_bookworm_unicode():
     """
     Creates a test bookworm. Removes any existing databases called "unicode_test_bookworm"
     """
-    logging.info("\n\nTESTING BOOKWORM CREATION\n\n")
+    logger.info("\n\nTESTING BOOKWORM CREATION\n\n")
     import MySQLdb
     from warnings import filterwarnings
     filterwarnings('ignore', category = MySQLdb.Warning)
@@ -79,7 +80,7 @@ def setup_bookworm_unicode():
         if e[0]=="Cannot load from mysql.proc. The table is probably corrupted":
             pass
         else:
-            logging.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
+            logger.warning("Some mysterious error in attempting to drop previous iterations: just try running it again?")
             
     call(["bookworm --log-level warning build all"],
          shell=True,

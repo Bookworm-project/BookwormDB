@@ -9,6 +9,8 @@ import multiprocessing as mp
 import psutil
 import queue
 import logging
+logger = logging.getLogger("bookworm")
+
 import fileinput
 import time
 import csv
@@ -27,10 +29,10 @@ memory = int(memory/1024/1024/2)
 # Assume 200 bytes per entry in python dict.
 
 QUEUE_POST_THRESH = int(memory / 3 * 1024 * 1024 / 200 / cpus)
-logging.debug("Ideal queue size is {}".format(QUEUE_POST_THRESH))
+logger.debug("Ideal queue size is {}".format(QUEUE_POST_THRESH))
 QUEUE_POST_THRESH = max([100000, QUEUE_POST_THRESH])
 
-logging.info("Filling dicts to size {}".format(QUEUE_POST_THRESH))
+logger.info("Filling dicts to size {}".format(QUEUE_POST_THRESH))
 
 def flush_counter(counter, qout):
     for k in ['', '\x00']:
@@ -61,7 +63,7 @@ def counter(qout, i, fin, mode = "count"):
     datatype = "raw"
 
     count_signals = [".unigrams", ".bigrams", ".trigrams", ".quadgrams"]
-    logging.info(f"fin is {fin}")
+    logger.info(f"fin is {fin}")
 
     for signal in count_signals:
         if signal in fin:
@@ -90,7 +92,7 @@ def counter(qout, i, fin, mode = "count"):
 
     # Cleanup.
     if mode == "count":
-        logging.debug("Flushing leftover counts from thread {}".format(i))
+        logger.debug("Flushing leftover counts from thread {}".format(i))
         flush_counter(counter=counter, qout = qout)
     if mode == "encode":
         encoder.close()
@@ -112,32 +114,32 @@ def yield_texts_from_directory(dir, i, IDfile):
         try:
             id = IDfile[basename]
         except KeyError:
-            logging.info(f"No catalog entry for {basename} at {file.name}, skipping")
+            logger.info(f"No catalog entry for {basename} at {file.name}, skipping")
             continue
         # Use sha256
         key = int(hashlib.md5(basename.encode('utf-8')).hexdigest(), 16)
-        logging.info(basename, key)
+        logger.info(basename, key)
         if key % cpus != i:
             continue
         if file.name.endswith(".txt.gz"):
             try:
                 fin = gzip.open(file, mode="rt")
             except UnicodeDecodeError:
-                logging.error(f"Unable to read {file}: unicode error")
+                logger.error(f"Unable to read {file}: unicode error")
                 continue
             except gzip.BadGzipFile:
-                logging.error(f"Unable to read {file}: Bad gzip file")
+                logger.error(f"Unable to read {file}: Bad gzip file")
                 continue
         elif file.name.endswith(".txt"):
             fin = open(file)
         else:
-            logging.error(f"Can't handle file {file}")
+            logger.error(f"Can't handle file {file}")
         try:
             yield (basename, fin.read().replace("\t", "\f").replace("\n", "\f"))
         except UnicodeDecodeError:
-            logging.error(f"Unable to read {file}")
+            logger.error(f"Unable to read {file}")
         except gzip.BadGzipFile:
-            logging.error(f"Unable to read {file}: Bad gzip file")
+            logger.error(f"Unable to read {file}: Bad gzip file")
             continue            
         
 def yield_lines_from_single_file(fname, i, IDfile):
@@ -162,12 +164,12 @@ def yield_lines_from_single_file(fname, i, IDfile):
         try:
             id = IDfile[filename]
         except KeyError:
-            logging.warning(f"No catalog entry for {id} though it appears in {filename}, skipping")
+            logger.warn(f"No catalog entry for {id} though it appears in {filename}, skipping")
             continue
 
         yield (filename, text)
     if totals > 0 and errors/totals > 0.01:
-        logging.warning("Skipped {} rows without tabs".format(errors))
+        logger.warn("Skipped {} rows without tabs".format(errors))
 
 
 def create_counts(input):
@@ -179,7 +181,7 @@ def create_counts(input):
 
     qout = Queue(cpus * 2)
     workers = []
-    logging.info("Spawning {} count processes on {}".format(cpus, input))
+    logger.info("Spawning {} count processes on {}".format(cpus, input))
     for i in range(cpus):
         p = Process(target = counter, args = (qout, i, input, "count"))
         p.start()
@@ -191,7 +193,7 @@ def create_counts(input):
 
         try:
             input_dict = qout.get_nowait()
-            logging.debug("inputting queue of length {} from worker".format(len(input_dict)))
+            logger.debug("inputting queue of length {} from worker".format(len(input_dict)))
             wordcounter.update(input_dict)
 
         except queue.Empty:
@@ -217,8 +219,8 @@ def create_wordlist(n, input, output):
     counter = create_counts(input)
     counter = sorted(list(counter.iteritems()), key = lambda x: -1 * x[1])
     output = open(output, "w")
-    logging.info(f"Created wordlist from {input}")
-    logging.info(f"top 10 words are {[c for c in counter[:10]]}")
+    logger.info(f"Created wordlist from {input}")
+    logger.info(f"top 10 words are {[c for c in counter[:10]]}")
     for i, (k, v) in enumerate(counter):
         output.write("{}\t{}\t{}\n".format(i, k, v))
         if i >= n:
