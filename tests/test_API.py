@@ -40,11 +40,20 @@ def unicode_bookworm(tmpdir_factory):
     return con
 
 class Test_Bookworm_SQL_Creation():
-    def test_bookworm_files_exist(self, federalist_bookworm):
+    def test_nwords_populated(self, federalist_bookworm):
         wordCount = federalist_bookworm.query('SELECT SUM(nwords) FROM fastcat').fetchall()[0][0]
         # This should be 212,081, but I don't want the tests to start failing when
         # we change the tokenization rules or miscellaneous things about encoding.
         assert wordCount > 200000
+        """
+        Then we test whether the API can make queries on that bookworm.
+        """
+        
+    def test_fastcat_populated(self, federalist_bookworm):
+        textCount = federalist_bookworm.query('SELECT COUNT(*) FROM fastcat').fetchall()[0][0]
+        # This should be 212,081, but I don't want the tests to start failing when
+        # we change the tokenization rules or miscellaneous things about encoding.
+        assert textCount == 1333
         """
         Then we test whether the API can make queries on that bookworm.
         """
@@ -259,7 +268,7 @@ class Test_Bookworm_SQL_Creation():
         assert (val2[0] > val1[0])
 
 
-    def test_case_insensitivity_works_without_search_term(self, federalist_bookworm):
+    def test_case_insensitivity_works_without_search_term_existing(self, federalist_bookworm):
         query = {
                 "database":"federalist_bookworm",
                 "search_limits":{"word":["hOwEvEr"]},
@@ -283,20 +292,22 @@ class Test_Bookworm_SQL_Creation():
         val = json.loads(DuckDBCall(unicode_bookworm, query = query).execute())['data']
         assert (val[0] > 0)
 
-
-
     def test_various_unicode_cases(self, unicode_bookworm):
         # There's a 'description_' for each individual item.
-        catalog_location = sys.path[0] + "/test_bookworm_files_unicode/jsoncatalog.txt"
-        cases = [json.loads(line)["description_"] for line in open(catalog_location)]       
+        catalog_location = "tests/test_bookworm_files_unicode/jsoncatalog.txt"
+        cases = [json.loads(line)["description_"] for line in open(catalog_location)]
+        wordcounts = unicode_bookworm.query("SELECT * FROM nwords").df()['nwords']
+        fastcounts = unicode_bookworm.query("SELECT * FROM fastcat").df()['nwords']
+        assert (wordcounts > 0).all()
+        assert (fastcounts > 0).all()
         for case in cases:
             query = {
                 "database":"unicode_test_bookworm",
-                "search_limits":{"description_": case},
-                "counttype":"WordCount",
-                "groups":[],
-                "words_collation":"Case_Insensitive",
-                "method":"data", "format":"json"
+                "search_limits": {"description_": case},
+                "counttype": "WordCount",
+                "groups": [],
+                "words_collation": "Case_Insensitive",
+                "method": "data", "format": "json"
                 }
             val = json.loads(DuckDBCall(unicode_bookworm, query = query).execute())['data']
             assert(val[0] > 0)

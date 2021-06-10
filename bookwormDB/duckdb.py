@@ -221,9 +221,9 @@ class DuckQuery(object):
 
     def main_table(self):
         if self.gram_size() == 1:
-            return '"unigram_bookid" as main'
+            return '"unigram__ncid" as main'
         if self.gram_size() == 2:
-            return '"word1_word2_bookid" as main'
+            return '"word1_word2__ncid" as main'
 
     def full_query_tables(self):
         # Joins are needed to provide groups, but *not* to provide
@@ -257,7 +257,7 @@ class DuckQuery(object):
         SELECT {', '.join(self.set_operations() + self.query_object['groups'])}
         FROM {self.query_tables}
         WHERE
-          {self.bookid_query()}
+          {self._ncid_query()}
           AND
           {self.wordid_query}
           AND
@@ -276,7 +276,7 @@ class DuckQuery(object):
         join to them.  So if you query with a limit on LCSH, and LCSH
         is listed as being in a separate table, it joins the table
         "LCSH" to catalog; and then that table has one column, ALSO
-        called "LCSH", which is matched against. This allows a bookid
+        called "LCSH", which is matched against. This allows a _ncid
         to be a member of multiple catalogs.
 
         """
@@ -380,7 +380,7 @@ class DuckQuery(object):
         if limits == []:
             # In the case that nothing has been found, tell it explicitly to search for
             # a condition when nothing will be found.
-            self._wordswhere = "bookid = -1"
+            self._wordswhere = "_ncid = -1"
 
         wordlimits = dict()
 
@@ -429,7 +429,7 @@ class DuckQuery(object):
 
         elif needsUnigrams:
             self.main = '''
-            unigram_bookid as main
+            unigram__ncid as main
             '''
 
             self.wordstables = """
@@ -466,7 +466,7 @@ class DuckQuery(object):
         self.using_nwords = False
         if with_words:
             if "TextCount" in self.query_object['counttype']:
-                output.append("count(DISTINCT main.bookid) as 'TextCount'")
+                output.append("count(DISTINCT main._ncid) as 'TextCount'")
             if "WordCount" in self.query_object['counttype']:
                 output.append("sum(main.count) as 'WordCount'")
         else:
@@ -474,19 +474,19 @@ class DuckQuery(object):
             if "WordCount" in self.query_object['counttype']:
                 output.append("sum(nwords) as 'WordCount'")
             if "TextCount" in self.query_object['counttype']:
-                output.append("count(DISTINCT bookid) as 'TextCount'")
+                output.append("count(DISTINCT _ncid) as 'TextCount'")
 
         return output
 
-    def bookid_query(self):
+    def _ncid_query(self):
 
         q = f""" {self.catwhere} """
         logger.debug("'{}'".format(self.catwhere))
         if self.catwhere == "TRUE":
-            self.bookid_where = " TRUE "
+            self._ncid_where = " TRUE "
         else:
-            self.bookid_where = q
-        return self.bookid_where
+            self._ncid_where = q
+        return self._ncid_where
 
     def query(self):
 
@@ -539,19 +539,19 @@ class DuckQuery(object):
             'limit': limit
         }
 
-        dicto['bookid_where'] = self.bookid_query()
+        dicto['_ncid_where'] = self._ncid_query()
         dicto['wordid_where'] = self.wordid_query
 
         bibQuery = """
         SELECT searchstring
         FROM catalog RIGHT JOIN (
-        SELECT {fastcat}.bookid, {ordertype} as ordering
+        SELECT {fastcat}._ncid, {ordertype} as ordering
             FROM
                {tables}
             WHERE
-               {bookid_where} AND {wordid_where} and {catwhere}
-        GROUP BY bookid ORDER BY {ordertype} DESC LIMIT {limit}
-        ) as tmp USING (bookid) ORDER BY ordering DESC;
+               {_ncid_where} AND {wordid_where} and {catwhere}
+        GROUP BY _ncid ORDER BY {ordertype} DESC LIMIT {limit}
+        ) as tmp USING (_ncid) ORDER BY ordering DESC;
         """.format(**dicto)
         return bibQuery
 
@@ -574,44 +574,6 @@ class DuckQuery(object):
             self.actualWords = [item[0] for item in self.db.fetchall()]
         else:
             raise TypeError("Suspiciously low word count")
-    """
-    def custom_SearchString_additions(self, returnarray):
-        ""
-        It's nice to highlight the words searched for. This will be on partner web sites, so requires custom code for different databases
-        ""
-        db = self.query_object['database']
-        if db in ('jstor', 'presidio', 'ChronAm', 'LOC', 'OL'):
-            self.getActualSearchedWords()
-            if db == 'jstor':
-                joiner = "&searchText="
-                preface = "?Search=yes&searchText="
-                urlRegEx = "http://www.jstor.org/stable/\d+"
-            if db == 'presidio' or db == 'OL':
-                joiner = "+"
-                preface = "# page/1/mode/2up/search/"
-                urlRegEx = 'http://archive.org/stream/[^"# ><]*'
-            if db in ('ChronAm', 'LOC'):
-                preface = "/;words="
-                joiner = "+"
-                urlRegEx = 'http://chroniclingamerica.loc.gov[^\"><]*/seq-\d+'
-            newarray = []
-            for string in returnarray:
-                try:
-                    base = re.findall(urlRegEx, string)[0]
-                    newcore = ' <a href = "' + base + preface + joiner.join(self.actualWords) + '"> search inside </a>'
-                    string = re.sub("^<td>", "", string)
-                    string = re.sub("</td>$", "", string)
-                    string = string+newcore
-                except IndexError:
-                    pass
-                newarray.append(string)
-        # Arxiv is messier, requiring a whole different URL interface: http://search.arxiv.org:8081/paper.jsp?r=1204.3352&qs=netwokr
-        else:
-            newarray = returnarray
-        return newarray
-    """
-
-
 
 def pull_keys(entry):
     val = []

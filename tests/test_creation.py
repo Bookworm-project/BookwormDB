@@ -2,18 +2,23 @@ import pytest
 from pathlib import Path
 from bookwormDB.builder import BookwormCorpus
 import duckdb
+
 class TestCreation():
     def test_ascii_creation(self, tmpdir):
+        path = Path(f"{tmpdir}/federalist.duckdb")
+
         corp = BookwormCorpus(
-            f"{tmpdir}/federalist.duckdb",
+            path,
             texts = Path('tests/test_bookworm_files/input.txt'),
             metadata = "tests/test_bookworm_files/jsoncatalog.txt",
             dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})
         corp.build()
+        con = duckdb.connect(str(path))
+        ts = con.execute("""SELECT sum(nwords) as 'WordCount' FROM "fastcat" """).fetchall()[0][0]
+        assert ts > 20
 
     def test_unicode_creation(self, tmpdir):
         path = Path(f"{tmpdir}/unicode.duckdb")
-        path = Path("/tmp/unicode.duckdb")
         if path.exists(): path.unlink()
         corp = BookwormCorpus(
            path,

@@ -21,7 +21,7 @@ class DuckSchema(object):
 
         # hash of what table each variable is in
         self.tableToLookIn = {
-            'bookid': 'fastcat',
+            '_ncid': 'fastcat',
             '@id': "slowcat",
             'wordid': "wordsheap",
             'nwords': 'fastcat'}
@@ -30,11 +30,11 @@ class DuckSchema(object):
         # 'author_birth' might be crosswalked to 'authorid' in the
         # main catalog.)
         self.anchorFields = {
-            'bookid': 'bookid',
+            '_ncid': '_ncid',
             '@id': "slowcat",
             'wordid': "wordid",
             'word': "wordid",
-            'nwords': 'bookid'
+            'nwords': '_ncid'
         }
 
         # aliases: a hash showing internal identifications codes that
@@ -68,17 +68,17 @@ class DuckSchema(object):
             tables = db.execute("SELECT name, schema FROM arrow_schemas WHERE type='table'").fetchall()
         # A few columns are kept in the 'slowcat' view for historical reasons.
         slowcols = set(db.execute("DESCRIBE TABLE slowcat").df()['Field'])
-        current_anchor = "bookid"
+        current_anchor = "_ncid"
         for i, field in enumerate(slowcols):
             if i > 0:
                 self.tableToLookIn[field] = "slowcat"
-                self.anchorFields[field] = "bookid"
+                self.anchorFields[field] = "_ncid"
 
     def tables_for_variable(self, variable, depth = 0):
         """
         Returns the tables needed to look up a variable, back up to 'fastcat' or 'wordsheap'
         """
-        if variable == 'bookid' or variable == 'wordid':
+        if variable == '_ncid' or variable == 'wordid':
             return []
         vals = []
         try:

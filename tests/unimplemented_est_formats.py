@@ -2,11 +2,11 @@
 
 from builtins import range
 from builtins import object
-import unittest
+import pytest
 import bookwormDB
-import bookwormDB.CreateDatabase
-from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 import logging
+logger = logging.getLogger("bookworm")
+
 import os
 from subprocess import call as call
 import sys
@@ -15,7 +15,7 @@ from setup import setup_bookworm, setup_bookworm_unicode
 from pyarrow import feather
 import io
 
-class Bookworm_Return_Formats(unittest.TestCase):
+class TestFormats:
 
     def test_feather(self):
         from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
@@ -53,16 +53,3 @@ class Bookworm_Return_Formats(unittest.TestCase):
         m = json.loads(SQLAPIcall(query).execute())['data']
         self.assertEqual(len(m),5)
         
-if __name__=="__main__":
-    # The setup is done without verbose logging; any failure
-    # causes it to try again.
-    logging.basicConfig(level=40)
-    try:
-        setup_bookworm()
-        setup_bookworm_unicode()
-    except:
-        logging.basicConfig(level=10)
-        setup_bookworm()
-        setup_bookworm_unicode()
-    logging.basicConfig(level=10)    
-    unittest.main()
