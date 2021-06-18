@@ -42,7 +42,7 @@ def unicode_bookworm(tmpdir_factory):
 class Test_Bookworm_SQL_Creation():
     def test_nwords_populated(self, federalist_bookworm):
         wordCount = federalist_bookworm.query('SELECT SUM(nwords) FROM fastcat').fetchall()[0][0]
-        # This should be 212,081, but I don't want the tests to start failing when
+        # This should be about 212,081, but I don't want the tests to start failing when
         # we change the tokenization rules or miscellaneous things about encoding.
         assert wordCount > 200000
         """
@@ -309,7 +309,11 @@ class Test_Bookworm_SQL_Creation():
                 "words_collation": "Case_Insensitive",
                 "method": "data", "format": "json"
                 }
-            val = json.loads(DuckDBCall(unicode_bookworm, query = query).execute())['data']
+            try:
+                val = json.loads(DuckDBCall(unicode_bookworm, query = query).execute())['data']
+            except KeyError:
+                print(DuckDBCall(unicode_bookworm, query = query).execute())
+                raise
             assert(val[0] > 0)
 
     def test_asterisks_in_search_limits(self, federalist_bookworm):

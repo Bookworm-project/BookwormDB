@@ -5,6 +5,8 @@ from bookwormDB.general_API import SQLAPIcall as SQLAPIcall
 from flask import Flask, request, Response, jsonify
 import json
 import os
+import logging
+logger = logging.getLogger("bookworm")
 
 app = Flask(__name__)
 
@@ -18,7 +20,6 @@ def index():
 
 @app.route('/debug')
 def debug_api():
-    import logging
     logging.basicConfig(level=logging.INFO)
     JSONinput = request.args.get('queryTerms') or request.args.get('query')
     if not JSONinput:

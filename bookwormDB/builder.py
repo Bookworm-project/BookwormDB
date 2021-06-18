@@ -52,14 +52,18 @@ class BookwormCorpus(Corpus):
         return self._connection
     
 
-    def ingest_unigrams(self):
+    def ingest_wordids(self):
         con = self.con
         fin = self.root / 'wordids.feather'
         word_table = pa.feather.read_table(fin)
         pa.parquet.write_table(word_table, fin.with_suffix(".parquet"))
+        logger.debug("INGESTING INTO words")
         con.execute(f"CREATE TABLE words AS SELECT * FROM parquet_scan('{self.root / 'wordids.parquet'}')")
+        logger.debug("INGESTING INTO wordsheap")
         con.execute(f"CREATE TABLE wordsheap AS SELECT wordid, token as word, lower(token) as lowercase FROM words")
 
+    def ingest_unigram__ncid(self):
+        con = self.con
         wordids = self.root / 'unigram__ncid.parquet'
         con.execute(f"CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT * FROM parquet_scan('{wordids}')")
         
@@ -104,8 +108,9 @@ class BookwormCorpus(Corpus):
     def ingest_wordcounts(self):
 
         self.con.execute('CREATE TABLE nwords ("@id" STRING, "nwords" INTEGER)')
-        logger.debug("Creating nwords")
+        logger.info("Creating nwords")
         for batch in self.iter_over('document_lengths'):
+            logger.info(f"Ingesting batch of length {len(batch)}")
             seen_a_word = True
             tb = pa.Table.from_batches([batch])
             self.con.register_arrow("t", tb)
@@ -113,10 +118,14 @@ class BookwormCorpus(Corpus):
             self.con.unregister("t")
         if not seen_a_word:
             raise FileNotFoundError("No document lengths for corpus.")
-
+        logger.info("Creating nwords on `catalog`")
         self.con.execute("ALTER TABLE catalog ADD nwords INTEGER")
+        logger.info("Updating nwords on `catalog` from nwords table.")
+        return
         self.con.execute('UPDATE catalog SET nwords = nwords.nwords FROM nwords WHERE "catalog"."@id" = "nwords"."@id"')
+        logger.info("Creating nwords on `fastcat`.")
         self.con.execute("ALTER TABLE fastcat ADD nwords INTEGER")
+        logger.info("Updating nwords on `fastcat` from catalog table.")
         self.con.execute('UPDATE fastcat SET nwords = catalog.nwords FROM catalog WHERE fastcat._ncid = catalog._ncid')
 
     def build(self):
@@ -125,7 +134,8 @@ class BookwormCorpus(Corpus):
         logger.info("Sorting unigrams for duck ingest")
         self.sort_parquet_unigrams()
         logger.info("Ingesting unigrams")
-        self.ingest_unigrams()
+        self.ingest_wordids()
+        self.ingest_unigram__ncid()
 #        logger.warning("Ingesting bigrams")
         logger.info("Ingesting metadata")
 
