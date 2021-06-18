@@ -9,7 +9,7 @@ counts_schema = {
                 "$id": "#/properties/counttype/items",
                 "type": "string",
                 "default": "WordCount",
-                "enum":  agg_keys
+                "enum":  agg_keys,
                 "pattern": "^(.*)$"
             }
 }

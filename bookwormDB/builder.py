@@ -22,7 +22,7 @@ class BookwormCorpus(Corpus):
         super().__init__(*args, **kwargs)
         
     def encoded_batches(self):
-        for batch in self.encoded_wordcounts:
+        for batch in self.encoded_wordcounts():
             yield batch
             
     def bookworm_name(self):
@@ -51,12 +51,17 @@ class BookwormCorpus(Corpus):
         self._connection = duckdb.connect(str(self.db_location))
         return self._connection
     
+
     def ingest_unigrams(self):
         con = self.con
-        wordids = self.root / 'unigram__ncid.parquet'
-        con.execute(f"CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT * FROM parquet_scan('{wordids}')")
+        fin = self.root / 'wordids.feather'
+        word_table = pa.feather.read_table(fin)
+        pa.parquet.write_table(word_table, fin.with_suffix(".parquet"))
         con.execute(f"CREATE TABLE words AS SELECT * FROM parquet_scan('{self.root / 'wordids.parquet'}')")
         con.execute(f"CREATE TABLE wordsheap AS SELECT wordid, token as word, lower(token) as lowercase FROM words")
+
+        wordids = self.root / 'unigram__ncid.parquet'
+        con.execute(f"CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT * FROM parquet_scan('{wordids}')")
         
     def ingest_metadata(self):
         for tabpath in self.flat_tabs():
@@ -97,20 +102,22 @@ class BookwormCorpus(Corpus):
         con.execute(f"CREATE VIEW slowcat AS SELECT {','.join(unique)} FROM catalog")
 
     def ingest_wordcounts(self):
-        self.con.execute('CREATE TABLE nwords ("_ncid" INTEGER, "nwords" INTEGER)')
 
-        for p in (self.root / "document_lengths").glob("*.feather"):
-            tb = feather.read_table(p)
-            indices = feather.read_table(self.root / "build/batch_indices" / p.name, columns = ["_ncid"])
-            zipped = pa.table([indices['_ncid'], tb['count']], ["_ncid", "nwords"])
-            self.con.register_arrow("t", zipped)
-            self.con.execute("INSERT INTO nwords (_ncid, nwords) SELECT * FROM t")
+        self.con.execute('CREATE TABLE nwords ("@id" STRING, "nwords" INTEGER)')
+        logger.debug("Creating nwords")
+        for batch in self.iter_over('document_lengths'):
+            seen_a_word = True
+            tb = pa.Table.from_batches([batch])
+            self.con.register_arrow("t", tb)
+            self.con.execute('INSERT INTO nwords ("@id", nwords) SELECT * FROM t')
             self.con.unregister("t")
+        if not seen_a_word:
+            raise FileNotFoundError("No document lengths for corpus.")
 
         self.con.execute("ALTER TABLE catalog ADD nwords INTEGER")
-        self.con.execute('UPDATE catalog SET nwords = nwords.nwords FROM nwords WHERE "catalog"."_ncid" = "nwords"."_ncid"')
+        self.con.execute('UPDATE catalog SET nwords = nwords.nwords FROM nwords WHERE "catalog"."@id" = "nwords"."@id"')
         self.con.execute("ALTER TABLE fastcat ADD nwords INTEGER")
-        self.con.execute('UPDATE fastcat SET nwords = nwords.nwords FROM nwords WHERE fastcat._ncid = nwords._ncid')
+        self.con.execute('UPDATE fastcat SET nwords = catalog.nwords FROM catalog WHERE fastcat._ncid = catalog._ncid')
 
     def build(self):
         logger.info("Preparing metadata")
@@ -132,6 +139,6 @@ class BookwormCorpus(Corpus):
         logger.info("Building slow catalog view")
         self.create_slow_catalog()
         self.con.close()
-
+        self._connection = duckdb.connect(str(self.db_location), read_only = True)
 
 RESERVED_NAMES = ["slowcat", "fastcat", "catalog", "my_nwords", "unigram__ncid"]
