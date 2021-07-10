@@ -1,4 +1,4 @@
-from nonconsumptive.ducksauce import quacksort
+from ducksauce import from_files
 import duckdb
 import numpy as np
 from base64 import b64encode, b64decode
@@ -7,7 +7,7 @@ from nonconsumptive import Corpus
 from nonconsumptive.metadata import Catalog
 from pathlib import Path
 import logging
-from pyarrow import feather
+from pyarrow import feather, parquet
 logger = logging.getLogger("bookworm")
 
 class BookwormCorpus(Corpus):
@@ -26,14 +26,16 @@ class BookwormCorpus(Corpus):
             yield batch
             
     def bookworm_name(self):
+
         return self.db_location.with_suffix("").name
     
-    def sort_parquet_unigrams(self):
-        dest = self.root / 'unigram__ncid.parquet'
-        if dest.exists():
-            logger.warning(f"Using existed sorted unigrams at {dest} without checking if they're out of date.")
-            return
-        quacksort(self.encoded_batches(), ['wordid', '_ncid'], self.root / 'unigram__ncid.parquet', block_size = 5_000_000_000)
+    def create_unigrams(self):
+        self.cache_set.add("ncid_wordid")
+        for i in self.encoded_wordcounts():
+            pass
+        
+    def sort_unigrams(self, block_size = 5_000_000):
+        from_files((self.root / "ncid_wordid").glob("*"), ['wordid', '_ncid'], self.root / 'unigram__ncid.parquet', block_size = block_size)
 
     def prepare_metadata(self):
         self.metadata.to_flat_catalog()
@@ -106,11 +108,10 @@ class BookwormCorpus(Corpus):
         con.execute(f"CREATE VIEW slowcat AS SELECT {','.join(unique)} FROM catalog")
 
     def ingest_wordcounts(self):
-
         self.con.execute('CREATE TABLE nwords ("@id" STRING, "nwords" INTEGER)')
         logger.info("Creating nwords")
-        for batch in self.iter_over('document_lengths'):
-            logger.info(f"Ingesting batch of length {len(batch)}")
+        seen_a_word = False
+        for batch in self.iter_over('document_lengths', ids = "@id"):
             seen_a_word = True
             tb = pa.Table.from_batches([batch])
             self.con.register_arrow("t", tb)
@@ -121,7 +122,6 @@ class BookwormCorpus(Corpus):
         logger.info("Creating nwords on `catalog`")
         self.con.execute("ALTER TABLE catalog ADD nwords INTEGER")
         logger.info("Updating nwords on `catalog` from nwords table.")
-        return
         self.con.execute('UPDATE catalog SET nwords = nwords.nwords FROM nwords WHERE "catalog"."@id" = "nwords"."@id"')
         logger.info("Creating nwords on `fastcat`.")
         self.con.execute("ALTER TABLE fastcat ADD nwords INTEGER")
@@ -132,7 +132,8 @@ class BookwormCorpus(Corpus):
         logger.info("Preparing metadata")
         self.prepare_metadata()
         logger.info("Sorting unigrams for duck ingest")
-        self.sort_parquet_unigrams()
+        self.create_unigrams()
+        self.sort_unigrams()
         logger.info("Ingesting unigrams")
         self.ingest_wordids()
         self.ingest_unigram__ncid()
