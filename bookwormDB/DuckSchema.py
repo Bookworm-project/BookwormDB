@@ -1,6 +1,7 @@
 import pyarrow as pa
 from base64 import b64decode
 import logging
+import pandas as pd
 logger = logging.getLogger("bookworm")
 
 class DuckSchema(object):
@@ -53,11 +54,13 @@ class DuckSchema(object):
         schema = dict(tables)
 
         current_anchor = None
+        self.fields = []
         for tablename, tab in schema.items():
             sch = pa.ipc.read_schema(pa.py_buffer(b64decode(tab)))
             if tablename in ["catalog"]:
                 continue
             for i, field in enumerate(sch):
+                self.fields.append(field)
                 if i == 0:
                     current_anchor = field.name
                 else:
@@ -74,6 +77,23 @@ class DuckSchema(object):
                 self.tableToLookIn[field] = "slowcat"
                 self.anchorFields[field] = "_ncid"
 
+    def to_pandas(self):
+        """
+        Return a JSON representation of the schema.
+        """
+        fields = []
+        for field in self.fields:
+            name = field.name
+            if name.endswith("__id"):
+                continue
+            elif name in { 'count', 'wordid', '_ncid' }: 
+                continue
+            elif str(field.type) == 'old_string':
+                continue
+            else:        
+                fields.append({'dbname': name, 'dtype': str(field.type)})
+        return pd.DataFrame(fields)
+    
     def tables_for_variable(self, variable, depth = 0):
         """
         Returns the tables needed to look up a variable, back up to 'fastcat' or 'wordsheap'

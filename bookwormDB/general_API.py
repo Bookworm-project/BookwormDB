@@ -250,6 +250,15 @@ class APIcall(object):
         self.set_defaults()
 
 
+    def clone(self, query):
+        """
+        Make a clone of the APIcall object.
+        Used with multipart queries.
+
+        Should be sure that query itself is deeply cloned.
+        """
+        return APIcall(query)
+
     def set_defaults(self):
         query = self.query
         if "search_limits" not in query:
@@ -444,7 +453,6 @@ class APIcall(object):
         if not 'method' in self.query:
             return "You must pass a method to the query."
         if method=="returnPossibleFields":
-            method = "json_c"
             self.query['method'] = "schema"
             method = "schema"
 
@@ -462,7 +470,8 @@ class APIcall(object):
                 frame = self.data()
 
             if fmt == "json":
-                return self.return_json(version=2)
+                val = frame.to_dict(orient = "records")
+                return self._prepare_response(val, version = 2)
 
             if fmt == "csv":
                 return frame.to_csv(encoding="utf8", index=False)
@@ -519,16 +528,16 @@ class APIcall(object):
             for limits in self.query['search_limits']:
                 child = deepcopy(self.query)
                 child['search_limits'] = limits
-                q = self.__class__(child).return_json(raw_python_object=True,
-                                                  version=version)
+                q = self.clone(child).return_json(raw_python_object=True,
+                                                version=version)
                 returnable.append(q)
             return self._prepare_response(returnable, version)
 
-        if version == 3:
+        if version >= 3:
             for i, limits in enumerate(self.query['search_limits']):
                 child = deepcopy(self.query)
                 child['search_limits'] = limits
-                f = self.__class__(child).data()
+                f = self.clone(child).data()
                 f['Search'] = i
                 if i == 0:
                     frame = f
@@ -536,11 +545,9 @@ class APIcall(object):
                     frame = frame.append(f, ignore_index = True)
             return frame
 
-
     def html(self, data):
         """
-        Return data in column-oriented format with run-length encoding
-        on duplicate values.
+        return an HTML table.
         """
 
         if isinstance(data, Series) and 'status' in data:
@@ -634,10 +641,7 @@ class APIcall(object):
             resp = dict(status="error",
                         data="Internal error: unknown response version")
 
-        try:
-            return json.dumps(resp)
-        except ValueError:
-            return json.dumps(resp)
+        return json.dumps(resp)
 
 
 class oldSQLAPIcall(APIcall):
@@ -704,10 +708,18 @@ class DuckDBCall(APIcall):
     to discourage on-the-fly creation which is slow.
     """
 
-    def __init__(self, db, **kwargs):
+    def __init__(self, query, db):
 
         self.db = db
-        super().__init__(**kwargs)
+        super().__init__(query)
+
+    def clone(self, query):
+        """
+        Make a clone of the object.
+        Used with multipart queries.
+
+        """
+        return DuckDBCall(query, db = self.db)
 
     def generate_pandas_frame(self, call = None):
         """
@@ -721,10 +733,14 @@ class DuckDBCall(APIcall):
         """
         if call is None:
             call = self.query
-
-        q = DuckQuery(call, db = self.db).query()
-        logger.warning("Preparing to execute {}".format(q))
-        df = self.db.execute(q).df()
+        q = DuckQuery(call, db = self.db)
+        if call['method'] == 'schema':
+             m = q.databaseScheme.to_pandas()
+             print(m)
+             return m
+        query = q.query()
+        logger.warning("Preparing to execute {}".format(query))
+        df = self.db.execute(query).df()
         logger.debug("Query retrieved")
         return df
 

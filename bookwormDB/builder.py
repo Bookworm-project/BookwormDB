@@ -26,16 +26,10 @@ class BookwormCorpus(Corpus):
             yield batch
             
     def bookworm_name(self):
-
         return self.db_location.with_suffix("").name
-    
-    def create_unigrams(self):
-        self.cache_set.add("ncid_wordid")
-        for i in self.encoded_wordcounts():
-            pass
-        
+            
     def sort_unigrams(self, block_size = 5_000_000):
-        from_files((self.root / "ncid_wordid").glob("*"), ['wordid', '_ncid'], self.root / 'unigram__ncid.parquet', block_size = block_size)
+        from_files((self.root / "encoded_unigrams").glob("*"), ['wordid', '_ncid'], self.root / 'unigram__ncid.parquet', block_size = block_size)
 
     def prepare_metadata(self):
         self.metadata.to_flat_catalog()
@@ -108,6 +102,7 @@ class BookwormCorpus(Corpus):
         con.execute(f"CREATE VIEW slowcat AS SELECT {','.join(unique)} FROM catalog")
 
     def ingest_wordcounts(self):
+        self.con.execute('DROP TABLE IF EXISTS nwords')
         self.con.execute('CREATE TABLE nwords ("@id" STRING, "nwords" INTEGER)')
         logger.info("Creating nwords")
         seen_a_word = False
@@ -131,8 +126,9 @@ class BookwormCorpus(Corpus):
     def build(self):
         logger.info("Preparing metadata")
         self.prepare_metadata()
+        logger.info("Creating unigrams for duck ingest")
+        self.cache("encoded_unigrams")
         logger.info("Sorting unigrams for duck ingest")
-        self.create_unigrams()
         self.sort_unigrams()
         logger.info("Ingesting unigrams")
         self.ingest_wordids()

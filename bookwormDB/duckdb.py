@@ -69,6 +69,8 @@ class DuckQuery(object):
         self.databaseScheme = databaseScheme
         if databaseScheme is None:
             self.databaseScheme = DuckSchema(self.db)
+        if query_object['method'] == 'schema':
+            return
         self._wordswhere = None
         self.words = "words"
         self.defaults() # Take some defaults
