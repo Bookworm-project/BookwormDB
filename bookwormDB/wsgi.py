@@ -24,10 +24,7 @@ def content_type(query):
     if format == "json":
         return "application/json"
 
-    if format == "json_c":
-        return "application/json"
-
-    if format == "feather":
+    if format == "feather" or format == "parquet":
         return "application/octet-stream"
 
     if format == "html":
@@ -49,10 +46,13 @@ class DuckPool(dict):
     def __missing__(self, key):
         # Mother duck said 'quack quack quack quack'
         # and all of her five little duckies came back.
-        duck_dir = store()['duckdb_directory']
+        duck_dir = args.db_directory
         self[key] = duckdb.connect(str(Path(duck_dir) / key), read_only = True)
         return self[key]
-
+    def options(self):
+        duck_dir = args.db_directory
+        return [f.name for f in args.db_directory.glob("*") if f.is_file()]
+        
 duck_connections = DuckPool()
 
 if args.remote_host is None:
@@ -103,7 +103,6 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
         'charset': 'utf-8'
     }
 
-
     logger.debug("Received query {}".format(query))
     start = datetime.now()
 
@@ -120,15 +119,19 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
         status = '404'
         start_response(status, list(headers.items()))
         return [b'{"status":"error", "message": "You have passed invalid JSON to the Bookworm API"}']
-
-    args = store()['args']
-
-    if args.cache == "none":
-        process = API(query=query, db=duck_connections[query['database']], **API_kwargs) 
-    else:
-        process = Caching_API(query, query_cache, API, **API_kwargs)
-
-    response_body = process.execute()
+    
+    if query['method'] and query['method'] == "endpoints":
+        query['format'] = "json"
+        response_body = json.dumps({
+            'status': 'success',
+            'data': duck_connections.options()
+        })
+    else:    
+        if args.cache == "none":
+            process = API(query=query, db=duck_connections[query['database']], **API_kwargs) 
+        else:
+            process = Caching_API(query, query_cache, API, **API_kwargs)
+        response_body = process.execute()
 
     # It might be binary already.
     headers['Content-type'] = content_type(query)
@@ -151,9 +154,8 @@ def application(environ, start_response, logfile = "bookworm_queries.log"):
 
 # Copied from the gunicorn docs.
 
-
 def number_of_workers():
-    return (multiprocessing.cpu_count() * 2) + 1
+    return (multiprocessing.cpu_count()) + 1
 
 class StandaloneApplication(gunicorn.app.base.BaseApplication):
 
@@ -180,7 +182,7 @@ def run(port = 10012, bind="0.0.0.0", workers = number_of_workers()):
     port: the service port
     bind: the host to bind to. Requests that don't match this address
           will be ignored. The default accepts all connections: 127.0.0.1 listens
-          only to localhost.
+          only to localhost, for when you're hiding it behind nginx or apache or something.
     """
     if workers==0:
         workers = number_of_workers()
