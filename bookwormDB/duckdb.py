@@ -102,7 +102,6 @@ class DuckQuery(object):
         self.search_limits = query_object['search_limits']
         self.words_collation = query_object.get('words_collation', "Case_Sensitive")
 
-
         lookups = {
             "Case_Insensitive":'lowercase',
             'lowercase':'lowercase',

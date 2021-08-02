@@ -200,6 +200,16 @@ def need_comparison_query(count_types):
     needing_fields = [c for c in count_types if not c in ["WordCount","TextCount"]]
     return len(needing_fields) != 0
 
+def dates_to_iso(frame):
+    
+    for column in frame.columns:
+        if "date" in str(frame[column].dtype):
+            frame[column] = frame[column].apply(lambda x: x.isoformat())
+        else:
+            print(str(frame[column].dtype))
+    return frame
+
+
 def base_count_types(list_of_final_count_types):
     """
     the final count types are calculated from some base types across both
@@ -470,7 +480,8 @@ class APIcall(object):
                 frame = self.data()
 
             if fmt == "json":
-                val = frame.to_dict(orient = "records")
+
+                val = dates_to_iso(frame).to_dict(orient = "records")
                 return self._prepare_response(val, version = 2)
 
             if fmt == "csv":
@@ -736,11 +747,10 @@ class DuckDBCall(APIcall):
         q = DuckQuery(call, db = self.db)
         if call['method'] == 'schema':
              m = q.databaseScheme.to_pandas()
-             print(m)
              return m
         query = q.query()
         logger.warning("Preparing to execute {}".format(query))
-        df = self.db.execute(query).df()
+        df = dates_to_iso(self.db.execute(query).df())
         logger.debug("Query retrieved")
         return df
 

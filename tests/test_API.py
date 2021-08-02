@@ -68,7 +68,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
         
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m) == 5
 
     def test_multiword_search(self, federalist_bookworm):
@@ -82,8 +82,8 @@ class Test_Bookworm_SQL_Creation():
                 "groups": []
         }
         
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
-        assert m[0] > 33
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
+        assert m[0]["TextPercent"] > 33
 
     def test_ne_with_one_entry(self, federalist_bookworm):
         import json
@@ -98,7 +98,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
         
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m)==4
 
     def test_ne_with_two_entries(self, federalist_bookworm):
@@ -114,7 +114,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        m = json.loads(DuckDBCall(federalist_bookworm, query= query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m)==3
 
 
@@ -131,7 +131,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m)==3
 
 
@@ -151,7 +151,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m) == 2
 
     def test_lte_and_gte(self, federalist_bookworm):
@@ -167,9 +167,8 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())
-        print(m)
-        assert len(m['data'])==6
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
+        assert len(m)==6
         
     def test_and_with_two_entries(self, federalist_bookworm):
         import json
@@ -187,7 +186,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m)==0
         
     def ftest_adding_metadata_to_bookworm(self):
@@ -258,14 +257,14 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        val1 = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
-        assert(val1[0] > 0)
+        val1 = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
+        assert(val1[0]["WordCount"] > 0)
 
         query["words_collation"] = "Case_Insensitive"        
 
-        val2= json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        val2= json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         # The words ('The','the') appear more often than ('the') alone.
-        assert (val2[0] > val1[0])
+        assert (val2[0]["WordCount"] > val1[0]["WordCount"])
 
 
     def test_case_insensitivity_works_without_search_term_existing(self, federalist_bookworm):
@@ -277,8 +276,8 @@ class Test_Bookworm_SQL_Creation():
                 "words_collation":"Case_Insensitive",
                 "method":"data", "format":"json"
         }
-        val = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
-        assert (val[0] > 0)
+        val = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
+        assert (val[0]["WordCount"] > 0)
 
     def test_unicode_search_term(self, unicode_bookworm):
         query = {
@@ -289,8 +288,8 @@ class Test_Bookworm_SQL_Creation():
                 "words_collation":"Case_Insensitive",
                 "method":"data", "format":"json"
         }
-        val = json.loads(DuckDBCall(unicode_bookworm, query = query).execute())['data']
-        assert (val[0] > 0)
+        val = json.loads(DuckDBCall(db = unicode_bookworm, query = query).execute())['data']
+        assert (val[0]["WordCount"] > 0)
 
     def test_various_unicode_cases(self, unicode_bookworm):
         # There's a 'description_' for each individual item.
@@ -310,11 +309,11 @@ class Test_Bookworm_SQL_Creation():
                 "method": "data", "format": "json"
                 }
             try:
-                val = json.loads(DuckDBCall(unicode_bookworm, query = query).execute())['data']
+                val = json.loads(DuckDBCall(db = unicode_bookworm, query = query).execute())['data']
             except KeyError:
-                print(DuckDBCall(unicode_bookworm, query = query).execute())
+                print(DuckDBCall(db = unicode_bookworm, query = query).execute())
                 raise
-            assert(val[0] > 0)
+            assert(val[0]["WordCount"] > 0)
 
     def test_asterisks_in_search_limits(self, federalist_bookworm):
         """
@@ -329,7 +328,7 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
 
-        val1 = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        val1 = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
 
         query = {
             "database":"federalist_bookworm",
@@ -339,6 +338,6 @@ class Test_Bookworm_SQL_Creation():
             "method":"data", "format":"json"
             }
         val2 = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
-        assert(val1[0] == val2[0])        
+        assert(val1[0]["WordsPerMillion"] == val2[0]["WordsPerMillion"])        
 
         

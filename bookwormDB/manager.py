@@ -9,6 +9,7 @@ import json
 import nonconsumptive as nc
 from .store import store
 import logging
+import yaml
 from nonconsumptive.commander import namespace_to_kwargs, add_builder_parameters
 logger = logging.getLogger("bookworm")
 
@@ -116,10 +117,10 @@ def run_arguments():
             "fuller record, and 'debug' dumps many db queries, etc.",
             choices=["warning","info","debug"],type=str.lower,default="warning")
 
-    parser.add_argument("--ngrams",nargs="+",default=["unigrams"],help="What levels to parse with. Multiple arguments should be unquoted in spaces. This option currently does nothing.")
+    parser.add_argument("--ngrams", nargs="+", default=["unigrams"],help="What levels to parse with. Multiple arguments should be unquoted in spaces. This option currently does nothing.")
 
-    parser.add_argument("--db-directory", required = True, help = ""
-        "Directory where duckdb databases live.", type = Path)
+    parser.add_argument("--db-directory", help = ""
+        "Directory where duckdb databases live.", default = None, type = Path)
 
     parser.add_argument("--database", "-d", help = ""
         "The database name inside db-folder for this command. "
@@ -184,6 +185,10 @@ def run_arguments():
 
     # Call the function
     args = parser.parse_args()
+    if args.db_directory is None:
+        args.db_directory = Path(default_db_directory())
+    if args.db_directory is None:
+        raise ValueError("You must specify a db directory or include one in a local config file.")
     # stash those away.
     store()['args'] = args
     # Set the logging level based on the input.
@@ -207,3 +212,10 @@ def run_arguments():
     # becomes
     # BookwormMangager.build(carefully = True)
     getattr(my_bookworm, args.action)(args)
+
+def default_db_directory():
+    for p in [Path.home() / ".bookworm.yml"]:
+        if p.exists():
+            ks = yaml.safe_load(p.open())
+            if "db_directory" in ks:
+                return ks["db_directory"]
