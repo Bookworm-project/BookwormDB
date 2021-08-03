@@ -28,8 +28,22 @@ class BookwormCorpus(Corpus):
     def bookworm_name(self):
         return self.db_location.with_suffix("").name
             
-    def sort_unigrams(self, block_size = 5_000_000):
+    def sort_unigrams(self, block_size = 500_000_000):
         from_files((self.root / "encoded_unigrams").glob("*"), ['wordid', '_ncid'], self.root / 'unigram__ncid.parquet', block_size = block_size)
+
+    def ingest_ngrams_ncid(self, levels = ['bigram'], block_size = 500_000_000):
+        con = self.con
+        for i, f in enumerate(levels):
+            con.execute(f"DROP TABLE IF EXISTS {f}__ncid")
+            ngrams = i + 1
+            logging.info(f"Creating {f} table.")
+            sort_order = [f"word{i + 1}" for i in range(ngrams)] + ["_ncid"] 
+            ingest_file = self.root / f"{f}__ncid.parquet"
+            inputs = [*(self.root / f"encoded_{f}s").glob("*")]
+            print(inputs)
+            from_files(inputs, sort_order, ingest_file, block_size = block_size)
+            con.execute(f"CREATE TABLE {f}__ncid AS SELECT * FROM parquet_scan('{ingest_file}')")
+            ingest_file.unlink()
 
     def prepare_metadata(self):
         self.metadata.to_flat_catalog()
@@ -62,7 +76,9 @@ class BookwormCorpus(Corpus):
         con = self.con
         wordids = self.root / 'unigram__ncid.parquet'
         con.execute(f"CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT * FROM parquet_scan('{wordids}')")
-        
+        wordids.unlink()
+
+
     def ingest_metadata(self):
         for tabpath in self.flat_tabs():
             name = tabpath.with_suffix("").name

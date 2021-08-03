@@ -224,7 +224,7 @@ class DuckQuery(object):
         if self.gram_size() == 1:
             return '"unigram__ncid" as main'
         if self.gram_size() == 2:
-            return '"word1_word2__ncid" as main'
+            return '"bigram__ncid" as main'
 
     def full_query_tables(self):
         # Joins are needed to provide groups, but *not* to provide
@@ -418,7 +418,7 @@ class DuckQuery(object):
 
         if needsBigrams:
             self.main = '''
-                 bigrams_word1_word2 as main
+                 bigrams__ncid as main
             '''
 
             self.wordstables = """

@@ -2,6 +2,7 @@
 
 from pandas import merge, Series, set_option, DataFrame
 from pandas.io.sql import read_sql
+import pandas as pd
 from pyarrow import feather
 from copy import deepcopy
 from collections import defaultdict
@@ -480,8 +481,9 @@ class APIcall(object):
                 frame = self.data()
 
             if fmt == "json":
-
-                val = dates_to_iso(frame).to_dict(orient = "records")
+                val = dates_to_iso(frame)
+                val = val.where(pd.notnull(val), None)
+                val = val.to_dict(orient = "records")
                 return self._prepare_response(val, version = 2)
 
             if fmt == "csv":
@@ -498,7 +500,7 @@ class APIcall(object):
                 try:
                     feather.write_feather(frame, fout, compression = compression)
                 except:
-                    logger.warning("You need the pyarrow package installed to export as feather.")
+                    logger.error("You need the pyarrow package installed to export as feather.")
                     raise
                 fout.seek(0)
                 return fout.read()
@@ -568,26 +570,6 @@ class APIcall(object):
         set_option('display.max_colwidth', -1)
         return data.to_html(escape = False, index = False)
 
-
-    def return_rle_json(self, data):
-        """
-        Return data in column-oriented format with run-length encoding
-        on duplicate values.
-        """
-
-        if isinstance(data, Series) and 'status' in data:
-            # If data has a status, Bookworm is trying to send us an error
-            return data.to_json()
-
-        output = {'status':'success', 'data':{}}
-
-        for k in data:
-            series = data[k]
-            output['data'][k] = rle(data[k].tolist())
-
-        return json.dumps(output)
-
-
     def return_json(self, raw_python_object=False, version=1):
         '''
         Get JSON data for a single search_limit.
@@ -653,41 +635,6 @@ class APIcall(object):
                         data="Internal error: unknown response version")
 
         return json.dumps(resp)
-
-
-class oldSQLAPIcall(APIcall):
-    """
-    To make a new backend for the API, you just need to extend the base API
-    call class like this.
-
-    This one is comically short because all the real work is done in the
-    userquery object.
-
-    But the point is, you need to define a function "generate_pandas_frame"
-    that accepts an API call and returns a pandas frame.
-
-    But that API call is more limited than the general API; you only need to
-    support "WordCount" and "TextCount" methods.
-    """
-
-    def generate_pandas_frame(self, call = None):
-        """
-
-        This is good example of the query that actually fetches the results.
-        It creates some SQL, runs it, and returns it as a pandas DataFrame.
-
-        The actual SQL production is handled by the userquery class, which uses
-        more legacy code.
-
-        """
-
-        if call is None:
-            call = self.query
-
-        con = DbConnect(prefs, self.query['database'])
-        q = userquery(call).query()
-        df = read_sql(q, con.db)
-        return df
 
 class MetaAPIcall(APIcall):
     def __init__(self, endpoints):
