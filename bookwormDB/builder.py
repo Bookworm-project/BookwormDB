@@ -28,10 +28,13 @@ class BookwormCorpus(Corpus):
     def bookworm_name(self):
         return self.db_location.with_suffix("").name
             
-    def sort_unigrams(self, block_size = 500_000_000):
-        from_files((self.root / "encoded_unigrams").glob("*"), ['wordid', '_ncid'], self.root / 'unigram__ncid.parquet', block_size = block_size)
+    def sort_unigrams(self, block_size = 2_500_000_000):
+        target = self.root / 'unigram__ncid.parquet'
+        if target.exists():
+          logging.info(f"{target} already exists, skipping sort.")
+        from_files((self.root / "encoded_unigrams").glob("*"), ['wordid', '_ncid'], target, block_size = block_size)
 
-    def ingest_ngrams_ncid(self, levels = ['bigram'], block_size = 500_000_000):
+    def ingest_ngrams_ncid(self, levels = ['bigram'], block_size = 2_500_000_000):
         con = self.con
         for i, f in enumerate(levels):
             con.execute(f"DROP TABLE IF EXISTS {f}__ncid")
@@ -43,7 +46,7 @@ class BookwormCorpus(Corpus):
             print(inputs)
             from_files(inputs, sort_order, ingest_file, block_size = block_size)
             con.execute(f"CREATE TABLE {f}__ncid AS SELECT * FROM parquet_scan('{ingest_file}')")
-            ingest_file.unlink()
+#            ingest_file.unlink()
 
     def prepare_metadata(self):
         self.metadata.to_flat_catalog()
@@ -76,7 +79,7 @@ class BookwormCorpus(Corpus):
         con = self.con
         wordids = self.root / 'unigram__ncid.parquet'
         con.execute(f"CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT * FROM parquet_scan('{wordids}')")
-        wordids.unlink()
+#        wordids.unlink()
 
 
     def ingest_metadata(self):
@@ -143,7 +146,11 @@ class BookwormCorpus(Corpus):
         logger.info("Preparing metadata")
         self.prepare_metadata()
         logger.info("Creating unigrams for duck ingest")
-        self.cache("encoded_unigrams")
+        for k in ["token_counts", "tokenization"]:
+            if k in self.cache_set:
+                self.multiprocess(k)
+        self.total_wordcounts # To cache it
+        self.multiprocess("encoded_unigrams")
         logger.info("Sorting unigrams for duck ingest")
         self.sort_unigrams()
         logger.info("Ingesting unigrams")

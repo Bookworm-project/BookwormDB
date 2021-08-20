@@ -483,6 +483,7 @@ class APIcall(object):
             if fmt == "json":
                 val = dates_to_iso(frame)
                 val = val.where(pd.notnull(val), None)
+                val.replace([np.inf, -np.inf], None, inplace=True)
                 val = val.to_dict(orient = "records")
                 return self._prepare_response(val, version = 2)
 

@@ -109,9 +109,12 @@ class DuckQuery(object):
             "case_insensitive":"lowercase",
             "Case_Sensitive":"word",
             'stem':'stem'}
+        try:
+            self.word_field = lookups[self.words_collation]
+        except KeyError:
+            self.word_field = 'word'
 
-        self.word_field = lookups[self.words_collation]
-
+    """
     @property
     def groups(self):
         if self._groups:
@@ -164,10 +167,10 @@ class DuckQuery(object):
                 except KeyError:
                     self.groups.add('"' + group + '"')
 
-        """
+        ""
         There are the selections which can include table refs, and the groupings, which may not:
         and the final suffix to enable fast lookup
-        """
+        ""
 
         self.selections = ",".join(self.groups)
         self.groupings = ",".join([group for group in self.groups])
@@ -177,7 +180,7 @@ class DuckQuery(object):
         self.counttype = query_object['counttype']
         if isinstance(self.counttype, (str)):
             self.counttype = [self.counttype]
-
+    """
     @property
     def word_limits(self):
         if 'word' in self.limits:
@@ -206,19 +209,53 @@ class DuckQuery(object):
             return " wordid IN ({})".format(f)
         else:
             return " TRUE "
-
-    def make_group_query(self):
-        aliases = []
-        for g in self.query_object["groups"]:
-            try:
-                aliases.append(self.databaseScheme.aliases[g])
-            except KeyError:
-                aliases.append(g)
-
-        if len(self.query_object["groups"]) > 0:
-            return "GROUP BY {}".format(", ".join(self.query_object["groups"]))
+    
+    def time_rounding(self, fieldname):
+        if not 'date_resolution' in self.query_object:
+            return ['year']
+        elif isinstance(self.query_object['date_resolution'], (str)):
+            return self.query_object['date_resolution']
+        elif fieldname in self.query_object['date_resolution']:
+            return self.query_object['date_resolution'][fieldname]
         else:
-            return " "
+            return ['year', 'month']
+       
+    def make_group_query(self):
+        # Based on groups, determine what the groupings are, and the selections including alises.
+        # Includes date parsing.
+        
+        aliases = []
+        fields = []
+        for g in self.query_object["groups"]:
+            wrapped = f'"{g}"'
+            if g in self.databaseScheme.aliases:
+                alias = f'"{self.databaseScheme.aliases[g]}"'
+#                aliases.append(alias)
+                aliases.append(f"FIRST({wrapped}) as {wrapped}")
+                fields.append(alias)
+            elif self.databaseScheme.records[g]['dtype'].startswith("date"):
+                resolutions = set(self.time_rounding(g))
+                date_exprs = []
+                for res in ['year', 'month', 'day']:
+                    if res in resolutions:
+                        n = 2
+                        if res == 'year':
+                            n = 4                            
+                        date_exprs.append(f'''FIRST(LPAD({res}("{g}")::char, {n}, '0'))''')
+                        fields.append(f'{res}("{g}")')
+                    else:
+                        if res == 'year':
+                            date_exprs.append("'-'")
+                        # year needs a leading dash "--12-07", though support is rare
+                aliases.append(" || ".join(date_exprs) + f'AS {wrapped}') # Concatenate strings.                            
+            else:
+                aliases.append(wrapped)
+                fields.append(wrapped)
+
+        grouping = " "
+        if len(self.query_object["groups"]) > 0:
+            grouping = "GROUP BY " + ", ".join(fields)
+        return aliases, grouping
 
     def main_table(self):
         if self.gram_size() == 1:
@@ -254,8 +291,9 @@ class DuckQuery(object):
         return " NATURAL JOIN ".join(tables)
 
     def base_query(self):
+        group_aliases, group_object = self.make_group_query()
         return f"""
-        SELECT {', '.join(self.set_operations() + self.query_object['groups'])}
+        SELECT {', '.join(self.set_operations() + group_aliases)}
         FROM {self.query_tables}
         WHERE
           {self._ncid_query()}
@@ -263,7 +301,7 @@ class DuckQuery(object):
           {self.wordid_query}
           AND
           {self.catwhere}
-        {self.make_group_query()}
+        {group_object}
         """
 
     @property

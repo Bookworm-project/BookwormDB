@@ -19,7 +19,7 @@ class DuckSchema(object):
     def __init__(self, db):
         # XXXX
         self.db = db
-
+        self._records = None
         # hash of what table each variable is in
         self.tableToLookIn = {
             '_ncid': 'fastcat',
@@ -77,11 +77,14 @@ class DuckSchema(object):
                 self.tableToLookIn[field] = "slowcat"
                 self.anchorFields[field] = "_ncid"
 
-    def to_pandas(self):
+    @property
+    def records(self):
         """
         Return a JSON representation of the schema.
         """
-        fields = []
+        if self._records is not None:
+            return self._records
+        fields = {}
         for field in self.fields:
             name = field.name
             if name.endswith("__id"):
@@ -91,9 +94,15 @@ class DuckSchema(object):
             elif str(field.type) == 'old_string':
                 continue
             else:        
-                fields.append({'dbname': name, 'dtype': str(field.type)})
-        return pd.DataFrame(fields)
-    
+                fields[name] = {'dbname': name, 'dtype': str(field.type)}
+                for k, v in field.metadata.items():
+                    fields[name][k.decode('utf-8')] = v.decode('utf-8')
+        self._records = fields
+        return fields
+
+    def to_pandas(self):
+        return pd.DataFrame([*self.records.values()])
+
     def tables_for_variable(self, variable, depth = 0):
         """
         Returns the tables needed to look up a variable, back up to 'fastcat' or 'wordsheap'
