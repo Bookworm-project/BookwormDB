@@ -10,6 +10,15 @@ import hashlib
 import logging
 logger = logging.getLogger("bookworm")
 
+"""
+APOLOGIA:
+
+This is the oldest part of the code base. There are a lot of places
+where I didn't know how to do things yet, and probably more unused functions
+than elsewhere.
+
+"""
+
 def fail_if_nonword_characters_in_columns(input):
     keys = all_keys(input)
     for key in keys:
@@ -262,7 +271,9 @@ class DuckQuery(object):
             return '"unigram__ncid" as main'
         if self.gram_size() == 2:
             return '"bigram__ncid" as main'
-
+        if self.gram_size() == 3:
+            return '"trigram__ncid" as main'
+            
     def full_query_tables(self):
         # Joins are needed to provide groups, but *not* to provide
         # provide evidence for wheres.

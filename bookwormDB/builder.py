@@ -7,7 +7,7 @@ from nonconsumptive import Corpus
 from nonconsumptive.metadata import Catalog
 from pathlib import Path
 import logging
-from pyarrow import feather, parquet
+from pyarrow import feather, parquet, dataset
 logger = logging.getLogger("bookworm")
 
 class BookwormCorpus(Corpus):
@@ -29,6 +29,7 @@ class BookwormCorpus(Corpus):
         return self.db_location.with_suffix("").name
             
     def sort_unigrams(self, block_size = 2_500_000_000):
+        raise("Deprecated method.")
         target = self.root / 'unigram__ncid.parquet'
         if target.exists():
           logging.info(f"{target} already exists, skipping sort.")
@@ -77,10 +78,26 @@ class BookwormCorpus(Corpus):
 
     def ingest_unigram__ncid(self):
         con = self.con
-        wordids = self.root / 'unigram__ncid.parquet'
-        con.execute(f"CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT * FROM parquet_scan('{wordids}')")
-#        wordids.unlink()
+        encoded = dataset(self.root / 'encoded_unigrams', format = "feather")
+        con.register_arrow("unigrams_dataset", encoded)
+        con.execute("CREATE TABLE IF NOT EXISTS unigram__ncid AS SELECT wordid, _ncid, count FROM unigrams_dataset ORDER BY wordid, _ncid")
 
+    def ingest_ngram__ncid(self, ngrams = 2):
+        con = self.con
+        lookup = [
+            None,
+            None,
+            "bigram",
+            "trigram",
+            "quadgram",
+            "quintgram"
+        ]
+        name = lookup[ngrams]
+        encoded = dataset(self.root / f'encoded_{name}s', format = "feather")
+        con.register_arrow("dataset", encoded)
+        word_cols = ",".join([f"word{i + 1}" for i in range(ngrams)])
+        con.execute(f"CREATE TABLE IF NOT EXISTS {name}__ncid AS SELECT {word_cols}, _ncid, count "
+                    "FROM unigrams_dataset ORDER BY {word_cols}, _ncid")
 
     def ingest_metadata(self):
         for tabpath in self.flat_tabs():
@@ -128,7 +145,7 @@ class BookwormCorpus(Corpus):
         for batch in self.iter_over('document_lengths', ids = "@id"):
             seen_a_word = True
             tb = pa.Table.from_batches([batch])
-            self.con.register_arrow("t", tb)
+            self.con.register("t", tb.to_pandas())
             self.con.execute('INSERT INTO nwords ("@id", nwords) SELECT * FROM t')
             self.con.unregister("t")
         if not seen_a_word:
@@ -151,10 +168,8 @@ class BookwormCorpus(Corpus):
                 self.multiprocess(k)
         self.total_wordcounts # To cache it
         self.multiprocess("encoded_unigrams")
-        logger.info("Sorting unigrams for duck ingest")
-        self.sort_unigrams()
-        logger.info("Ingesting unigrams")
         self.ingest_wordids()
+        logger.info("Sorting and ingesting unigrams")
         self.ingest_unigram__ncid()
 #        logger.warning("Ingesting bigrams")
         logger.info("Ingesting metadata")
