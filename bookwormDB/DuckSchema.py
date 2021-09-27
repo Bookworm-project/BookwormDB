@@ -95,8 +95,10 @@ class DuckSchema(object):
                 continue
             else:        
                 fields[name] = {'dbname': name, 'dtype': str(field.type)}
-                for k, v in field.metadata.items():
-                    fields[name][k.decode('utf-8')] = v.decode('utf-8')
+                if field.metadata:
+                    for k, v in field.metadata.items():
+                        fields[name][k.decode('utf-8')] = v.decode('utf-8')
+
         self._records = fields
         return fields
 
@@ -107,7 +109,7 @@ class DuckSchema(object):
         """
         Returns the tables needed to look up a variable, back up to 'fastcat' or 'wordsheap'
         """
-        if variable == '_ncid' or variable == 'wordid':
+        if variable == '_ncid' or variable == 'wordid' or (variable.startswith("word") and len(variable) == 5):
             return []
         vals = []
         try:

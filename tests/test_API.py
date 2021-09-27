@@ -19,6 +19,7 @@ def federalist_bookworm(tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp("tmpdir")
     corp = BookwormCorpus(
         f"{path}",
+        ngrams = 2,
         texts = Path('tests/test_bookworm_files/input.txt'),
         metadata = "tests/test_bookworm_files/jsoncatalog.txt",
         dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})    
@@ -32,6 +33,7 @@ def unicode_bookworm(tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp("tmpdir")
     corp = BookwormCorpus(
         f"{path}",
+        ngrams = 1,
         texts = Path('tests/test_bookworm_files_unicode/input.txt'),
         metadata = "tests/test_bookworm_files_unicode/jsoncatalog.txt",
         dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})
@@ -65,7 +67,8 @@ class Test_Bookworm_SQL_Creation():
                 "search_limits":{},
                 "counttype":"TextPercent",
                 "groups":["author"],
-                "method":"data", "format":"json"
+                "method":"data",
+                "format":"json"
         }
         
         m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
@@ -337,7 +340,7 @@ class Test_Bookworm_SQL_Creation():
             "groups":[],
             "method":"data", "format":"json"
             }
-        val2 = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        val2 = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert(val1[0]["WordsPerMillion"] == val2[0]["WordsPerMillion"])        
 
         

@@ -9,6 +9,7 @@ class TestCreation():
 
         corp = BookwormCorpus(
             path,
+            ngrams = 2,
             texts = Path('tests/test_bookworm_files/input.txt'),
             metadata = "tests/test_bookworm_files/jsoncatalog.txt",
             dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})
@@ -22,9 +23,10 @@ class TestCreation():
         if path.exists(): path.unlink()
         corp = BookwormCorpus(
            path,
-            texts = Path('tests/test_bookworm_files_unicode/input.txt'),
-            metadata = "tests/test_bookworm_files_unicode/jsoncatalog.txt",
-            dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})
+           ngrams = 2,
+           texts = Path('tests/test_bookworm_files_unicode/input.txt'),
+           metadata = "tests/test_bookworm_files_unicode/jsoncatalog.txt",
+           dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})
         corp.build()
         con = duckdb.connect(str(path))
         # There's a 'description_' for each individual item.

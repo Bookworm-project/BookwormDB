@@ -81,6 +81,7 @@ section'client'
         db_path = args.db_directory / args.database
         corp = BookwormCorpus(
             db_location = db_path,
+            ngrams = args.ngrams,
             **nc_params,
             cache_set = {"tokenization", "word_counts",
                             "encoded_unigrams", "document_lengths"})
@@ -117,7 +118,7 @@ def run_arguments():
             "fuller record, and 'debug' dumps many db queries, etc.",
             choices=["warning","info","debug"],type=str.lower,default="warning")
 
-    parser.add_argument("--ngrams", nargs="+", default=["unigrams"],help="What levels to parse with. Multiple arguments should be unquoted in spaces. This option currently does nothing.")
+    parser.add_argument("--ngrams", type = int, default = 2, help = "How many ngrams to create count tables for. Maximum 5. Large values will dramatically slow creation.")
 
     parser.add_argument("--db-directory", help = ""
         "Directory where duckdb databases live.", default = None, type = Path)

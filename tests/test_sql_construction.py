@@ -21,6 +21,7 @@ def federalist_bookworm(tmpdir_factory):
     tmpdir = tmpdir_factory.mktemp("tmpdir")
     corp = BookwormCorpus(
         f"{path}",
+        ngrams = 2,
         texts = Path('tests/test_bookworm_files/input.txt'),
         metadata = "tests/test_bookworm_files/jsoncatalog.txt",
         dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})    
@@ -35,6 +36,7 @@ def unicode_bookworm(tmpdir_factory):
 
     corp = BookwormCorpus(
         f"{path}",
+        ngrams = 2,
         texts = Path('tests/test_bookworm_files_unicode/input.txt'),
         metadata = "tests/test_bookworm_files_unicode/jsoncatalog.txt",
         dir = tmpdir, cache_set = {"tokenization", "token_counts", "wordids"})
@@ -58,5 +60,5 @@ class Test_Bookworm_SQL_Creation():
                 "method":"data", "format":"json"
         }
         
-        m = json.loads(DuckDBCall(federalist_bookworm, query = query).execute())['data']
+        m = json.loads(DuckDBCall(db = federalist_bookworm, query = query).execute())['data']
         assert len(m)==4
